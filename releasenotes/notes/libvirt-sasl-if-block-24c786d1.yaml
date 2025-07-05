@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Respects ``libvirt_enable_sasl`` when rendering the ``nova_libvirt``
+    container config by omitting SASL configuration files if the feature
+    is disabled.
