@@ -23,13 +23,15 @@
             "perm": "0600",
             "merge": true
         },
-        {% endif %}{% if nova_compute_virt_type == "vmware" and not vmware_vcenter_insecure | bool %},
+        {% endif %}
+{% if nova_compute_virt_type == "vmware" and not vmware_vcenter_insecure | bool %}
         {
             "source": "{{ container_config_directory }}/vmware_ca",
             "dest": "/etc/nova/vmware_ca",
             "owner": "nova",
             "perm": "0600"
-        }{% endif %}{% if libvirt_tls | bool %},
+        },
+{% endif %}{% if libvirt_tls | bool %},
         {
             "source": "{{ container_config_directory }}/clientkey.pem",
             "dest": "/etc/pki/libvirt/private/clientkey.pem",
