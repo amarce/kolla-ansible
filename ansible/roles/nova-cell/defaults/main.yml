@@ -88,7 +88,7 @@ nova_cell_config_validation:
 nova_hw_disk_discard: "unmap"
 
 nova_cell_ceph_backend:
-  name: "{{ cinder_backend_ceph_name }}"
+  name: "{{ (cinder_ceph_backends[0].name if cinder_ceph_backends|length > 0 else cinder_backend_ceph_name) }}"
   cluster: "{{ ceph_cluster }}"
   vms:
     user: "{{ ceph_nova_user }}"

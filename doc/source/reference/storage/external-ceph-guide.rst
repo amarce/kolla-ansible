@@ -424,6 +424,9 @@ Configuring Nova for Ceph includes following steps:
 
   * ``ceph_nova_user`` (by default it's the same as ``ceph_cinder_user``)
   * ``ceph_nova_pool_name`` (default: ``vms``)
+  * ``nova_cell_ceph_backend.name`` defaults to the name of the first
+    backend in ``cinder_ceph_backends``. Set this to a different backend
+    when using custom Ceph pools for Nova instance disks.
 
 * For a single backend, place ``ceph.conf`` and the keyring in
   ``/etc/kolla/config/nova``. For example:
