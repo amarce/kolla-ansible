@@ -14,6 +14,21 @@
     - nova_backend == "rbd"
     - external_ceph_cephx_enabled | bool
 
+- name: Check nova ceph config file
+  vars:
+    cluster: "{{ item.cluster }}"
+    paths:
+      - "{{ node_custom_config }}/nova/{{ inventory_hostname }}/{{ cluster }}.conf"
+      - "{{ node_custom_config }}/nova/{{ cluster }}.conf"
+  stat:
+    path: "{{ lookup('first_found', paths) }}"
+  delegate_to: localhost
+  register: nova_ceph_conf_file
+  failed_when: not nova_ceph_conf_file.stat.exists
+  when:
+    - nova_backend == 'rbd' or cinder_backend_ceph | bool
+  loop: "{{ cinder_ceph_backends + [nova_cell_ceph_backend] }}"
+
 - name: Ensure nova service ceph config subdir exists
   vars:
     service: "{{ nova_cell_services[item] }}"
