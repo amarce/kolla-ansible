@@ -418,6 +418,8 @@ Configuring Nova for Ceph includes following steps:
 
   .. code-block:: yaml
 
+     nova_backend: "rbd"
+     # or (for backward compatibility)
      nova_backend_ceph: "yes"
 
 * Configure Ceph authentication details in ``/etc/kolla/globals.yml``:
@@ -435,6 +437,7 @@ Configuring Nova for Ceph includes following steps:
   * ``/etc/kolla/config/nova/ceph.client.nova.keyring``
 
   These are mounted into ``/etc/ceph`` inside the Nova containers.
+  ``nova_backend`` controls whether these configuration files are mounted.
 
 * For multiple backends, provide ``<cluster>.conf`` and
   ``<cluster>.client.nova.keyring`` files in ``/etc/kolla/config/nova``
