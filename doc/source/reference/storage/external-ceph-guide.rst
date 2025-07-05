@@ -304,9 +304,12 @@ the use with availability zones:
 
 Nova must also be configured to allow access to Cinder volumes:
 
-* Copy Ceph config and keyring file(s) to ``/etc/kolla/config/nova``. For
-  multiple backends provide files named ``<cluster>.conf`` and
-  ``<cluster>.client.<user>.keyring`` for each backend.
+* For a single backend, copy ``ceph.conf`` and the matching keyring to
+  ``/etc/kolla/config/nova``. These files are mounted into the containers
+  under ``/etc/ceph``.
+* For multiple backends, provide files named ``<cluster>.conf`` and
+  ``<cluster>.client.<user>.keyring`` for each backend in
+  ``/etc/kolla/config/nova``.
 
 To configure different Ceph backends for nova-compute hosts, which is useful
 for use with availability zones:
@@ -325,6 +328,9 @@ for use with availability zones:
   * ``/etc/kolla/config/nova/<hostname1>/ceph1.client.cinder.keyring``
   * ``/etc/kolla/config/nova/<hostname2>/ceph2.conf``
   * ``/etc/kolla/config/nova/<hostname2>/ceph2.client.cinder.keyring``
+
+  These per-host files will also be mounted into ``/etc/ceph`` inside the
+  containers.
 
 If ``zun`` is enabled, and you wish to use cinder volumes with zun,
 it must also be configured to allow access to Cinder volumes:
@@ -365,10 +371,17 @@ Configuring Nova for Ceph includes following steps:
   * ``ceph_nova_user`` (by default it's the same as ``ceph_cinder_user``)
   * ``ceph_nova_pool_name`` (default: ``vms``)
 
-* Copy Ceph configuration file to ``/etc/kolla/config/nova/ceph.conf``
-* Copy Ceph keyring file(s) to:
+* For a single backend, place ``ceph.conf`` and the keyring in
+  ``/etc/kolla/config/nova``. For example:
 
+  * ``/etc/kolla/config/nova/ceph.conf``
   * ``/etc/kolla/config/nova/ceph.client.nova.keyring``
+
+  These are mounted into ``/etc/ceph`` inside the Nova containers.
+
+* For multiple backends, provide ``<cluster>.conf`` and
+  ``<cluster>.client.nova.keyring`` files in ``/etc/kolla/config/nova``
+  for each backend.
 
   .. note::
 
