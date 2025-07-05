@@ -282,6 +282,18 @@ the use with availability zones:
   * ``/etc/kolla/config/cinder/cinder-backup/ceph2.client.cinder.keyring``
   * ``/etc/kolla/config/cinder/cinder-backup/ceph2.client.cinder-backup.keyring``
 
+* Configure libvirt secrets for each backend in ``/etc/kolla/passwords.yml``:
+
+  .. code-block:: yaml
+
+     ceph_backend_secrets:
+       ceph1-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+       ceph2-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+
 .. note::
 
    ``cinder-backup`` requires keyrings for accessing volumes
@@ -289,10 +301,9 @@ the use with availability zones:
 
 Nova must also be configured to allow access to Cinder volumes:
 
-* Copy Ceph config and keyring file(s) to:
-
-  * ``/etc/kolla/config/nova/ceph.conf``
-  * ``/etc/kolla/config/nova/ceph.client.cinder.keyring``
+* Copy Ceph config and keyring file(s) to ``/etc/kolla/config/nova``. For
+  multiple backends provide files named ``<cluster>.conf`` and
+  ``<cluster>.client.<user>.keyring`` for each backend.
 
 To configure different Ceph backends for nova-compute hosts, which is useful
 for use with availability zones:
