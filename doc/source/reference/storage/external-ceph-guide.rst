@@ -297,10 +297,64 @@ the use with availability zones:
   ``kolla-genpwd`` will automatically populate ``ceph_backend_secrets`` with a
   unique UUID and secret for each backend defined.
 
+  Volumes created using these backends may be booted from by Nova, allowing
+  instance disks to reside on any of the pools in the cluster.
+
 .. note::
 
    ``cinder-backup`` requires keyrings for accessing volumes
    and backups pool.
+
+To use several pools from a single Ceph cluster, reuse the same
+``ceph.conf`` file for each backend and define the backends with unique
+users and secrets:
+
+* Copy the Ceph configuration file to ``/etc/kolla/config/cinder/ceph.conf``
+
+* Declare Ceph backends in ``globals.yml``
+
+  .. code-block:: yaml
+
+     cinder_ceph_backends:
+       - name: "fast-rbd"
+         cluster: "ceph"
+         user: "cinder-fast"
+         pool: "fast-volumes"
+         enabled: "{{ cinder_backend_ceph | bool }}"
+       - name: "slow-rbd"
+         cluster: "ceph"
+         user: "cinder-slow"
+         pool: "slow-volumes"
+         enabled: "{{ cinder_backend_ceph | bool }}"
+
+     cinder_backup_ceph_backend:
+       name: "ceph-backup-rbd"
+       cluster: "ceph"
+       user: "cinder-backup"
+       pool: "backups"
+       type: rbd
+       enabled: "{{ enable_cinder_backup | bool }}"
+
+* Provide keyring files for all Ceph backends:
+
+  * ``/etc/kolla/config/cinder/cinder-volume/ceph.client.cinder-fast.keyring``
+  * ``/etc/kolla/config/cinder/cinder-volume/ceph.client.cinder-slow.keyring``
+  * ``/etc/kolla/config/cinder/cinder-backup/ceph.client.cinder-backup.keyring``
+
+* Configure libvirt secrets for each backend in ``/etc/kolla/passwords.yml``:
+
+  .. code-block:: yaml
+
+     ceph_backend_secrets:
+       fast-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+       slow-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+
+  ``kolla-genpwd`` will automatically populate ``ceph_backend_secrets`` with a
+  unique UUID and secret for each backend defined.
 
 Nova must also be configured to allow access to Cinder volumes:
 
