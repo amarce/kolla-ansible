@@ -12,7 +12,7 @@
             "dest": "/etc/libvirt/qemu.conf",
             "owner": "root",
             "perm": "0600"
-        },
+        }{% if libvirt_tls | bool %},{% endif %}
 {% if libvirt_tls | bool %}
         {
             "source": "{{ container_config_directory }}/serverkey.pem",
@@ -43,7 +43,7 @@
             "dest": "/etc/pki/CA/cacert.pem",
             "owner": "root",
             "perm": "0600"
-        },{% endif %}
+        }{% if nova_backend == "rbd" or cinder_backend_ceph | bool or libvirt_enable_sasl | bool or kolla_copy_ca_into_containers | bool %},{% endif %}{% endif %}
 {% if nova_backend == "rbd" or cinder_backend_ceph | bool %}
         {
             "source": "{{ container_config_directory }}/secrets",
@@ -58,7 +58,7 @@
             "owner": "nova",
             "perm": "0600",
             "merge": true
-        },{% endif %}
+        }{% if libvirt_enable_sasl | bool or kolla_copy_ca_into_containers | bool %},{% endif %}{% endif %}
 {% if libvirt_enable_sasl | bool %}
         {
             "source": "{{ container_config_directory }}/sasl.conf",
@@ -71,7 +71,8 @@
             "dest": "/root/.config/libvirt/auth.conf",
             "owner": "root",
             "perm": "0600"
-        }{% endif %}{% if kolla_copy_ca_into_containers | bool %},
+        }{% if kolla_copy_ca_into_containers | bool %},{% endif %}{% endif %}
+{% if kolla_copy_ca_into_containers | bool %}
         {
             "source": "{{ container_config_directory }}/ca-certificates",
             "dest": "/var/lib/kolla/share/ca-certificates",
