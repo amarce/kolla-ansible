@@ -12,7 +12,8 @@
             "dest": "/etc/libvirt/qemu.conf",
             "owner": "root",
             "perm": "0600"
-        }{% if libvirt_tls | bool %},
+        },
+{% if libvirt_tls | bool %}
         {
             "source": "{{ container_config_directory }}/serverkey.pem",
             "dest": "/etc/pki/libvirt/private/serverkey.pem",
@@ -42,7 +43,8 @@
             "dest": "/etc/pki/CA/cacert.pem",
             "owner": "root",
             "perm": "0600"
-        }{% endif %}{% if nova_backend == "rbd" or cinder_backend_ceph | bool %},
+        }{% endif %},
+{% if nova_backend == "rbd" or cinder_backend_ceph | bool %}
         {
             "source": "{{ container_config_directory }}/secrets",
             "dest": "/etc/libvirt/secrets",
@@ -56,7 +58,7 @@
             "owner": "nova",
             "perm": "0600",
             "merge": true
-        }{% endif %}
+        },{% endif %}
         {
             "source": "{{ container_config_directory }}/sasl.conf",
             "dest": "/etc/sasl2/libvirt.conf",
