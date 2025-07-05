@@ -14,6 +14,21 @@
     - "cinder-volume"
     - "cinder-backup"
 
+- name: Check cinder Ceph config file
+  vars:
+    service: "{{ cinder_services['cinder-volume'] }}"
+    cluster: "{{ item.cluster }}"
+    paths:
+      - "{{ node_custom_config }}/cinder/{{ inventory_hostname }}/{{ cluster }}.conf"
+      - "{{ node_custom_config }}/cinder/{{ cluster }}.conf"
+  stat:
+    path: "{{ lookup('first_found', paths) }}"
+  delegate_to: localhost
+  register: cinder_ceph_conf_file
+  failed_when: not cinder_ceph_conf_file.stat.exists
+  when: service | service_enabled_and_mapped_to_host
+  loop: "{{ cinder_ceph_backends + [cinder_backup_ceph_backend] }}"
+
 - name: Copying over multiple ceph.conf for cinder services
   vars:
     services_need_config:
