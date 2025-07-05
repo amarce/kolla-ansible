@@ -88,6 +88,23 @@ def genpwd(passwords_file, length, uuid_keys, ssh_keys, blank_keys,
                 'public_key': public_key
             }
             continue
+        if k == 'ceph_backend_secrets':
+            if v is None:
+                passwords[k] = {}
+            elif isinstance(v, dict):
+                for backend, secret_dict in v.items():
+                    if secret_dict is None:
+                        secret_dict = {}
+                    if secret_dict.get('uuid') is None:
+                        secret_dict['uuid'] = uuidutils.generate_uuid()
+                    if secret_dict.get('secret') is None:
+                        secret_dict['secret'] = ''.join([
+                            random.SystemRandom().choice(
+                                string.ascii_letters + string.digits)
+                            for n in range(length)
+                        ])
+                    passwords[k][backend] = secret_dict
+            continue
         if v is None:
             if k in blank_keys and v is None:
                 continue

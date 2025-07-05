@@ -290,9 +290,12 @@ the use with availability zones:
        ceph1-rbd:
          uuid: "<uuid>"
          secret: "<base64>"
-       ceph2-rbd:
-         uuid: "<uuid>"
-         secret: "<base64>"
+      ceph2-rbd:
+        uuid: "<uuid>"
+        secret: "<base64>"
+
+  ``kolla-genpwd`` will automatically populate ``ceph_backend_secrets`` with a
+  unique UUID and secret for each backend defined.
 
 .. note::
 
