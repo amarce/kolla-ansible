@@ -31,7 +31,7 @@
             "owner": "nova",
             "perm": "0600"
         },
-{% endif %}{% if libvirt_tls | bool %},
+{% endif %}{% if libvirt_tls | bool %}
         {
             "source": "{{ container_config_directory }}/clientkey.pem",
             "dest": "/etc/pki/libvirt/private/clientkey.pem",
@@ -49,7 +49,8 @@
             "dest": "/etc/pki/CA/cacert.pem",
             "owner": "root:nova",
             "perm": "0640"
-        }{% endif %},
+        },
+{% endif %}
         {
             "source": "{{ container_config_directory }}/release",
             "dest": "/etc/nova/release",
