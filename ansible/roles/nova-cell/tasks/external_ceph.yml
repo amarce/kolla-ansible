@@ -146,23 +146,15 @@
         service: "{{ nova_cell_services['nova-libvirt'] }}"
       template:
         src: "secret.xml.j2"
-        dest: "{{ libvirt_secrets_dir }}/{{ item.uuid }}.xml"
+        dest: "{{ libvirt_secrets_dir }}/{{ item.value.uuid }}.xml"
         owner: "{{ config_owner_user }}"
         group: "{{ config_owner_group }}"
         mode: "0600"
       become: true
       when:
         - service | service_enabled_and_mapped_to_host
-        - item.enabled | bool
-      with_items:
-        - uuid: "{{ rbd_secret_uuid }}"
-          name: "ceph-ephemeral-nova"
-          desc: "Ceph Client Secret for Ephemeral Storage (Nova)"
-          enabled: "{{ nova_backend == 'rbd' }}"
-        - uuid: "{{ cinder_rbd_secret_uuid }}"
-          name: "ceph-persistent-cinder"
-          desc: "Ceph Client Secret for Persistent Storage (Cinder)"
-          enabled: "{{ cinder_backend_ceph }}"
+        - nova_backend == 'rbd' or cinder_backend_ceph | bool
+      loop: "{{ ceph_backend_secrets | default({}) | dict2items }}"
       notify: "{{ libvirt_restart_handlers }}"
 
     - name: Pushing secrets key for libvirt
@@ -170,24 +162,16 @@
         service: "{{ nova_cell_services['nova-libvirt'] }}"
       template:
         src: "libvirt-secret.j2"
-        dest: "{{ libvirt_secrets_dir }}/{{ item.uuid }}.base64"
+        dest: "{{ libvirt_secrets_dir }}/{{ item.value.uuid }}.base64"
         owner: "{{ config_owner_user }}"
         group: "{{ config_owner_group }}"
         mode: "0600"
       become: true
       when:
         - service | service_enabled_and_mapped_to_host
-        - item.enabled | bool
         - external_ceph_cephx_enabled | bool
-      with_items:
-        # NOTE(yoctozepto): 'default' filter required due to eager evaluation of item content
-        # which will be undefined if the applicable condition is False
-        - uuid: "{{ rbd_secret_uuid }}"
-          result: "{{ nova_cephx_raw_key | default }}"
-          enabled: "{{ nova_backend == 'rbd' }}"
-        - uuid: "{{ cinder_rbd_secret_uuid }}"
-          result: "{{ cinder_cephx_raw_key | default }}"
-          enabled: "{{ cinder_backend_ceph }}"
+        - nova_backend == 'rbd' or cinder_backend_ceph | bool
+      loop: "{{ ceph_backend_secrets | default({}) | dict2items }}"
       notify: "{{ libvirt_restart_handlers }}"
       no_log: True
   vars:

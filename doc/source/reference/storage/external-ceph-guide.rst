@@ -282,6 +282,18 @@ the use with availability zones:
   * ``/etc/kolla/config/cinder/cinder-backup/ceph2.client.cinder.keyring``
   * ``/etc/kolla/config/cinder/cinder-backup/ceph2.client.cinder-backup.keyring``
 
+* Configure libvirt secrets for each backend in ``/etc/kolla/passwords.yml``:
+
+  .. code-block:: yaml
+
+     ceph_backend_secrets:
+       ceph1-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+       ceph2-rbd:
+         uuid: "<uuid>"
+         secret: "<base64>"
+
 .. note::
 
    ``cinder-backup`` requires keyrings for accessing volumes
