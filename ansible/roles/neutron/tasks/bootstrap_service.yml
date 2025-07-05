@@ -19,3 +19,6 @@
     volumes: "{{ neutron_server.volumes }}"
   run_once: True
   delegate_to: "{{ groups[neutron_server.group][0] }}"
+  when:
+    - neutron_enable_db_sync | bool
+
