@@ -49,13 +49,14 @@
             "owner": "root",
             "perm": "0600",
             "merge": true
-        }{% endif %}{% if nova_backend == "rbd" %},
+        },
         {
-            "source": "{{ container_config_directory }}/{{ nova_cell_ceph_backend['cluster'] }}.conf",
-            "dest": "/etc/ceph/{{ nova_cell_ceph_backend['cluster'] }}.conf",
+            "source": "{{ container_config_directory }}/ceph",
+            "dest": "/etc/ceph",
             "owner": "nova",
-            "perm": "0600"
-        }{% endif %}{% if libvirt_enable_sasl | bool %},
+            "perm": "0600",
+            "merge": true
+        }{% endif %}
         {
             "source": "{{ container_config_directory }}/sasl.conf",
             "dest": "/etc/sasl2/libvirt.conf",

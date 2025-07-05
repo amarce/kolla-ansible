@@ -12,19 +12,14 @@
             "dest": "/etc/nova/{{ nova_policy_file }}",
             "owner": "nova",
             "perm": "0600"
-        }{% endif %}{% if nova_backend == "rbd" %},
+{% if nova_backend == "rbd" or cinder_backend_ceph | bool %},
         {
-            "source": "{{ container_config_directory }}/{{ nova_cell_ceph_backend['cluster'] }}.client.{{ nova_cell_ceph_backend['vms']['user'] }}.keyring",
-            "dest": "/etc/ceph/{{ nova_cell_ceph_backend['cluster'] }}.client.{{ nova_cell_ceph_backend['vms']['user'] }}.keyring",
+            "source": "{{ container_config_directory }}/ceph",
+            "dest": "/etc/ceph",
             "owner": "nova",
-            "perm": "0600"
-        },
-        {
-            "source": "{{ container_config_directory }}/{{ nova_cell_ceph_backend['cluster'] }}.conf",
-            "dest": "/etc/ceph/{{ nova_cell_ceph_backend['cluster'] }}.conf",
-            "owner": "nova",
-            "perm": "0600"
-        }{% endif %}{% if nova_compute_virt_type == "vmware" and not vmware_vcenter_insecure | bool %},
+            "perm": "0600",
+            "merge": true
+        }{% endif %}
         {
             "source": "{{ container_config_directory }}/vmware_ca",
             "dest": "/etc/nova/vmware_ca",

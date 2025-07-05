@@ -14,88 +14,73 @@
     - nova_backend == "rbd"
     - external_ceph_cephx_enabled | bool
 
-- name: Check cinder keyring file
-  vars:
-    keyring: "{{ nova_cell_ceph_backend['cluster'] }}.client.{{ nova_cell_ceph_backend['volumes']['user'] }}.keyring"
-    paths:
-      - "{{ node_custom_config }}/nova/{{ inventory_hostname }}/{{ keyring }}"
-      - "{{ node_custom_config }}/nova/{{ keyring }}"
-  stat:
-    path: "{{ lookup('first_found', paths) }}"
-  delegate_to: localhost
-  register: cinder_cephx_keyring_file
-  failed_when: not cinder_cephx_keyring_file.stat.exists
-  when:
-    - cinder_backend_ceph | bool
-    - external_ceph_cephx_enabled | bool
-
-- name: Extract nova key from file
-  set_fact:
-    nova_cephx_raw_key:
-      "{{ lookup('template', nova_cephx_keyring_file.stat.path) | regex_search('key\\s*=.*$', multiline=True) | regex_replace('key\\s*=\\s*(.*)\\s*', '\\1') }}"
-  changed_when: false
-  when:
-    - nova_backend == "rbd"
-    - external_ceph_cephx_enabled | bool
-
-- name: Extract cinder key from file
-  set_fact:
-    cinder_cephx_raw_key:
-      "{{ lookup('template', cinder_cephx_keyring_file.stat.path) | regex_search('key\\s*=.*$', multiline=True) | regex_replace('key\\s*=\\s*(.*)\\s*', '\\1') }}"
-  changed_when: false
-  when:
-    - cinder_backend_ceph | bool
-    - external_ceph_cephx_enabled | bool
-
-- name: Copy over ceph nova keyring file
-  template:
-    src: "{{ nova_cephx_keyring_file.stat.path }}"
-    dest: "{{ node_config_directory }}/{{ item }}/"
-    owner: "{{ config_owner_user }}"
-    group: "{{ config_owner_group }}"
-    mode: "0660"
-  become: true
-  with_items:
-    - nova-compute
-  when:
-    - inventory_hostname in groups[nova_cell_compute_group]
-    - nova_backend == "rbd"
-    - external_ceph_cephx_enabled | bool
-
-- name: Copy over ceph cinder keyring file
-  template:
-    src: "{{ cinder_cephx_keyring_file.stat.path }}"
-    dest: "{{ node_config_directory }}/{{ item }}/"
-    owner: "{{ config_owner_user }}"
-    group: "{{ config_owner_group }}"
-    mode: "0660"
-  become: true
-  with_items:  # NOTE: nova-libvirt does not need it
-    - nova-compute
-  when:
-    - inventory_hostname in groups[nova_cell_compute_group]
-    - nova_backend == "rbd"
-    - external_ceph_cephx_enabled | bool
-
-- name: Copy over ceph.conf
+- name: Ensure nova service ceph config subdir exists
   vars:
     service: "{{ nova_cell_services[item] }}"
-    paths:
-      - "{{ node_custom_config }}/nova/{{ inventory_hostname }}/{{ nova_cell_ceph_backend['cluster'] }}.conf"
-      - "{{ node_custom_config }}/nova/{{ nova_cell_ceph_backend['cluster'] }}.conf"
-  template:
-    src: "{{ lookup('first_found', paths) }}"
-    dest: "{{ node_config_directory }}/{{ item }}/"
+  file:
+    path: "{{ node_config_directory }}/{{ item }}/ceph"
+    state: "directory"
     owner: "{{ config_owner_user }}"
     group: "{{ config_owner_group }}"
-    mode: "0660"
+    mode: "0770"
   become: true
+  when: service | service_enabled_and_mapped_to_host
   with_items:
     - nova-compute
     - nova-libvirt
+
+
+- name: Copy over ceph nova keyring file
+  vars:
+    keyring: "{{ nova_cell_ceph_backend['cluster'] }}.client.{{ nova_cell_ceph_backend['vms']['user'] }}.keyring"
+  template:
+    src: "{{ nova_cephx_keyring_file.stat.path }}"
+    dest: "{{ node_config_directory }}/nova-compute/ceph/{{ keyring }}"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0660"
+  become: true
+  when:
+    - inventory_hostname in groups[nova_cell_compute_group]
+    - nova_backend == "rbd"
+    - external_ceph_cephx_enabled | bool
+
+- name: Copy over ceph cinder keyring files
+  vars:
+    keyring: "{{ item.1.cluster }}.client.{{ item.1.user }}.keyring"
+    service: "{{ nova_cell_services[item.0] }}"
+  template:
+    src: "{{ node_custom_config }}/nova/{{ keyring }}"
+    dest: "{{ node_config_directory }}/{{ item.0 }}/ceph/{{ keyring }}"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0660"
+  become: true
+  when:
+    - inventory_hostname in groups[nova_cell_compute_group]
+    - external_ceph_cephx_enabled | bool
+    - service | service_enabled_and_mapped_to_host
+  with_nested:
+    - [ 'nova-compute', 'nova-libvirt' ]
+    - "{{ cinder_ceph_backends }}"
+
+- name: Copy over ceph.conf
+  vars:
+    service: "{{ nova_cell_services[item.0] }}"
+    cluster: "{{ item.1.cluster }}"
+  merge_configs:
+    sources:
+      - "{{ node_custom_config }}/nova/{{ cluster }}.conf"
+      - "{{ node_custom_config }}/nova/{{ item.0 }}/{{ cluster }}.conf"
+    dest: "{{ node_config_directory }}/{{ item.0 }}/ceph/{{ cluster }}.conf"
+    mode: "0660"
+  become: true
   when:
     - service | service_enabled_and_mapped_to_host
-    - nova_backend == "rbd"
+    - nova_backend == "rbd" or cinder_backend_ceph | bool
+  with_nested:
+    - [ 'nova-compute', 'nova-libvirt' ]
+    - "{{ cinder_ceph_backends + [nova_cell_ceph_backend] }}"
 
 - block:
     - name: Ensure /etc/ceph directory exists (host libvirt)
@@ -114,15 +99,16 @@
     - name: Copy over ceph.conf (host libvirt)
       vars:
         paths:
-          - "{{ node_custom_config }}/nova/{{ inventory_hostname }}/{{ nova_cell_ceph_backend['cluster'] }}.conf"
-          - "{{ node_custom_config }}/nova/{{ nova_cell_ceph_backend['cluster'] }}.conf"
+          - "{{ node_custom_config }}/nova/{{ inventory_hostname }}/{{ item.cluster }}.conf"
+          - "{{ node_custom_config }}/nova/{{ item.cluster }}.conf"
       template:
         src: "{{ lookup('first_found', paths) }}"
-        dest: "/etc/ceph/{{ nova_cell_ceph_backend['cluster'] }}.conf"
+        dest: "/etc/ceph/{{ item.cluster }}.conf"
         owner: "root"
         group: "root"
         mode: "0644"
       become: true
+      loop: "{{ cinder_ceph_backends + [nova_cell_ceph_backend] }}"
   when:
     - not enable_nova_libvirt_container | bool
     - inventory_hostname in groups[nova_cell_compute_group]
