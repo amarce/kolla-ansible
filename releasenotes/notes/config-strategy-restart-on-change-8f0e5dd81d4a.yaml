@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Containers managed by kolla-ansible are restarted only when their
+    configuration or parameters change. With the default
+    ``COPY_ALWAYS`` ``config_strategy`` this avoids unnecessary restarts.

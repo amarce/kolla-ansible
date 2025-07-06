@@ -633,10 +633,11 @@ class TestContainer(base.BaseTestCase):
             return_value=construct_container(self.fake_data['containers'][0]))
         self.pw.restart_container = mock.Mock()
         self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=False)
 
         self.pw.recreate_or_restart_container()
 
-        self.pw.restart_container.assert_called_once_with()
+        self.pw.restart_container.assert_not_called()
 
     def test_recreate_or_restart_container_container_copy_always_differs(self):
         self.pw = get_PodmanWorker({
@@ -662,12 +663,30 @@ class TestContainer(base.BaseTestCase):
         self.pw.ensure_image = mock.Mock()
         self.pw.start_container = mock.Mock()
         self.pw.remove_container = mock.Mock()
+        self.pw.check_container_differs = mock.Mock(return_value=True)
+        self.pw.compare_config = mock.Mock(return_value=False)
 
         self.pw.recreate_or_restart_container()
 
         self.pw.ensure_image.assert_called_once_with()
         self.pw.remove_container.assert_called_once_with()
         self.pw.start_container.assert_called_once_with()
+
+    def test_recreate_or_restart_container_container_copy_once_no_change(self):
+        self.pw = get_PodmanWorker({
+            'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ONCE')})
+        self.pw.check_container = mock.Mock(
+            return_value=construct_container(self.fake_data['containers'][0]))
+        self.pw.ensure_image = mock.Mock()
+        self.pw.start_container = mock.Mock()
+        self.pw.remove_container = mock.Mock()
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=False)
+
+        self.pw.recreate_or_restart_container()
+
+        self.pw.start_container.assert_not_called()
+        self.pw.remove_container.assert_not_called()
 
     def test_recreate_or_restart_container_pull_before_stop(self):
         # Testing fix for https://launchpad.net/bugs/1852572.
