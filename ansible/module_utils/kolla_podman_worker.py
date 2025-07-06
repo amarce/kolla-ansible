@@ -525,14 +525,17 @@ class PodmanWorker(ContainerWorker):
             self.start_container()
             return
 
-        if strategy == 'COPY_ONCE' or self.check_container_differs():
+        needs_restart = (self.check_container_differs() or
+                         self.compare_config())
+
+        if strategy == 'COPY_ONCE' and needs_restart:
             self.ensure_image()
 
             self.stop_container()
             self.remove_container()
             self.start_container()
 
-        elif strategy == 'COPY_ALWAYS':
+        elif strategy == 'COPY_ALWAYS' and needs_restart:
             self.restart_container()
 
     def start_container(self):

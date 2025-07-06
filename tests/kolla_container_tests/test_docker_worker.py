@@ -718,10 +718,11 @@ class TestContainer(base.BaseTestCase):
             return_value=self.fake_data['containers'][0])
         self.dw.restart_container = mock.Mock()
         self.dw.check_container_differs = mock.Mock(return_value=False)
+        self.dw.compare_config = mock.Mock(return_value=False)
 
         self.dw.recreate_or_restart_container()
 
-        self.dw.restart_container.assert_called_once_with()
+        self.dw.restart_container.assert_not_called()
 
     def test_recreate_or_restart_container_container_copy_always_differs(self):
         self.dw = get_DockerWorker({
@@ -749,12 +750,31 @@ class TestContainer(base.BaseTestCase):
             return_value=self.fake_data['images'][0])
         self.dw.start_container = mock.Mock()
         self.dw.remove_container = mock.Mock()
+        self.dw.check_container_differs = mock.Mock(return_value=True)
+        self.dw.compare_config = mock.Mock(return_value=False)
 
         self.dw.recreate_or_restart_container()
 
         self.dw.check_image.assert_called_once_with()
         self.dw.remove_container.assert_called_once_with()
         self.dw.start_container.assert_called_once_with()
+
+    def test_recreate_or_restart_container_container_copy_once_no_change(self):
+        self.dw = get_DockerWorker({
+            'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ONCE')})
+        self.dw.check_container = mock.Mock(
+            return_value=self.fake_data['containers'][0])
+        self.dw.check_image = mock.Mock(
+            return_value=self.fake_data['images'][0])
+        self.dw.start_container = mock.Mock()
+        self.dw.remove_container = mock.Mock()
+        self.dw.check_container_differs = mock.Mock(return_value=False)
+        self.dw.compare_config = mock.Mock(return_value=False)
+
+        self.dw.recreate_or_restart_container()
+
+        self.dw.start_container.assert_not_called()
+        self.dw.remove_container.assert_not_called()
 
     def test_recreate_or_restart_container_pull_before_stop(self):
         # Testing fix for https://launchpad.net/bugs/1852572.
