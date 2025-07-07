@@ -16,7 +16,6 @@
 # a hacky way to seed most usages of kolla_container in kolla-ansible ansible
 # playbooks - caution has to be exerted when setting "common_options"
 
-# FIXME(yoctozepto): restart_policy is *not* checked in the container
 
 from ansible.module_utils.basic import AnsibleModule
 import traceback
