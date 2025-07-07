@@ -414,12 +414,6 @@ class ContainerWorker(ABC):
                         return False
         return False
 
-    def _clean_volume(self, volume):
-        parts = volume.split(':', 2)
-        if len(parts) < 3:
-            return volume
-        parts[2] = parts[2].split(',', 1)[0]
-        return ':'.join(parts[:3])
 
     def generate_volumes(self, binds=None):
         if not binds:
