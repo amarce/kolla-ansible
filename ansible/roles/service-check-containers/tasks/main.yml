@@ -29,7 +29,6 @@
     - not (service.iterate | default(False)) | bool
     - (service.enabled | default(true)) | bool
     - service.container_name is defined
-    - service.volumes | default([]) | select('search', '/var/lib/kolla/config_files') | list | length > 0
   register: container_check
 
 # NOTE(yoctozepto): Must be a separate task because one cannot see the whole
