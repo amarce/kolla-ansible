@@ -341,20 +341,12 @@ class PodmanWorker(ContainerWorker):
             return True
 
     def compare_volumes(self, container_info):
-        def check_slash(string):
-            if not string:
-                return string
-            if string[-1] != '/':
-                return string + '/'
-            else:
-                return string
-
         raw_volumes, binds = self.generate_volumes()
         raw_vols, current_binds = self.generate_volumes(
             container_info['HostConfig'].get('Binds'))
 
-        current_vols = [check_slash(vol) for vol in raw_vols if vol]
-        volumes = [check_slash(vol) for vol in raw_volumes if vol]
+        current_vols = [self._clean_volume(vol) for vol in raw_vols if vol]
+        volumes = [self._clean_volume(vol) for vol in raw_volumes if vol]
 
         if not volumes:
             volumes = list()
@@ -373,15 +365,15 @@ class PodmanWorker(ContainerWorker):
         new_current_binds = list()
         if binds:
             for k, v in binds.items():
-                k = check_slash(k)
-                v['bind'] = check_slash(v['bind'])
+                k = self._clean_volume(k)
+                v['bind'] = self._clean_volume(v['bind'])
                 new_binds.append(
                     "{}:{}:{}".format(k, v['bind'], v['mode']))
 
         if current_binds:
             for k, v in current_binds.items():
-                k = check_slash(k)
-                v['bind'] = check_slash(v['bind'])
+                k = self._clean_volume(k)
+                v['bind'] = self._clean_volume(v['bind'])
                 if 'ro' in v['mode']:
                     v['mode'] = 'ro'
                 else:
@@ -432,8 +424,6 @@ class PodmanWorker(ContainerWorker):
                 return True
 
     def compare_config(self):
-        if not self._has_config_files():
-            return False
         try:
             container = self.pc.containers.get(self.params['name'])
             container.reload()

@@ -59,10 +59,18 @@ class ContainerWorker(ABC):
 
     def compare_container(self):
         container = self.check_container()
-        if (not container or
-                self.check_container_differs() or
-                self.compare_config() or
-                self.systemd.check_unit_change()):
+
+        if not self._has_config_files():
+            compare_config_needed = False
+        else:
+            compare_config_needed = self.compare_config()
+
+        if (
+            not container or
+            self.check_container_differs() or
+            compare_config_needed or
+            self.systemd.check_unit_change()
+        ):
             self.changed = True
         return self.changed
 
@@ -413,6 +421,13 @@ class ContainerWorker(ABC):
                     except Exception:
                         return False
         return False
+
+    def _clean_volume(self, volume):
+        if not volume:
+            return volume
+        if not volume.endswith('/'):
+            return volume + '/'
+        return volume
 
     def generate_volumes(self, binds=None):
         if not binds:
