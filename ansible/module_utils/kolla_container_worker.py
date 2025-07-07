@@ -12,7 +12,9 @@
 
 from abc import ABC
 from abc import abstractmethod
+import json
 import logging
+import os
 import shlex
 
 from ansible.module_utils.kolla_systemd_worker import SystemdWorker
@@ -396,6 +398,28 @@ class ContainerWorker(ABC):
             # NOTE(mgoddard): Filter out any empty strings.
             tmpfs = [t for t in tmpfs if t]
         return tmpfs
+
+    def _has_config_files(self):
+        _vols, binds = self.generate_volumes()
+        if binds:
+            for src, bind in binds.items():
+                if bind.get('bind') == '/var/lib/kolla/config_files/' or \
+                        bind.get('bind').rstrip('/') == '/var/lib/kolla/config_files':
+                    config_path = os.path.join(src, 'config.json')
+                    try:
+                        with open(config_path, 'r') as f:
+                            data = json.load(f)
+                        return len(data.get('config_files', [])) > 0
+                    except Exception:
+                        return False
+        return False
+
+    def _clean_volume(self, volume):
+        parts = volume.split(':', 2)
+        if len(parts) < 3:
+            return volume
+        parts[2] = parts[2].split(',', 1)[0]
+        return ':'.join(parts[:3])
 
     def generate_volumes(self, binds=None):
         if not binds:

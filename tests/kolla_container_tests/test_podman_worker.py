@@ -15,8 +15,10 @@
 
 import copy
 from importlib.machinery import SourceFileLoader
+import json
 import os
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -832,6 +834,41 @@ class TestImage(base.BaseTestCase):
             pwm.COMPARE_CONFIG_CMD,
             user='root')
 
+    def test_compare_container_empty_config_files(self):
+        tmpdir = tempfile.mkdtemp()
+        with open(os.path.join(tmpdir, 'config.json'), 'w') as f:
+            json.dump({'config_files': []}, f)
+        params = copy.deepcopy(FAKE_DATA['params'])
+        params['volumes'] = [f'{tmpdir}:/var/lib/kolla/config_files/:ro']
+        self.pw = get_PodmanWorker(params)
+        self.pw.check_container = mock.Mock(return_value=True)
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.systemd.check_unit_change = mock.Mock(return_value=False)
+        self.pw.pc.containers.get = mock.Mock()
+        changed = self.pw.compare_container()
+        self.assertFalse(changed)
+        self.pw.pc.containers.get.assert_not_called()
+
+    def test_compare_container_with_config_files(self):
+        tmpdir = tempfile.mkdtemp()
+        with open(os.path.join(tmpdir, 'config.json'), 'w') as f:
+            json.dump({'config_files': [{'source': '/foo', 'dest': '/foo'}]}, f)
+        params = copy.deepcopy(FAKE_DATA['params'])
+        params['volumes'] = [f'{tmpdir}:/var/lib/kolla/config_files/:ro']
+        self.pw = get_PodmanWorker(params)
+        self.pw.check_container = mock.Mock(return_value=True)
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.systemd.check_unit_change = mock.Mock(return_value=False)
+        my_container = construct_container(self.fake_data['containers'][0])
+        my_container.exec_run = mock.Mock(return_value=(0, b''))
+        self.pw.pc.containers.get.return_value = my_container
+        changed = self.pw.compare_container()
+        self.assertFalse(changed)
+        self.pw.pc.containers.get.assert_called_once_with(params['name'])
+        my_container.exec_run.assert_called_once_with(
+            pwm.COMPARE_CONFIG_CMD,
+            user='root')
+
     def test_pull_image_new(self):
         self.pw = get_PodmanWorker(
             {'image': 'myregistrydomain.com:5000/ubuntu:16.04',
@@ -1264,6 +1301,26 @@ class TestAttrComp(base.BaseTestCase):
             'HostConfig': dict(Binds=['kolla_logs:/var/log/kolla/:rw'])}
         self.pw = get_PodmanWorker(
             {'volumes': ['/dev/:/dev/:rw']})
+
+        self.assertTrue(self.pw.compare_volumes(container_info))
+
+    def test_compare_volumes_runtime_flags_ignored(self):
+        container_info = {
+            'Config': dict(Volumes=['/run/openvswitch']),
+            'HostConfig': dict(
+                Binds=['/run/openvswitch:/run/openvswitch:shared,rw,noexec,nosuid,nodev,rbind'])}
+        self.pw = get_PodmanWorker(
+            {'volumes': ['/run/openvswitch:/run/openvswitch:shared']})
+
+        self.assertFalse(self.pw.compare_volumes(container_info))
+
+    def test_compare_volumes_runtime_flags_differs(self):
+        container_info = {
+            'Config': dict(Volumes=['/run/openvswitch']),
+            'HostConfig': dict(
+                Binds=['/run/openvswitch:/run/openvswitch:slave,rw,noexec,nosuid,nodev,rbind'])}
+        self.pw = get_PodmanWorker(
+            {'volumes': ['/run/openvswitch:/run/openvswitch:shared']})
 
         self.assertTrue(self.pw.compare_volumes(container_info))
 

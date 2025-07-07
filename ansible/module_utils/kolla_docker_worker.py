@@ -140,10 +140,15 @@ class DockerWorker(ContainerWorker):
             for k, v in binds.items():
                 new_binds.append("{}:{}:{}".format(k, v['bind'], v['mode']))
 
+        new_binds = [self._clean_volume(v) for v in new_binds]
+        current_binds = [self._clean_volume(v) for v in current_binds]
+
         if set(new_binds).symmetric_difference(set(current_binds)):
             return True
 
     def compare_config(self):
+        if not self._has_config_files():
+            return False
         try:
             job = self.dc.exec_create(
                 self.params['name'],

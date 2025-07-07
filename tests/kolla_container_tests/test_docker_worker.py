@@ -16,8 +16,10 @@
 
 import copy
 from importlib.machinery import SourceFileLoader
+import json
 import os
 import sys
+import tempfile
 from unittest import mock
 
 from docker import errors as docker_error
@@ -944,6 +946,40 @@ class TestImage(base.BaseTestCase):
         self.dw.dc.exec_start.assert_called_once_with(job)
         self.dw.dc.exec_inspect.assert_called_once_with(job)
 
+    def test_compare_container_empty_config_files(self):
+        tmpdir = tempfile.mkdtemp()
+        with open(os.path.join(tmpdir, 'config.json'), 'w') as f:
+            json.dump({'config_files': []}, f)
+        params = copy.deepcopy(FAKE_DATA['params'])
+        params['volumes'] = [f'{tmpdir}:/var/lib/kolla/config_files/:ro']
+        self.dw = get_DockerWorker(params)
+        self.dw.check_container = mock.Mock(return_value=True)
+        self.dw.check_container_differs = mock.Mock(return_value=False)
+        self.dw.systemd.check_unit_change = mock.Mock(return_value=False)
+        self.dw.dc.exec_create = mock.Mock()
+        changed = self.dw.compare_container()
+        self.assertFalse(changed)
+        self.dw.dc.exec_create.assert_not_called()
+
+    def test_compare_container_with_config_files(self):
+        tmpdir = tempfile.mkdtemp()
+        with open(os.path.join(tmpdir, 'config.json'), 'w') as f:
+            json.dump({'config_files': [{'source': '/foo', 'dest': '/foo'}]}, f)
+        params = copy.deepcopy(FAKE_DATA['params'])
+        params['volumes'] = [f'{tmpdir}:/var/lib/kolla/config_files/:ro']
+        self.dw = get_DockerWorker(params)
+        self.dw.check_container = mock.Mock(return_value=True)
+        self.dw.check_container_differs = mock.Mock(return_value=False)
+        self.dw.systemd.check_unit_change = mock.Mock(return_value=False)
+        job = mock.MagicMock()
+        self.dw.dc.exec_create.return_value = job
+        self.dw.dc.exec_start.return_value = 'out'
+        self.dw.dc.exec_inspect.return_value = {'ExitCode': 0}
+        changed = self.dw.compare_container()
+        self.assertFalse(changed)
+        self.dw.dc.exec_create.assert_called_once_with(
+            params['name'], dwm.COMPARE_CONFIG_CMD, user='root')
+
     def test_get_image_id_not_exists(self):
         self.dw = get_DockerWorker(
             {'image': 'myregistrydomain.com:5000/ubuntu:16.04'})
@@ -1329,6 +1365,16 @@ class TestAttrComp(base.BaseTestCase):
             {'volumes': ['/dev/:/dev/:rw']})
 
         self.assertTrue(self.dw.compare_volumes(container_info))
+
+    def test_compare_volumes_runtime_flags_ignored(self):
+        container_info = {
+            'Config': dict(Volumes=['/run/openvswitch']),
+            'HostConfig': dict(
+                Binds=['/run/openvswitch:/run/openvswitch:shared,rw,noexec,nosuid,nodev,rbind'])}
+        self.dw = get_DockerWorker(
+            {'volumes': ['/run/openvswitch:/run/openvswitch:shared']})
+
+        self.assertFalse(self.dw.compare_volumes(container_info))
 
     def test_compare_environment_neg(self):
         container_info = {'Config': dict(
