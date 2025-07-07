@@ -1304,6 +1304,26 @@ class TestAttrComp(base.BaseTestCase):
 
         self.assertTrue(self.pw.compare_volumes(container_info))
 
+    def test_compare_volumes_runtime_flags_ignored(self):
+        container_info = {
+            'Config': dict(Volumes=['/run/openvswitch']),
+            'HostConfig': dict(
+                Binds=['/run/openvswitch:/run/openvswitch:shared,rw,noexec,nosuid,nodev,rbind'])}
+        self.pw = get_PodmanWorker(
+            {'volumes': ['/run/openvswitch:/run/openvswitch:shared']})
+
+        self.assertFalse(self.pw.compare_volumes(container_info))
+
+    def test_compare_volumes_runtime_flags_differs(self):
+        container_info = {
+            'Config': dict(Volumes=['/run/openvswitch']),
+            'HostConfig': dict(
+                Binds=['/run/openvswitch:/run/openvswitch:slave,rw,noexec,nosuid,nodev,rbind'])}
+        self.pw = get_PodmanWorker(
+            {'volumes': ['/run/openvswitch:/run/openvswitch:shared']})
+
+        self.assertTrue(self.pw.compare_volumes(container_info))
+
     def test_compare_environment_neg(self):
         container_info = {'Config': dict(
             Env=['KOLLA_CONFIG_STRATEGY=COPY_ALWAYS',

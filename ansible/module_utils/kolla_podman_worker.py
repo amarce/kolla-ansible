@@ -369,25 +369,21 @@ class PodmanWorker(ContainerWorker):
         if set(volumes).symmetric_difference(set(current_vols)):
             return True
 
-        new_binds = list()
-        new_current_binds = list()
+        new_binds = []
+        new_current_binds = []
         if binds:
             for k, v in binds.items():
                 k = check_slash(k)
                 v['bind'] = check_slash(v['bind'])
                 new_binds.append(
-                    "{}:{}:{}".format(k, v['bind'], v['mode']))
+                    self._clean_volume(f"{k}:{v['bind']}:{v['mode']}"))
 
         if current_binds:
             for k, v in current_binds.items():
                 k = check_slash(k)
                 v['bind'] = check_slash(v['bind'])
-                if 'ro' in v['mode']:
-                    v['mode'] = 'ro'
-                else:
-                    v['mode'] = 'rw'
                 new_current_binds.append(
-                    "{}:{}:{}".format(k, v['bind'], v['mode'][0:2]))
+                    self._clean_volume(f"{k}:{v['bind']}:{v['mode']}"))
 
         new_binds.sort()
         new_current_binds.sort()
