@@ -25,6 +25,10 @@
   loop:
     - "{{ range(1,(service.iterate_var | int) + 1) | list }}"
   register: container_check
+  when:
+    - (service.enabled | default(true)) | bool
+    - service.container_name is defined
+    - service.volumes | default([]) | select('search', '/var/lib/kolla/config_files') | list | length > 0
 
 # NOTE(yoctozepto): Must be a separate task because one cannot see the whole
 # result in the previous task and Ansible has a quirk regarding notifiers.
