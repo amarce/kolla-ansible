@@ -21,6 +21,50 @@ COMPARE_CONFIG_CMD = ['/usr/local/bin/kolla_set_configs', '--check']
 LOG = logging.getLogger(__name__)
 
 
+def _normalise_list(value):
+    """Return a set built from value treating ``None`` as empty."""
+    if not value:
+        return set()
+    if isinstance(value, (str, bytes)):
+        value = [value]
+    return set(value)
+
+
+def _normalise_dict(value):
+    """Return a dict without empty values, treating ``None`` as empty."""
+    result = {}
+    for k, v in (value or {}).items():
+        if v in (None, '', [], {}):
+            continue
+        result[k] = v
+    return result
+
+
+def _lists_differ(spec, live):
+    return _normalise_list(spec) != _normalise_list(live)
+
+
+def _dicts_differ(spec, live):
+    return _normalise_dict(spec) != _normalise_dict(live)
+
+
+def _normalise_caps(value):
+    """Return a set of unique capabilities (lower-cased)."""
+    return {cap.lower() for cap in _normalise_list(value)}
+
+
+def _empty_dimensions(d):
+    """Return ``True`` if dict is empty or all numeric values are 0/None."""
+    if not d:
+        return True
+    for v in d.values():
+        if isinstance(v, (int, float)) and v != 0:
+            return False
+        if v:
+            return False
+    return True
+
+
 class ContainerWorker(ABC):
     def __init__(self, module):
         self.module = module
@@ -100,8 +144,11 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        expected = sorted(self.params.get('cap_add') or [])
-        actual = sorted(container_info.get('HostConfig', {}).get('CapAdd') or [])
+        expected = _normalise_caps(self.params.get('cap_add'))
+        actual = _normalise_caps(
+            container_info.get('HostConfig', {}).get('CapAdd'))
+        if expected != actual:
+            self.module.debug(f"cap_add differs: {expected=} {actual=}")
         return expected != actual
 
     def compare_security_opt(self, container_info):
@@ -112,19 +159,14 @@ class ContainerWorker(ABC):
         # host pid mode or privileged. So no need to compare security opts
         if ipc_mode == 'host' or pid_mode == 'host' or privileged:
             return False
-        new_sec_opt = self.params.get('security_opt', list())
-        try:
-            current_sec_opt = container_info['HostConfig'].get('SecurityOpt',
-                                                               list())
-        except KeyError:
-            current_sec_opt = None
-        except TypeError:
-            current_sec_opt = None
-
-        if not current_sec_opt:
-            current_sec_opt = list()
-        if set(new_sec_opt).symmetric_difference(set(current_sec_opt)):
+        expected = self.params.get('security_opt')
+        actual = container_info.get('HostConfig', {}).get('SecurityOpt')
+        if _lists_differ(expected, actual):
+            self.module.debug(
+                f"security_opt differs: expected={_normalise_list(expected)} "
+                f"actual={_normalise_list(actual)}")
             return True
+        return False
 
     @abstractmethod
     def compare_pid_mode(self, container_info):
@@ -170,26 +212,24 @@ class ContainerWorker(ABC):
             return True
 
     def compare_tmpfs(self, container_info):
-        new_tmpfs = self.generate_tmpfs()
-        current_tmpfs = container_info['HostConfig'].get('Tmpfs')
-        if not new_tmpfs:
-            new_tmpfs = []
-        if not current_tmpfs:
-            current_tmpfs = []
-
-        if set(current_tmpfs).symmetric_difference(set(new_tmpfs)):
+        expected = self.generate_tmpfs()
+        actual = container_info.get('HostConfig', {}).get('Tmpfs')
+        if _lists_differ(expected, actual):
+            self.module.debug(
+                f"tmpfs differs: expected={_normalise_list(expected)} "
+                f"actual={_normalise_list(actual)}")
             return True
+        return False
 
     def compare_volumes_from(self, container_info):
-        new_vols_from = self.params.get('volumes_from')
-        current_vols_from = container_info['HostConfig'].get('VolumesFrom')
-        if not new_vols_from:
-            new_vols_from = list()
-        if not current_vols_from:
-            current_vols_from = list()
-
-        if set(current_vols_from).symmetric_difference(set(new_vols_from)):
+        expected = self.params.get('volumes_from')
+        actual = container_info.get('HostConfig', {}).get('VolumesFrom')
+        if _lists_differ(expected, actual):
+            self.module.debug(
+                f"volumes_from differs: expected={_normalise_list(expected)} "
+                f"actual={_normalise_list(actual)}")
             return True
+        return False
 
     @abstractmethod
     def compare_volumes(self, container_info):
@@ -263,34 +303,19 @@ class ContainerWorker(ABC):
         return a != b
 
     def compare_dimensions(self, container_info):
-        new_dimensions = self.params.get('dimensions')
+        expected = self.params.get('dimensions') or {}
+        actual = (container_info.get('HostConfig', {})
+                  .get('Resources', {}) or {})
 
-        if not self._dimensions_kernel_memory_removed:
-            self.dimension_map['kernel_memory'] = 'KernelMemory'
+        if _empty_dimensions(expected) and _empty_dimensions(actual):
+            return False
 
-        unsupported = set(new_dimensions.keys()) - \
-            set(self.dimension_map.keys())
-        if unsupported:
-            self.module.exit_json(
-                failed=True, msg=repr("Unsupported dimensions"),
-                unsupported_dimensions=unsupported)
-        current_dimensions = container_info['HostConfig']
-        for key1, key2 in self.dimension_map.items():
-            # NOTE(mgoddard): If a resource has been explicitly requested,
-            # check for a match. Otherwise, ensure it is set to the default.
-            if key1 in new_dimensions:
-                if key1 == 'ulimits':
-                    if self.compare_ulimits(new_dimensions.get(key1),
-                                            current_dimensions.get(key2)):
-                        return True
-                elif self.dimensions_differ(new_dimensions.get(key1),
-                                            current_dimensions.get(key2),
-                                            key1):
-                    return True
-            elif current_dimensions.get(key2):
-                # The default values of all currently supported resources are
-                # '' or 0 - both falsy.
-                return True
+        if _dicts_differ(expected, actual):
+            self.module.debug(
+                f"dimensions differ: expected={_normalise_dict(expected)} "
+                f"actual={_normalise_dict(actual)}")
+            return True
+        return False
 
     def compare_environment(self, container_info):
         if self.params.get('environment'):
