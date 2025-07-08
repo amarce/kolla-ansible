@@ -215,29 +215,68 @@ class ContainerWorker(ABC):
             self.changed = True
         return self.changed
 
-    def check_container_differs(self):
-        container_info = self.get_container_info()
-        if not container_info:
-            return True
+def check_container_differs(self):
+    container_info = self.get_container_info()
+    if not container_info:
+        self._debug("check_container_differs: container does not exist")
+        return True
 
-        return (
-            self.compare_cap_add(container_info)
-            or self.compare_security_opt(container_info)
-            or self.compare_image(container_info)
-            or self.compare_ipc_mode(container_info)
-            or self.compare_labels(container_info)
-            or self.compare_privileged(container_info)
-            or self.compare_pid_mode(container_info)
-            or self.compare_cgroupns_mode(container_info)
-            or self.compare_tmpfs(container_info)
-            or self.compare_volumes(container_info)
-            or self.compare_volumes_from(container_info)
-            or self.compare_environment(container_info)
-            or self.compare_container_state(container_info)
-            or self.compare_dimensions(container_info)
-            or self.compare_command(container_info)
-            or self.compare_healthcheck(container_info)
-        )
+    differs = False
+
+    if self.compare_cap_add(container_info):
+        self._debug("check_container_differs: cap_add differs")
+        differs = True
+    if self.compare_security_opt(container_info):
+        self._debug("check_container_differs: security_opt differs")
+        differs = True
+    if self.compare_image(container_info):
+        self._debug("check_container_differs: image differs")
+        differs = True
+    if self.compare_ipc_mode(container_info):
+        self._debug("check_container_differs: ipc_mode differs")
+        differs = True
+    if self.compare_labels(container_info):
+        self._debug("check_container_differs: labels differ")
+        differs = True
+    if self.compare_privileged(container_info):
+        self._debug("check_container_differs: privileged differs")
+        differs = True
+    if self.compare_pid_mode(container_info):
+        self._debug("check_container_differs: pid_mode differs")
+        differs = True
+    if self.compare_cgroupns_mode(container_info):
+        self._debug("check_container_differs: cgroupns_mode differs")
+        differs = True
+    if self.compare_tmpfs(container_info):
+        self._debug("check_container_differs: tmpfs differs")
+        differs = True
+    if self.compare_volumes(container_info):
+        self._debug("check_container_differs: volumes differ")
+        differs = True
+    if self.compare_volumes_from(container_info):
+        self._debug("check_container_differs: volumes_from differs")
+        differs = True
+    if self.compare_environment(container_info):
+        self._debug("check_container_differs: environment differs")
+        differs = True
+    if self.compare_container_state(container_info):
+        self._debug("check_container_differs: container state differs")
+        differs = True
+    if self.compare_dimensions(container_info):
+        self._debug("check_container_differs: dimensions differ")
+        differs = True
+    if self.compare_command(container_info):
+        self._debug("check_container_differs: command differs")
+        differs = True
+    if self.compare_healthcheck(container_info):
+        self._debug("check_container_differs: healthcheck differs")
+        differs = True
+
+    if not differs:
+        self._debug("check_container_differs: no differences found")
+
+    return differs
+
 
     def compare_ipc_mode(self, container_info):
         new_ipc_mode = self.params.get("ipc_mode")
