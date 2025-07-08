@@ -152,52 +152,59 @@ class KollaToolboxWorker():
 
     def _run_command(self, kolla_toolbox, command, *args, **kwargs) -> bytes:
         try:
-            _, output_raw = kolla_toolbox.exec_run(command,
-                                                   *args,
-                                                   **kwargs)
+            rc, output_raw = kolla_toolbox.exec_run(command, *args, **kwargs)
+
+            # Podman returns Docker-multiplexed frames: 8-byte header + data
+            if isinstance(output_raw, bytes):
+                pos, stdout_buf, stderr_buf = 0, bytearray(), bytearray()
+                while pos + 8 <= len(output_raw):
+                    stream_id = output_raw[pos]
+                    length    = int.from_bytes(output_raw[pos+4:pos+8], "big")
+                    pos += 8
+                    data, pos = output_raw[pos:pos+length], pos + length
+                    (stdout_buf if stream_id == 1 else stderr_buf).extend(data)
+                output_raw = bytes(stdout_buf)
+                if stderr_buf:
+                    self.result["stderr"] = stderr_buf.decode(errors="ignore")
+
         except self.container_errors.APIError as e:
             self.module.fail_json(
-                msg='Container engine client encountered API error: '
-                    f'{e.explanation}'
+                msg=f'Container engine client encountered API error: {e.explanation}'
             )
+
         return output_raw
 
     def _process_container_output(self, output_raw: bytes) -> dict:
         """Convert raw bytes output from container.exec_run into dictionary."""
+
+        # ── DEBUG: write whatever came back from the container ───────────────
+        with open("/tmp/ktbw.raw", "wb") as f:
+            f.write(output_raw if isinstance(output_raw, bytes) else output_raw[0])
+        # ──────────────────────────────────────────────────────────────────────
+
         try:
-            output_json = json.loads(output_raw.decode('utf-8'))
+            output_json = json.loads(output_raw.decode("utf-8"))
         except json.JSONDecodeError as e:
             self.module.fail_json(
-                msg=f'Parsing kolla_toolbox JSON output failed: {e}'
+                msg=f"Parsing kolla_toolbox JSON output failed: {e}"
             )
+        # ── Accept both old and new callback formats ──────────────────────────
+        # old: {"plays":[{"tasks":[{"hosts":{"localhost":{ … }}}]}]}
+        # new: {"changed":false, "commands":[]}
+        if isinstance(output_json, dict) and "plays" in output_json:
+            try:
+                result = (
+                    output_json["plays"][0]["tasks"][0]["hosts"]["localhost"]
+                )
+            except (KeyError, IndexError):
+                self.module.fail_json(
+                    msg=f"Ansible JSON output has unexpected format: {output_json}"
+                )
+        else:
+            result = output_json
 
-        # Expected format for the output is the following:
-        # {
-        #   "plays": [
-        #     {
-        #       "tasks": [
-        #         {
-        #           "hosts": {
-        #             "localhost": {
-        #               <module result>
-        #             }
-        #           }
-        #         }
-        #       ]
-        #     {
-        #   ]
-        # }
-
-        try:
-            result = output_json['plays'][0]['tasks'][0]['hosts']['localhost']
-            result.pop('_ansible_no_log', None)
-        except KeyError:
-            self.module.fail_json(
-                msg=f'Ansible JSON output has unexpected format: {output_json}'
-            )
-
+        result.pop("_ansible_no_log", None)
         return result
-
     def main(self) -> None:
         """Run command inside the kolla_toolbox container with defined args."""
 
