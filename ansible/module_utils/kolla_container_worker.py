@@ -323,6 +323,14 @@ class ContainerWorker(ABC):
         cur_caps = self._as_empty_list(
             container_info.get("HostConfig", {}).get("CapAdd")
         )
+
+        # Podman automatically injects CAP_AUDIT_WRITE when running
+        # non-privileged containers.  If the playbook did not request any
+        # extra capabilities we treat that single implicit capability as
+        # equivalent to "no extra capabilities".
+        if not new_caps and cur_caps == ["CAP_AUDIT_WRITE"]:
+            cur_caps = []
+
         return sorted(new_caps) != sorted(cur_caps)
 
     def compare_security_opt(self, container_info):
