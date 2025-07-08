@@ -553,6 +553,7 @@ class ContainerWorker(ABC):
             # One concise debug line Ansible will show at -vvv
             self._debug(f"compare_dimensions mismatch → {mismatch}")
             return True
+
         return False
 
     def compare_environment(self, container_info):
