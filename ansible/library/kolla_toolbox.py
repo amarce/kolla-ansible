@@ -152,68 +152,66 @@ class KollaToolboxWorker():
 
     def _run_command(self, kolla_toolbox, command, *args, **kwargs) -> bytes:
         """
-        Execute *command* inside the already-running kolla-toolbox container and
-        return the **stdout** bytes.
-
-        *  Handles Podman’s Docker-style multiplexed frame format.
-        *  Captures the stderr stream (if any) in ``self.result["stderr"]`` so
-           the module can bubble it up in a single JSON result.
+        Execute *command* inside the running kolla-toolbox container and return
+        the tuple (stdout_bytes, stderr_bytes).
         """
         try:
-            rc, output_raw = kolla_toolbox.exec_run(command, *args, **kwargs)
+            rc, raw = kolla_toolbox.exec_run(command, *args, **kwargs)
 
-            # ── Podman multiplexed frames: 8-byte header + data ─────────────
-            #   https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
-            if isinstance(output_raw, bytes):
+            # ── podman multiplexed frames: 8-byte header + payload ──────────
+            if isinstance(raw, bytes):
                 pos, stdout_buf, stderr_buf = 0, bytearray(), bytearray()
-                while pos + 8 <= len(output_raw):
-                    stream_id = output_raw[pos]           # 1 = stdout, 2 = stderr
-                    length    = int.from_bytes(output_raw[pos+4:pos+8], "big")
+                while pos + 8 <= len(raw):
+                    stream_id = raw[pos]          # 1 = stdout, 2 = stderr
+                    length    = int.from_bytes(raw[pos+4:pos+8], "big")
                     pos += 8
-                    data, pos = output_raw[pos:pos+length], pos + length
+                    data, pos = raw[pos:pos+length], pos + length
                     (stdout_buf if stream_id == 1 else stderr_buf).extend(data)
-
-                output_raw = bytes(stdout_buf)
-                if stderr_buf:
-                    self.result["stderr"] = stderr_buf.decode(errors="ignore")
+                stdout, stderr = bytes(stdout_buf), bytes(stderr_buf)
+            else:                                 # Docker-py style tuple
+                stdout, stderr = raw
         except self.container_errors.APIError as e:
             self.module.fail_json(
                 msg=f"Container engine client encountered API error: {e.explanation}"
             )
 
-        return output_raw
+        # expose stderr to the caller (for troubleshooting etc.)
+        if stderr:
+            self.result["stderr"] = stderr.decode(errors="ignore")
+
+        return stdout, stderr
 
 
-    def _process_container_output(self, output_raw: bytes) -> dict:
+    def _process_container_output(self, output_raw: bytes | tuple[bytes, bytes]) -> dict:
         """
-        Turn the raw bytes that came back from *container.exec_run()* into the
-        dictionary that the kolla-toolbox Ansible callback JSON produces.
-
-        Handles both the old callback shape::
-
-            {"plays":[{"tasks":[{"hosts":{"localhost":{ … }}}]}]}
-
-        and the newer direct-result shape::
-
-            {"changed": false, "commands": []}
+        Convert toolbox exec output to a result dict, accepting that the JSON
+        might be on *either* stream and may be preceded by warnings.
         """
+        if isinstance(output_raw, tuple):
+            stdout, stderr = output_raw
+        else:                                   # backward-compat — only stdout
+            stdout, stderr = output_raw, b""
 
-        # ── Optional dump for ultra-verbose runs (ansible -vvvv) ────────────
+        # choose the stream that actually contains the JSON
+        candidate = stdout if stdout.strip() else stderr
+
+        # OPTIONAL ultra-verbose dump
         if self.module._verbosity >= 4:
             with open("/tmp/ktbw.raw", "wb") as f:
-                f.write(output_raw if isinstance(output_raw, bytes)
-                         else output_raw[0])
-        # ────────────────────────────────────────────────────────────────────
+                f.write(candidate)
 
-        if not output_raw:
-            # Nothing on stdout – most likely the command failed before the
-            # JSON callback fired.  The stderr we captured (if any) is already
-            # in *self.result*.
-            self.module.fail_json(msg="kolla_toolbox: no output on stdout",
+        if not candidate.strip():
+            self.module.fail_json(msg="kolla_toolbox: no JSON produced",
                                   **self.result)
 
-        # Strip leading/trailing whitespace and any stray ANSI colour codes.
-        clean = re.sub(rb"\x1B\[[0-9;]*[mK]", b"", output_raw).lstrip().strip()
+        # remove ANSI colour and everything before the first '{'
+        clean = re.sub(rb"\x1B\[[0-9;]*[mK]", b"", candidate)
+        json_start = clean.find(b"{")
+        if json_start == -1:
+            self.module.fail_json(msg="kolla_toolbox: JSON not found in output",
+                                  stdout=clean.decode(errors="ignore"),
+                                  **self.result)
+        clean = clean[json_start:]
 
         try:
             output_json = json.loads(clean.decode())
@@ -222,7 +220,7 @@ class KollaToolboxWorker():
                                   stdout=clean.decode(errors="ignore"),
                                   **self.result)
 
-        # ── Normalise old/new callback formats ─────────────────────────────
+        # ── normalise old/new callback formats ─────────────────────────────
         if isinstance(output_json, dict) and "plays" in output_json:
             try:
                 result = output_json["plays"][0]["tasks"][0]["hosts"]["localhost"]
@@ -233,9 +231,9 @@ class KollaToolboxWorker():
         else:
             result = output_json
 
-        # The callback sometimes adds this key; we never want to propagate it.
         result.pop("_ansible_no_log", None)
         return result
+
 
     def main(self) -> None:
         """Run command inside the kolla_toolbox container with defined args."""
