@@ -18,6 +18,7 @@ import os
 
 from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
 from ansible.module_utils.kolla_container_worker import ContainerWorker
+from ansible.module_utils.kolla_container_worker import _as_dict
 
 
 def get_docker_client():
@@ -286,7 +287,7 @@ class DockerWorker(ContainerWorker):
             'volumes_from': self.params.get('volumes_from')
         }
 
-        dimensions = self.params.get('dimensions')
+        dimensions = _as_dict(self.params.get('dimensions'))
 
         if dimensions:
             dimensions = self.parse_dimensions(dimensions)

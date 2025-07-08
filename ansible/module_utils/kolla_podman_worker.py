@@ -18,6 +18,7 @@ import shlex
 
 from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
 from ansible.module_utils.kolla_container_worker import ContainerWorker
+from ansible.module_utils.kolla_container_worker import _as_dict
 
 uri = "http+unix:/run/podman/podman.sock"
 
@@ -107,7 +108,7 @@ class PodmanWorker(ContainerWorker):
                 args.update(healthcheck)
 
         # getting dimensions into separate parameters
-        dimensions = self.params.get('dimensions')
+        dimensions = _as_dict(self.params.get('dimensions'))
         if dimensions:
             dimensions = self.parse_dimensions(dimensions)
             args.update(dimensions)
