@@ -517,8 +517,8 @@ class PodmanWorker(ContainerWorker):
         return container
 
     def recreate_or_restart_container(self):
-        environment = self.params.get('environment') or {}
-        strategy = environment.get('KOLLA_CONFIG_STRATEGY')
+        strategy = self.params.get(
+            'environment', dict()).get('KOLLA_CONFIG_STRATEGY')
 
         container = self.get_container_info()
         if not container:
