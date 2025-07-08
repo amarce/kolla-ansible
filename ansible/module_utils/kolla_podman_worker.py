@@ -334,6 +334,9 @@ class PodmanWorker(ContainerWorker):
 
     def compare_dimensions(self, container_info):
         new_dimensions = _as_dict(self.params.get("dimensions"))
+        # Nothing requested – nothing to compare
+        if not new_dimensions:
+            return False
 
         # NOTE(mgoddard): The names used by Docker/Podman are inconsistent
         # between configuration of a container's resources and
