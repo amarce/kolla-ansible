@@ -14,8 +14,10 @@ class DummyModule:
         pass
 
 class DummyWorker(ContainerWorker):
-    def __init__(self):
-        super().__init__(DummyModule())
+    def __init__(self, **params):
+        module = DummyModule()
+        module.params.update(params)
+        super().__init__(module)
     def check_image(self):
         pass
     def get_container_info(self):
@@ -74,3 +76,18 @@ def test_compare_dimensions_zero_equals_empty(cw):
     cw.params['dimensions'] = {}
     container = {'HostConfig': {'DeviceCgroupRules': {}}}
     assert cw.compare_dimensions(container) is False
+
+
+@pytest.mark.parametrize(
+    ("new", "cur", "expect"),
+    [
+        ([], [], False),  # identical empties
+        ([], ["CAP_AUDIT_WRITE"], False),  # implicit cap ignored
+        ([], ["CAP_SYS_ADMIN"], True),  # real difference
+        (["CAP_SYS_ADMIN"], ["CAP_SYS_ADMIN"], False),  # identical lists
+    ],
+)
+def test_compare_cap_add_implicit(monkeypatch, new, cur, expect):
+    cw = DummyWorker(cap_add=new)
+    info = {"HostConfig": {"CapAdd": cur}}
+    assert cw.compare_cap_add(info) == expect
