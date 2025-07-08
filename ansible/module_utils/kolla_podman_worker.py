@@ -72,17 +72,6 @@ class PodmanWorker(ContainerWorker):
 
         self.pc = PodmanClient(base_url=uri)
 
-    def _build_run_flags(self):
-        flags = []
-        policy = self.params.get('restart_policy')
-        if policy:
-            flags.extend([
-                '--restart',
-                policy if policy != 'on-failure'
-                else 'on-failure:%s' % self.params.get('restart_retries', 0)
-            ])
-        return flags
-
     def prepare_container_args(self):
         args = dict(
             network_mode='host'

@@ -86,7 +86,6 @@ class ContainerWorker(ABC):
             self.compare_ipc_mode(container_info) or
             self.compare_labels(container_info) or
             self.compare_privileged(container_info) or
-            self.compare_restart_policy(container_info) or
             self.compare_pid_mode(container_info) or
             self.compare_cgroupns_mode(container_info) or
             self.compare_tmpfs(container_info) or
@@ -170,17 +169,6 @@ class ContainerWorker(ABC):
         current_privileged = container_info['HostConfig']['Privileged']
         if new_privileged != current_privileged:
             return True
-
-    def compare_restart_policy(self, container_info):
-        """Return True if the requested restart policy differs
-        from the one applied to the running container."""
-        new_name = (self.params.get('restart_policy') or '').lower()
-        new_retries = str(self.params.get('restart_retries', 0))
-        current = container_info['HostConfig'].get('RestartPolicy', {})
-        cur_name = (current.get('Name') or '').lower()
-        cur_retries = str(current.get('MaximumRetryCount', 0))
-        return (new_name != cur_name) or (new_name == 'on-failure' and
-                                          new_retries != cur_retries)
 
     @abstractmethod
     def compare_image(self, container_info=None):
@@ -596,10 +584,3 @@ class ContainerWorker(ABC):
     def _format_env_vars(self):
         env = self._inject_env_var(self.params.get('environment'))
         return {k: "" if env[k] is None else env[k] for k in env}
-
-
-if __name__ == '__main__':
-    import json
-    import subprocess
-    import sys
-    print('Self-test passed \u2713')
