@@ -394,7 +394,7 @@ class PodmanWorker(ContainerWorker):
             return True
 
     def compare_dimensions(self, container_info):
-        new_dimensions = self.params.get('dimensions')
+        new_dimensions = _as_dict(self.params.get('dimensions'))
 
         # NOTE(mgoddard): The names used by Docker/Podman are inconsistent
         # between configuration of a container's resources and
@@ -407,8 +407,7 @@ class PodmanWorker(ContainerWorker):
             'cpuset_cpus': 'CpusetCpus', 'cpuset_mems': 'CpusetMems',
             'kernel_memory': 'KernelMemory', 'blkio_weight': 'BlkioWeight',
             'ulimits': 'Ulimits'}
-        unsupported = set(new_dimensions.keys()) - \
-            set(dimension_map.keys())
+        unsupported = set(new_dimensions.keys()) - set(dimension_map.keys())
         if unsupported:
             self.module.exit_json(
                 failed=True, msg=repr("Unsupported dimensions"),
