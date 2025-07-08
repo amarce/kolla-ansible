@@ -168,6 +168,22 @@ class ContainerWorker(ABC):
 
         self.systemd = SystemdWorker(self.params)
 
+    # ------------------------------------------------------------------
+    # Helper: emit debug lines only when Ansible is run with -vvv (or more)
+    # ------------------------------------------------------------------
+    def _debug(self, msg: str) -> None:
+        """Print `msg` at vvv verbosity, silently ignore otherwise."""
+        verbosity = getattr(self.module, "_verbosity", 0)
+
+        if verbosity >= 3:
+            # Preferred (Ansible ≥2.8): use the Display object if available
+            display = getattr(self.module, "_display", None)
+            if display and hasattr(display, "vvv"):
+                display.vvv(msg)
+            else:
+                # Fallback for very-old Ansible or direct execution
+                print(msg)
+                
     def _changed_if_differs(self, expected, actual, what):
         if expected != actual:
             self.module.debug(f"{what} differs: expected={expected} actual={actual}")
