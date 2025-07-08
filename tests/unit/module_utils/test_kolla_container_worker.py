@@ -97,5 +97,5 @@ def test_compare_cap_add(expected, actual, match, cw):
 
 def test_compare_dimensions_none_equals_empty(cw):
     cw.params['dimensions'] = {}
-    container = {'HostConfig': {'Resources': None}}
+    container = {'HostConfig': {'DeviceCgroupRules': None}}
     assert cw.compare_dimensions(container) is False

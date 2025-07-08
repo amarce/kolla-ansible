@@ -103,5 +103,5 @@ def test_compare_cap_add(worker, spec, current, expect_diff):
 ])
 def test_compare_dimensions(worker, spec, current, expect_diff):
     worker.params['dimensions'] = spec
-    container = {'HostConfig': {'Resources': current}}
+    container = {'HostConfig': {'DeviceCgroupRules': current}}
     assert worker.compare_dimensions(container) is expect_diff
