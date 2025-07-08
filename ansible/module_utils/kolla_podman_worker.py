@@ -13,6 +13,7 @@
 from podman.errors import APIError
 from podman import PodmanClient
 
+import os
 import shlex
 
 from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
@@ -341,58 +342,55 @@ class PodmanWorker(ContainerWorker):
             return True
 
     def compare_volumes(self, container_info):
-        def check_slash(string):
-            if not string:
-                return string
-            if string[-1] != '/':
-                return string + '/'
-            else:
-                return string
+        def strip_slash(path):
+            if not path or path == '/':
+                return path
+            return path.rstrip('/')
+
+        def normalize_volume(vol):
+            if not vol:
+                return vol
+            parts = vol.split(':')
+            if len(parts) == 1:
+                dst = os.path.realpath(strip_slash(parts[0]))
+                return dst
+            src = os.path.realpath(strip_slash(parts[0]))
+            dst = os.path.realpath(strip_slash(parts[1]))
+            mode = parts[2] if len(parts) > 2 else ''
+            opts = mode.split(',') if mode else []
+            mode = 'ro' if 'ro' in opts else 'rw'
+            return f"{src}:{dst}:{mode}"
 
         raw_volumes, binds = self.generate_volumes()
         raw_vols, current_binds = self.generate_volumes(
             container_info['HostConfig'].get('Binds'))
 
-        current_vols = [check_slash(vol) for vol in raw_vols if vol]
-        volumes = [check_slash(vol) for vol in raw_volumes if vol]
-
-        if not volumes:
-            volumes = list()
-        if not current_vols:
-            current_vols = list()
-        if not current_binds:
-            current_binds = list()
+        volumes = [normalize_volume(v) for v in raw_volumes or []]
+        current_vols = [normalize_volume(v) for v in raw_vols or []]
 
         volumes.sort()
         current_vols.sort()
 
-        if set(volumes).symmetric_difference(set(current_vols)):
+        if volumes != current_vols:
             return True
 
-        new_binds = list()
-        new_current_binds = list()
+        new_binds = []
+        current_bind_list = []
         if binds:
             for k, v in binds.items():
-                k = check_slash(k)
-                v['bind'] = check_slash(v['bind'])
-                new_binds.append(
-                    "{}:{}:{}".format(k, v['bind'], v['mode']))
+                spec = f"{k}:{v['bind']}:{v['mode']}"
+                new_binds.append(normalize_volume(spec))
 
         if current_binds:
             for k, v in current_binds.items():
-                k = check_slash(k)
-                v['bind'] = check_slash(v['bind'])
-                if 'ro' in v['mode']:
-                    v['mode'] = 'ro'
-                else:
-                    v['mode'] = 'rw'
-                new_current_binds.append(
-                    "{}:{}:{}".format(k, v['bind'], v['mode'][0:2]))
+                mode = 'ro' if 'ro' in v['mode'] else 'rw'
+                spec = f"{k}:{v['bind']}:{mode}"
+                current_bind_list.append(normalize_volume(spec))
 
         new_binds.sort()
-        new_current_binds.sort()
+        current_bind_list.sort()
 
-        if set(new_binds).symmetric_difference(set(new_current_binds)):
+        if new_binds != current_bind_list:
             return True
 
     def compare_dimensions(self, container_info):
