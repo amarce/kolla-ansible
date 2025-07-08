@@ -540,7 +540,17 @@ class ContainerWorker(ABC):
                     diff_keys.append(spec_key)
 
         if diff_keys:
-            self._debug(f"dimensions differ: {diff_keys}")
+            # Build a {dimension: {current: …, desired: …}} helper dict
+            mismatch = {
+                k: {
+                    "current": host_cfg.get(self.dimension_map[k]),
+                    "desired": new_dimensions.get(k, "<implicit-default>"),
+                }
+                for k in diff_keys
+            }
+
+            # One concise debug line Ansible will show at -vvv
+            self._debug(f"compare_dimensions mismatch → {mismatch}")
             return True
         return False
 
