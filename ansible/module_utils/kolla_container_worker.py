@@ -62,6 +62,15 @@ def _as_list(value):
     return list(value)
 
 
+def _as_set(value):
+    """Return a set built from ``value`` or an empty set."""
+    if value is None:
+        return set()
+    if isinstance(value, (list, tuple, set)):
+        return set(value)
+    return {value}
+
+
 def _as_dict(value) -> dict[str, str]:
     """Return a ``dict`` representation of ``value`` with string keys/values."""
 
@@ -186,11 +195,12 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        expected = _as_list(self.params.get('cap_add'))
-        actual = _as_list(
+        new_caps = _as_set(self.params.get('cap_add'))
+        cur_caps = _as_set(
             container_info.get('HostConfig', {}).get('CapAdd'))
-        if sorted(expected) != sorted(actual):
-            self.module.debug(f"cap_add differs: {expected=} {actual=}")
+        if new_caps != cur_caps:
+            self.module.debug(
+                f"cap_add differs: new_caps={new_caps} cur_caps={cur_caps}")
             return True
         return False
 
