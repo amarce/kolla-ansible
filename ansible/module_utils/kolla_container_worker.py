@@ -548,6 +548,7 @@ class ContainerWorker(ABC):
                 }
                 for k in diff_keys
             }
+            self._debug(f"compare_dimensions mismatch → {details}")
 
             # One concise debug line Ansible will show at -vvv
             self._debug(f"compare_dimensions mismatch → {mismatch}")
