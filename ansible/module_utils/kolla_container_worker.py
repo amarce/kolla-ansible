@@ -100,18 +100,11 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        new_cap_add = self.params.get('cap_add', list())
-        try:
-            current_cap_add = container_info['HostConfig'].get('CapAdd', None)
-        except KeyError:
-            current_cap_add = None
-        except TypeError:
-            current_cap_add = None
-
-        if not current_cap_add:
-            current_cap_add = list()
-        if set(new_cap_add).symmetric_difference(set(current_cap_add)):
-            return True
+        expected = sorted(self.params.get('cap_add') or [])
+        actual = sorted(
+            container_info.get('HostConfig', {}).get('CapAdd') or []
+        )
+        return expected != actual
 
     def compare_security_opt(self, container_info):
         ipc_mode = self.params.get('ipc_mode')
