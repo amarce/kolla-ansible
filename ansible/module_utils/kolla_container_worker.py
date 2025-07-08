@@ -475,16 +475,73 @@ class ContainerWorker(ABC):
         return a != b
 
     def compare_dimensions(self, container_info):
-        """Return True if requested dimensions differ from running container.
+        """Return True if requested dimensions differ from the container."""
 
-        DeviceCgroupRules is a dict in our YAML but can be absent in
-        container_info.  Treat None/{} equivalently.
-        """
-        new_dim = self._as_empty_dict(self.params.get("dimensions"))
-        cur_dim = self._as_empty_dict(
-            container_info.get("HostConfig", {}).get("DeviceCgroupRules")
-        )
-        return new_dim != cur_dim
+        new_dimensions = _as_dict(self.params.get("dimensions"))
+        unsupported = set(new_dimensions) - set(self.dimension_map)
+        if unsupported:
+            self.module.exit_json(
+                failed=True,
+                msg=repr("Unsupported dimensions"),
+                unsupported_dimensions=unsupported,
+            )
+
+        # Only include keys explicitly provided by the user.
+        desired = {
+            self.dimension_map[k]: v
+            for k, v in new_dimensions.items()
+            if v is not None
+        }
+
+        defaults = {
+            "PidsLimit": 2048,
+            "CpuShares": 0,
+            "CpuQuota": 0,
+            "CpuPeriod": 0,
+            "Memory": 0,
+            "MemorySwap": 0,
+            "KernelMemory": 0,
+            "BlkioWeight": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+        }
+
+        host_cfg = container_info.get("HostConfig", {})
+        current = {
+            k: host_cfg.get(k)
+            for k in desired
+        }
+
+        diff_keys = []
+        for spec_key, host_key in self.dimension_map.items():
+            new_val_present = spec_key in new_dimensions and new_dimensions[spec_key] is not None
+            cur_val = host_cfg.get(host_key)
+
+            if new_val_present:
+                new_val = new_dimensions[spec_key]
+                if spec_key == "ulimits":
+                    if self.compare_ulimits(new_val, cur_val):
+                        diff_keys.append(spec_key)
+                elif spec_key in {
+                    "mem_limit",
+                    "mem_reservation",
+                    "memswap_limit",
+                    "kernel_memory",
+                }:
+                    if self.dimensions_differ(new_val, cur_val, spec_key):
+                        diff_keys.append(spec_key)
+                else:
+                    if new_val != cur_val:
+                        diff_keys.append(spec_key)
+            else:
+                default_val = defaults.get(host_key)
+                if cur_val not in (None, default_val, [], "", 0):
+                    diff_keys.append(spec_key)
+
+        if diff_keys:
+            self._debug(f"dimensions differ: {diff_keys}")
+            return True
+        return False
 
     def compare_environment(self, container_info):
         env_spec = _as_dict(self.params.get("environment"))
