@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import re
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
