@@ -21,6 +21,27 @@ COMPARE_CONFIG_CMD = ['/usr/local/bin/kolla_set_configs', '--check']
 LOG = logging.getLogger(__name__)
 
 
+def _normalise_caps(value):
+    """Return a sorted list of unique caps (lower-cased) or []."""
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    return sorted({cap.lower() for cap in value})
+
+
+def _empty_dimensions(d):
+    """Return ``True`` if dict is empty or all numeric values are 0/None."""
+    if not d:
+        return True
+    for v in d.values():
+        if isinstance(v, (int, float)) and v != 0:
+            return False
+        if v:
+            return False
+    return True
+
+
 class ContainerWorker(ABC):
     def __init__(self, module):
         self.module = module
@@ -100,8 +121,11 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        expected = sorted(self.params.get('cap_add') or [])
-        actual = sorted(container_info.get('HostConfig', {}).get('CapAdd') or [])
+        expected = _normalise_caps(self.params.get('cap_add'))
+        actual = _normalise_caps(
+            container_info.get('HostConfig', {}).get('CapAdd'))
+        if expected != actual:
+            self.module.debug(f"cap_add differs: {expected=} {actual=}")
         return expected != actual
 
     def compare_security_opt(self, container_info):
@@ -263,34 +287,16 @@ class ContainerWorker(ABC):
         return a != b
 
     def compare_dimensions(self, container_info):
-        new_dimensions = self.params.get('dimensions')
+        expected = self.params.get('dimensions') or {}
+        actual = (container_info.get('HostConfig', {})
+                  .get('Resources', {}) or {})
 
-        if not self._dimensions_kernel_memory_removed:
-            self.dimension_map['kernel_memory'] = 'KernelMemory'
+        if _empty_dimensions(expected) and _empty_dimensions(actual):
+            return False
 
-        unsupported = set(new_dimensions.keys()) - \
-            set(self.dimension_map.keys())
-        if unsupported:
-            self.module.exit_json(
-                failed=True, msg=repr("Unsupported dimensions"),
-                unsupported_dimensions=unsupported)
-        current_dimensions = container_info['HostConfig']
-        for key1, key2 in self.dimension_map.items():
-            # NOTE(mgoddard): If a resource has been explicitly requested,
-            # check for a match. Otherwise, ensure it is set to the default.
-            if key1 in new_dimensions:
-                if key1 == 'ulimits':
-                    if self.compare_ulimits(new_dimensions.get(key1),
-                                            current_dimensions.get(key2)):
-                        return True
-                elif self.dimensions_differ(new_dimensions.get(key1),
-                                            current_dimensions.get(key2),
-                                            key1):
-                    return True
-            elif current_dimensions.get(key2):
-                # The default values of all currently supported resources are
-                # '' or 0 - both falsy.
-                return True
+        if expected != actual:
+            self.module.debug(f"dimensions differ: {expected=} {actual=}")
+        return expected != actual
 
     def compare_environment(self, container_info):
         if self.params.get('environment'):
