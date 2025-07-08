@@ -30,6 +30,32 @@ def _normalise_caps(value):
     return sorted({cap.lower() for cap in value})
 
 
+def _normalise_list(value):
+    """Return a set built from the value or an empty set."""
+    if value is None:
+        return set()
+    if isinstance(value, (list, tuple, set)):
+        return set(value)
+    return {value}
+
+
+def _normalise_dict(value):
+    """Return a dict without keys whose value evaluates to False."""
+    return {
+        k: v
+        for k, v in (value or {}).items()
+        if v not in (None, '', [], {}, ())
+    }
+
+
+def _lists_differ(spec, live):
+    return _normalise_list(spec) != _normalise_list(live)
+
+
+def _dicts_differ(spec, live):
+    return _normalise_dict(spec) != _normalise_dict(live)
+
+
 def _empty_dimensions(d):
     """Return ``True`` if dict is empty or all numeric values are 0/None."""
     if not d:
@@ -124,9 +150,10 @@ class ContainerWorker(ABC):
         expected = _normalise_caps(self.params.get('cap_add'))
         actual = _normalise_caps(
             container_info.get('HostConfig', {}).get('CapAdd'))
-        if expected != actual:
+        if _lists_differ(expected, actual):
             self.module.debug(f"cap_add differs: {expected=} {actual=}")
-        return expected != actual
+            return True
+        return False
 
     def compare_security_opt(self, container_info):
         ipc_mode = self.params.get('ipc_mode')
@@ -294,9 +321,10 @@ class ContainerWorker(ABC):
         if _empty_dimensions(expected) and _empty_dimensions(actual):
             return False
 
-        if expected != actual:
+        if _dicts_differ(expected, actual):
             self.module.debug(f"dimensions differ: {expected=} {actual=}")
-        return expected != actual
+            return True
+        return False
 
     def compare_environment(self, container_info):
         if self.params.get('environment'):
