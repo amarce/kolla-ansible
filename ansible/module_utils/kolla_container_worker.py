@@ -71,7 +71,14 @@ def _as_iter(value):
 
 
 def _as_dict(value):
-    """Return *value* as a dict."""
+    """Convert *value* into a dict.
+
+    Accepted forms:
+    * dict → returned unchanged
+    * iterable of "KEY=VAL" strings → {"KEY": "VAL", …}
+    * None/empty → {}
+    Raises TypeError otherwise.
+    """
 
     if not value:
         return {}
@@ -81,11 +88,11 @@ def _as_dict(value):
         out = {}
         for item in value:
             if not isinstance(item, str) or "=" not in item:
-                raise TypeError(f"Cannot convert {item!r} to dict entry")
+                raise TypeError(f"invalid KV item: {item!r}")
             k, v = item.split("=", 1)
             out[k] = v
         return out
-    raise TypeError(f"Cannot convert {type(value).__name__} to dict")
+    raise TypeError(f"cannot convert {type(value).__name__} to dict")
 
 
 def _normalise_bind(spec) -> tuple[str, str, str, str]:

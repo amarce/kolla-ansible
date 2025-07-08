@@ -153,9 +153,9 @@ def test_compare_volumes_ignores_benign_diffs(worker):
     assert not worker.compare_volumes(PODMAN_INSPECT_SNIPPET)
 
 
-def test_as_dict():
+def test__as_dict():
     assert _as_dict(None) == {}
     assert _as_dict({"a": "b"}) == {"a": "b"}
     assert _as_dict(["x=1", "y=2"]) == {"x": "1", "y": "2"}
     with pytest.raises(TypeError):
-        _as_dict(["invalid"])
+        _as_dict(["no_equal"])
