@@ -432,8 +432,6 @@ class PodmanWorker(ContainerWorker):
                 return True
 
     def compare_config(self):
-        if not self._has_config_files():
-            return False
         try:
             container = self.pc.containers.get(self.params['name'])
             container.reload()

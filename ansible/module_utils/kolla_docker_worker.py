@@ -144,8 +144,6 @@ class DockerWorker(ContainerWorker):
             return True
 
     def compare_config(self):
-        if not self._has_config_files():
-            return False
         try:
             job = self.dc.exec_create(
                 self.params['name'],
