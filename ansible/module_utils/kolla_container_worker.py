@@ -477,7 +477,7 @@ class ContainerWorker(ABC):
     def compare_dimensions(self, container_info):
         """Return True if requested dimensions differ from the container."""
         new_dimensions = _as_dict(self.params.get("dimensions"))
-        if not self.params.get("dimensions"):
+        if not new_dimensions:
             return False
         unsupported = set(new_dimensions) - set(self.dimension_map)
         if unsupported:
@@ -548,10 +548,8 @@ class ContainerWorker(ABC):
                 }
                 for k in diff_keys
             }
-            self._debug(f"compare_dimensions mismatch → {details}")
-
-            # One concise debug line Ansible will show at -vvv
-            self._debug(f"compare_dimensions mismatch → {mismatch}")
+            self._debug(f"compare_dimensions mismatch (full) → {mismatch}")
+            self._debug(f"compare_dimensions mismatch → {diff_keys}")
             return True
 
         return False

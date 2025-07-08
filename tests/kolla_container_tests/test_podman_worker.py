@@ -1337,7 +1337,7 @@ class TestAttrComp(base.BaseTestCase):
             'CpusetMems': '', 'MemorySwap': 0, 'MemoryReservation': 0,
             'Ulimits': []}
         self.pw = get_PodmanWorker(self.fake_data['params'])
-        self.assertTrue(self.pw.compare_dimensions(container_info))
+        self.assertFalse(self.pw.compare_dimensions(container_info))
 
     def test_compare_dimensions_removed_and_changed(self):
         self.fake_data['params']['dimensions'] = {
