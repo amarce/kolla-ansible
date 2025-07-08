@@ -1,6 +1,11 @@
+import sys
+from unittest import mock
+
 import pytest
 
-from ansible.module_utils.kolla_container_worker import ContainerWorker
+sys.modules["dbus"] = mock.MagicMock()
+
+from ansible.module_utils.kolla_container_worker import ContainerWorker, _as_dict
 
 
 class DummyModule:
@@ -146,3 +151,11 @@ PODMAN_INSPECT_SNIPPET = {
 def test_compare_volumes_ignores_benign_diffs(worker):
     worker.params["volumes"] = PLAYBOOK_LIST
     assert not worker.compare_volumes(PODMAN_INSPECT_SNIPPET)
+
+
+def test_as_dict():
+    assert _as_dict(None) == {}
+    assert _as_dict({"a": "b"}) == {"a": "b"}
+    assert _as_dict(["x=1", "y=2"]) == {"x": "1", "y": "2"}
+    with pytest.raises(TypeError):
+        _as_dict(["invalid"])

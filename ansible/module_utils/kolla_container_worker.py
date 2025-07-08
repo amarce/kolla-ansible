@@ -21,6 +21,9 @@ from ansible.module_utils.kolla_systemd_worker import SystemdWorker
 COMPARE_CONFIG_CMD = ["/usr/local/bin/kolla_set_configs", "--check"]
 LOG = logging.getLogger(__name__)
 
+# functions exported for use by other module_utils
+__all__ = ["_as_iter", "_as_dict"]
+
 
 def _normalise_caps(value):
     """Return a sorted list of unique caps (lower-cased) or []."""
@@ -65,6 +68,24 @@ def _as_iter(value):
     if isinstance(value, (list, tuple, set)):
         return list(value)
     return [value]
+
+
+def _as_dict(value):
+    """Return *value* as a dict."""
+
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, (list, tuple, set)):
+        out = {}
+        for item in value:
+            if not isinstance(item, str) or "=" not in item:
+                raise TypeError(f"Cannot convert {item!r} to dict entry")
+            k, v = item.split("=", 1)
+            out[k] = v
+        return out
+    raise TypeError(f"Cannot convert {type(value).__name__} to dict")
 
 
 def _normalise_bind(spec) -> tuple[str, str, str, str]:
@@ -116,37 +137,6 @@ def _as_set(value):
     return {value}
 
 
-def _as_dict(value) -> dict[str, str]:
-    """Return a ``dict`` representation of ``value`` with string keys/values."""
-
-    if not value:
-        return {}
-
-    if isinstance(value, dict):
-        return {str(k).strip(): str(v).strip() for k, v in value.items()}
-
-    if isinstance(value, str):
-        items = value.split(",")
-    else:
-        items = []
-        for item in value:
-            if isinstance(item, str):
-                items.extend(item.split(","))
-            else:
-                items.append(str(item))
-
-    result = {}
-    for item in items:
-        item = str(item).strip()
-        if not item:
-            continue
-        if "=" in item:
-            k, v = item.split("=", 1)
-            result[k.strip()] = v.strip()
-        else:
-            result[item] = "true"
-
-    return {str(k): str(v) for k, v in result.items()}
 
 
 def _empty_dimensions(d):
