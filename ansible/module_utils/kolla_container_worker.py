@@ -56,6 +56,18 @@ def _dicts_differ(spec, live):
     return _normalise_dict(spec) != _normalise_dict(live)
 
 
+def _as_list(value):
+    if value in (None, False):
+        return []
+    return list(value)
+
+
+def _as_dict(value):
+    if value in (None, False):
+        return {}
+    return dict(value)
+
+
 def _empty_dimensions(d):
     """Return ``True`` if dict is empty or all numeric values are 0/None."""
     if not d:
@@ -147,10 +159,10 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        expected = _normalise_caps(self.params.get('cap_add'))
-        actual = _normalise_caps(
+        expected = _as_list(self.params.get('cap_add'))
+        actual = _as_list(
             container_info.get('HostConfig', {}).get('CapAdd'))
-        if _lists_differ(expected, actual):
+        if sorted(expected) != sorted(actual):
             self.module.debug(f"cap_add differs: {expected=} {actual=}")
             return True
         return False
@@ -163,18 +175,14 @@ class ContainerWorker(ABC):
         # host pid mode or privileged. So no need to compare security opts
         if ipc_mode == 'host' or pid_mode == 'host' or privileged:
             return False
-        new_sec_opt = self.params.get('security_opt', list())
+        new_sec_opt = _as_list(self.params.get('security_opt'))
         try:
-            current_sec_opt = container_info['HostConfig'].get('SecurityOpt',
-                                                               list())
-        except KeyError:
-            current_sec_opt = None
-        except TypeError:
-            current_sec_opt = None
+            current_sec_opt = _as_list(
+                container_info['HostConfig'].get('SecurityOpt'))
+        except (KeyError, TypeError):
+            current_sec_opt = []
 
-        if not current_sec_opt:
-            current_sec_opt = list()
-        if set(new_sec_opt).symmetric_difference(set(current_sec_opt)):
+        if sorted(new_sec_opt) != sorted(current_sec_opt):
             return True
 
     @abstractmethod
@@ -207,8 +215,8 @@ class ContainerWorker(ABC):
         pass
 
     def compare_labels(self, container_info):
-        new_labels = self.params.get('labels')
-        current_labels = container_info['Config'].get('Labels', dict())
+        new_labels = _as_dict(self.params.get('labels'))
+        current_labels = _as_dict(container_info['Config'].get('Labels'))
         image_labels = self.check_image().get('Labels', dict())
         for k, v in image_labels.items():
             if k in new_labels:
@@ -221,25 +229,18 @@ class ContainerWorker(ABC):
             return True
 
     def compare_tmpfs(self, container_info):
-        new_tmpfs = self.generate_tmpfs()
-        current_tmpfs = container_info['HostConfig'].get('Tmpfs')
-        if not new_tmpfs:
-            new_tmpfs = []
-        if not current_tmpfs:
-            current_tmpfs = []
+        new_tmpfs = _as_list(self.generate_tmpfs())
+        current_tmpfs = _as_list(container_info['HostConfig'].get('Tmpfs'))
 
-        if set(current_tmpfs).symmetric_difference(set(new_tmpfs)):
+        if sorted(current_tmpfs) != sorted(new_tmpfs):
             return True
 
     def compare_volumes_from(self, container_info):
-        new_vols_from = self.params.get('volumes_from')
-        current_vols_from = container_info['HostConfig'].get('VolumesFrom')
-        if not new_vols_from:
-            new_vols_from = list()
-        if not current_vols_from:
-            current_vols_from = list()
+        new_vols_from = _as_list(self.params.get('volumes_from'))
+        current_vols_from = _as_list(
+            container_info['HostConfig'].get('VolumesFrom'))
 
-        if set(current_vols_from).symmetric_difference(set(new_vols_from)):
+        if sorted(current_vols_from) != sorted(new_vols_from):
             return True
 
     @abstractmethod
@@ -314,26 +315,27 @@ class ContainerWorker(ABC):
         return a != b
 
     def compare_dimensions(self, container_info):
-        expected = self.params.get('dimensions') or {}
-        actual = (container_info.get('HostConfig', {})
-                  .get('Resources', {}) or {})
+        expected = _as_dict(self.params.get('dimensions'))
+        actual = _as_dict(
+            (container_info.get('HostConfig', {}).get('Resources')))
 
         if _empty_dimensions(expected) and _empty_dimensions(actual):
             return False
 
-        if _dicts_differ(expected, actual):
+        if expected != actual:
             self.module.debug(f"dimensions differ: {expected=} {actual=}")
             return True
         return False
 
     def compare_environment(self, container_info):
-        if self.params.get('environment'):
-            current_env = dict()
+        env_spec = _as_dict(self.params.get('environment'))
+        if env_spec:
+            current_env = {}
             for kv in container_info['Config'].get('Env', list()):
                 k, v = kv.split('=', 1)
                 current_env.update({k: v})
 
-            for k, v in self.params.get('environment').items():
+            for k, v in env_spec.items():
                 if k not in current_env:
                     return True
                 if current_env[k] != v:
