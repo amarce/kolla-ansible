@@ -342,18 +342,18 @@ class DockerWorker(ContainerWorker):
             self.changed |= self.systemd.create_unit_file()
 
     def recreate_or_restart_container(self):
+        self.changed = True
         container = self.check_container()
-        environment = self.params.get('environment') or {}
+        # get config_strategy from env
+        environment = self.params.get('environment')
         config_strategy = environment.get('KOLLA_CONFIG_STRATEGY')
 
         if not container:
             self.start_container()
             return
-
-        needs_restart = (self.check_container_differs() or
-                         self.compare_config())
-
-        if config_strategy == 'COPY_ONCE' and needs_restart:
+        # If config_strategy is COPY_ONCE or container's parameters are
+        # changed, try to start a new one.
+        if config_strategy == 'COPY_ONCE' or self.check_container_differs():
             # NOTE(mgoddard): Pull the image if necessary before stopping the
             # container, otherwise a failure to pull the image will leave the
             # container stopped.
@@ -362,7 +362,7 @@ class DockerWorker(ContainerWorker):
             self.stop_container()
             self.remove_container()
             self.start_container()
-        elif config_strategy == 'COPY_ALWAYS' and needs_restart:
+        elif config_strategy == 'COPY_ALWAYS':
             self.restart_container()
 
     def start_container(self):

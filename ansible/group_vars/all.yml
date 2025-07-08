@@ -46,8 +46,6 @@ kolla_ansible_delegate_facts_hosts: "{{ groups['all'] }}"
 # Kolla options
 ###################
 # Valid options are [ COPY_ONCE, COPY_ALWAYS ]
-# With COPY_ALWAYS (default), containers are restarted only when
-# configuration or container parameters have changed.
 config_strategy: "COPY_ALWAYS"
 
 # Valid options are ['centos', 'debian', 'rocky', 'ubuntu']
