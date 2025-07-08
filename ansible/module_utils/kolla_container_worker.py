@@ -62,10 +62,37 @@ def _as_list(value):
     return list(value)
 
 
-def _as_dict(value):
-    if value in (None, False):
+def _as_dict(value) -> dict[str, str]:
+    """Return a ``dict`` representation of ``value`` with string keys/values."""
+
+    if not value:
         return {}
-    return dict(value)
+
+    if isinstance(value, dict):
+        return {str(k).strip(): str(v).strip() for k, v in value.items()}
+
+    if isinstance(value, str):
+        items = value.split(',')
+    else:
+        items = []
+        for item in value:
+            if isinstance(item, str):
+                items.extend(item.split(','))
+            else:
+                items.append(str(item))
+
+    result = {}
+    for item in items:
+        item = str(item).strip()
+        if not item:
+            continue
+        if '=' in item:
+            k, v = item.split('=', 1)
+            result[k.strip()] = v.strip()
+        else:
+            result[item] = 'true'
+
+    return {str(k): str(v) for k, v in result.items()}
 
 
 def _empty_dimensions(d):
