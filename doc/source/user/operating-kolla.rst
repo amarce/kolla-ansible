@@ -242,9 +242,6 @@ images on hosts.
 files for enabled OpenStack services, without then restarting the containers so
 it is not applied right away.
 
-The ``COPY_ALWAYS`` ``config_strategy`` will only restart containers when
-changes are detected, avoiding unnecessary restarts.
-
 ``kolla-ansible ... -i INVENTORY1 -i INVENTORY2`` Multiple inventories can be
 specified by passing the ``--inventory`` or ``-i`` command line option multiple
 times. This can be useful to share configuration between multiple environments.
