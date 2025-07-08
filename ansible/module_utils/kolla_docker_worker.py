@@ -125,10 +125,12 @@ class DockerWorker(ContainerWorker):
         volumes, binds = self.generate_volumes()
         current_vols = container_info['Config'].get('Volumes')
         current_binds = container_info['HostConfig'].get('Binds')
-
-        volumes = [self._clean_volume(v) for v in (volumes or [])]
-        current_vols = [self._clean_volume(v) for v in (current_vols or [])]
-        current_binds = current_binds or []
+        if not volumes:
+            volumes = list()
+        if not current_vols:
+            current_vols = list()
+        if not current_binds:
+            current_binds = list()
 
         if set(volumes).symmetric_difference(set(current_vols)):
             return True
@@ -136,30 +138,14 @@ class DockerWorker(ContainerWorker):
         new_binds = list()
         if binds:
             for k, v in binds.items():
-                new_binds.append(
-                    "{}:{}:{}".format(
-                        self._clean_volume(k),
-                        self._clean_volume(v['bind']),
-                        v['mode'],
-                    )
-                )
+                new_binds.append("{}:{}:{}".format(k, v['bind'], v['mode']))
 
-        current_binds_clean = []
-        for b in current_binds:
-            parts = b.split(':')
-            host = self._clean_volume(parts[0])
-            dest = self._clean_volume(parts[1])
-            mode = parts[2] if len(parts) > 2 else 'rw'
-            if 'ro' in mode:
-                mode = 'ro'
-            else:
-                mode = 'rw'
-            current_binds_clean.append(f"{host}:{dest}:{mode}")
-
-        if set(new_binds).symmetric_difference(set(current_binds_clean)):
+        if set(new_binds).symmetric_difference(set(current_binds)):
             return True
 
     def compare_config(self):
+        if not self._has_config_files():
+            return False
         try:
             job = self.dc.exec_create(
                 self.params['name'],
