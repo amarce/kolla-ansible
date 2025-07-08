@@ -1162,6 +1162,11 @@ class TestAttrComp(base.BaseTestCase):
         self.dw = get_DockerWorker({'cap_add': ['data2']})
         self.assertTrue(self.dw.compare_cap_add(container_info))
 
+    def test_compare_cap_add_none_vs_empty(self):
+        container_info = {'HostConfig': {}}
+        self.dw = get_DockerWorker({'cap_add': None})
+        self.assertFalse(self.dw.compare_cap_add(container_info))
+
     def test_compare_ipc_mode_neg(self):
         container_info = {'HostConfig': dict(IpcMode='data')}
         self.dw = get_DockerWorker({'ipc_mode': 'data'})

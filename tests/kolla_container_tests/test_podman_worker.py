@@ -1104,6 +1104,11 @@ class TestAttrComp(base.BaseTestCase):
         self.pw = get_PodmanWorker({'cap_add': ['data2']})
         self.assertTrue(self.pw.compare_cap_add(container_info))
 
+    def test_compare_cap_add_none_vs_empty(self):
+        container_info = {'HostConfig': {}}
+        self.pw = get_PodmanWorker({'cap_add': None})
+        self.assertFalse(self.pw.compare_cap_add(container_info))
+
     def test_compare_ipc_mode_neg(self):
         container_info = {'HostConfig': dict(IpcMode='data')}
         self.pw = get_PodmanWorker({'ipc_mode': 'data'})
