@@ -476,8 +476,9 @@ class ContainerWorker(ABC):
 
     def compare_dimensions(self, container_info):
         """Return True if requested dimensions differ from the container."""
-
         new_dimensions = _as_dict(self.params.get("dimensions"))
+        if not self.params.get("dimensions"):
+            return False
         unsupported = set(new_dimensions) - set(self.dimension_map)
         if unsupported:
             self.module.exit_json(
