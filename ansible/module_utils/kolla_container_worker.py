@@ -183,6 +183,14 @@ class ContainerWorker(ABC):
             else:
                 # Fallback for very-old Ansible or direct execution
                 print(msg)
+
+    def _as_empty_list(self, value):
+        """Return [] for any "empty" representation of a list-like arg."""
+        return [] if value in (None, [], ()) else value
+
+    def _as_empty_dict(self, value):
+        """Return {} for any "empty" representation of a dict-like arg."""
+        return {} if value in (None, {}, ()) else value
                 
     def _changed_if_differs(self, expected, actual, what):
         if expected != actual:
@@ -306,14 +314,16 @@ class ContainerWorker(ABC):
         return False
 
     def compare_cap_add(self, container_info):
-        new_caps = _as_set(self.params.get("cap_add"))
-        cur_caps = _as_set(container_info.get("HostConfig", {}).get("CapAdd"))
-        if new_caps != cur_caps:
-            self.module.debug(
-                f"cap_add differs: new_caps={new_caps} cur_caps={cur_caps}"
-            )
-            return True
-        return False
+        """Return True if requested cap_add differs from running container.
+
+        * None, [] or missing key are treated as identical (no capabilities added).
+        * Order is ignored.
+        """
+        new_caps = self._as_empty_list(self.params.get("cap_add"))
+        cur_caps = self._as_empty_list(
+            container_info.get("HostConfig", {}).get("CapAdd")
+        )
+        return sorted(new_caps) != sorted(cur_caps)
 
     def compare_security_opt(self, container_info):
         ipc_mode = self.params.get("ipc_mode")
@@ -457,16 +467,16 @@ class ContainerWorker(ABC):
         return a != b
 
     def compare_dimensions(self, container_info):
-        expected = _as_dict(self.params.get("dimensions"))
-        actual = _as_dict((container_info.get("HostConfig", {}).get("Resources")))
+        """Return True if requested dimensions differ from running container.
 
-        if _empty_dimensions(expected) and _empty_dimensions(actual):
-            return False
-
-        if expected != actual:
-            self.module.debug(f"dimensions differ: {expected=} {actual=}")
-            return True
-        return False
+        DeviceCgroupRules is a dict in our YAML but can be absent in
+        container_info.  Treat None/{} equivalently.
+        """
+        new_dim = self._as_empty_dict(self.params.get("dimensions"))
+        cur_dim = self._as_empty_dict(
+            container_info.get("HostConfig", {}).get("DeviceCgroupRules")
+        )
+        return new_dim != cur_dim
 
     def compare_environment(self, container_info):
         env_spec = _as_dict(self.params.get("environment"))

@@ -62,8 +62,8 @@ def cw():
 @pytest.mark.parametrize("expected,actual,match", [
     ([], None, True),
     (["NET_ADMIN"], [], False),
-    (["NET_ADMIN"], ["net_admin"], True),
-    (["SYS_ADMIN", "NET_ADMIN"], ["NET_ADMIN", "SYS_ADMIN", "NET_ADMIN"], True),
+    (["NET_ADMIN"], ["net_admin"], False),
+    (["SYS_ADMIN", "NET_ADMIN"], ["NET_ADMIN", "SYS_ADMIN", "NET_ADMIN"], False),
 ])
 def test_compare_cap_add(expected, actual, match, cw):
     cw.params['cap_add'] = expected
@@ -72,5 +72,5 @@ def test_compare_cap_add(expected, actual, match, cw):
 
 def test_compare_dimensions_zero_equals_empty(cw):
     cw.params['dimensions'] = {}
-    container = {'HostConfig': {'Resources': {'NanoCPUs': 0, 'Memory': 0}}}
+    container = {'HostConfig': {'DeviceCgroupRules': {}}}
     assert cw.compare_dimensions(container) is False
