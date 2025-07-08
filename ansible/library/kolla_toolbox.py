@@ -151,51 +151,81 @@ class KollaToolboxWorker():
         return command
 
     def _run_command(self, kolla_toolbox, command, *args, **kwargs) -> bytes:
+        """
+        Execute *command* inside the already-running kolla-toolbox container and
+        return the **stdout** bytes.
+
+        *  Handles Podman’s Docker-style multiplexed frame format.
+        *  Captures the stderr stream (if any) in ``self.result["stderr"]`` so
+           the module can bubble it up in a single JSON result.
+        """
         try:
             rc, output_raw = kolla_toolbox.exec_run(command, *args, **kwargs)
 
-            # Podman returns Docker-multiplexed frames: 8-byte header + data
+            # ── Podman multiplexed frames: 8-byte header + data ─────────────
+            #   https://docs.docker.com/engine/api/v1.41/#operation/ContainerAttach
             if isinstance(output_raw, bytes):
                 pos, stdout_buf, stderr_buf = 0, bytearray(), bytearray()
                 while pos + 8 <= len(output_raw):
-                    stream_id = output_raw[pos]
+                    stream_id = output_raw[pos]           # 1 = stdout, 2 = stderr
                     length    = int.from_bytes(output_raw[pos+4:pos+8], "big")
                     pos += 8
                     data, pos = output_raw[pos:pos+length], pos + length
                     (stdout_buf if stream_id == 1 else stderr_buf).extend(data)
+
                 output_raw = bytes(stdout_buf)
                 if stderr_buf:
                     self.result["stderr"] = stderr_buf.decode(errors="ignore")
-
         except self.container_errors.APIError as e:
             self.module.fail_json(
-                msg=f'Container engine client encountered API error: {e.explanation}'
+                msg=f"Container engine client encountered API error: {e.explanation}"
             )
 
         return output_raw
 
-    def _process_container_output(self, output_raw: bytes) -> dict:
-        """Convert raw bytes output from container.exec_run into dictionary."""
 
-        # ── DEBUG: write whatever came back from the container ───────────────
-        with open("/tmp/ktbw.raw", "wb") as f:
-            f.write(output_raw if isinstance(output_raw, bytes) else output_raw[0])
-        # ──────────────────────────────────────────────────────────────────────
+    def _process_container_output(self, output_raw: bytes) -> dict:
+        """
+        Turn the raw bytes that came back from *container.exec_run()* into the
+        dictionary that the kolla-toolbox Ansible callback JSON produces.
+
+        Handles both the old callback shape::
+
+            {"plays":[{"tasks":[{"hosts":{"localhost":{ … }}}]}]}
+
+        and the newer direct-result shape::
+
+            {"changed": false, "commands": []}
+        """
+
+        # ── Optional dump for ultra-verbose runs (ansible -vvvv) ────────────
+        if self.module._verbosity >= 4:
+            with open("/tmp/ktbw.raw", "wb") as f:
+                f.write(output_raw if isinstance(output_raw, bytes)
+                         else output_raw[0])
+        # ────────────────────────────────────────────────────────────────────
+
+        if not output_raw:
+            # Nothing on stdout – most likely the command failed before the
+            # JSON callback fired.  The stderr we captured (if any) is already
+            # in *self.result*.
+            self.module.fail_json(msg="kolla_toolbox: no output on stdout",
+                                  **self.result)
+
+        # Strip leading/trailing whitespace and any stray ANSI colour codes.
+        clean = re.sub(rb"\x1B\[[0-9;]*[mK]", b"", output_raw).lstrip().strip()
 
         try:
-            output_json = json.loads(output_raw.decode("utf-8"))
-        except json.JSONDecodeError as e:
-            self.module.fail_json(
-                msg=f"Parsing kolla_toolbox JSON output failed: {e}"
-            )
-        # ── Accept both old and new callback formats ──────────────────────────
-        # old: {"plays":[{"tasks":[{"hosts":{"localhost":{ … }}}]}]}
-        # new: {"changed":false, "commands":[]}
+            output_json = json.loads(clean.decode())
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            self.module.fail_json(msg=f"Bad JSON from kolla_toolbox: {exc}",
+                                  stdout=clean.decode(errors="ignore"),
+                                  **self.result)
+
+        # ── Normalise old/new callback formats ─────────────────────────────
         if isinstance(output_json, dict) and "plays" in output_json:
             try:
-                result = (
-                    output_json["plays"][0]["tasks"][0]["hosts"]["localhost"]
-                )
+                result = output_json["plays"][0]["tasks"][0]["hosts"]["localhost"]
             except (KeyError, IndexError):
                 self.module.fail_json(
                     msg=f"Ansible JSON output has unexpected format: {output_json}"
@@ -203,8 +233,10 @@ class KollaToolboxWorker():
         else:
             result = output_json
 
+        # The callback sometimes adds this key; we never want to propagate it.
         result.pop("_ansible_no_log", None)
         return result
+
     def main(self) -> None:
         """Run command inside the kolla_toolbox container with defined args."""
 
