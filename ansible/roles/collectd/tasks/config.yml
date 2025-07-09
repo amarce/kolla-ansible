@@ -13,6 +13,7 @@
   file:
     path: "{{ node_config_directory }}/{{ item.key }}/collectd.conf.d"
     state: "directory"
+
     owner: "{{ collectd_user }}"
     group: "{{ collectd_group }}"
     mode: "0755"
