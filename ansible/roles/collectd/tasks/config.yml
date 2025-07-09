@@ -15,9 +15,24 @@
     state: "directory"
     owner: "{{ config_owner_user }}"
     group: "{{ config_owner_group }}"
-    mode: "0770"
+    mode: "0755"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
+
+- name: Copying over custom collectd plugin configuration
+  vars:
+    service: "{{ collectd_services['collectd'] }}"
+  copy:
+    src: "{{ item }}"
+    dest: "{{ node_config_directory }}/collectd/collectd.conf.d/"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0660"
+  become: true
+  when: service | service_enabled_and_mapped_to_host
+  with_fileglob:
+    - "{{ node_custom_config }}/collectd/collectd.conf.d/*.conf"
+    - "{{ node_custom_config }}/collectd/{{ inventory_hostname }}/collectd.conf.d/*.conf"
 
 - name: Copying over config.json files for services
   template:
