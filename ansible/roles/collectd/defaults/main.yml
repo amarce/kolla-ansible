@@ -33,5 +33,5 @@ collectd_extra_volumes: "{{ default_extra_volumes }}"
 ####################
 collectd_logging_debug: "{{ openstack_logging_debug }}"
 
-collectd_user: "collectd"
-collectd_group: "collectd"
+collectd_user: "{{ config_owner_user }}"
+collectd_group: "{{ config_owner_group }}"
