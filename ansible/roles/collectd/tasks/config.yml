@@ -13,9 +13,8 @@
   file:
     path: "{{ node_config_directory }}/{{ item.key }}/collectd.conf.d"
     state: "directory"
-
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
+    owner: "collectd"
+    group: "collectd"
     mode: "0755"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
@@ -26,8 +25,8 @@
   copy:
     src: "{{ item }}"
     dest: "{{ node_config_directory }}/collectd/collectd.conf.d/"
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
+    owner: "collectd"
+    group: "collectd"
     mode: "0660"
   become: true
   when: service | service_enabled_and_mapped_to_host
@@ -66,6 +65,6 @@
   file:
     path: "{{ node_config_directory }}/collectd"
     recurse: yes
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
+    owner: "collectd"
+    group: "collectd"
   become: true
