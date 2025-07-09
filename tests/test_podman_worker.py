@@ -54,3 +54,14 @@ def test_compare_ulimits_order_and_difference(pw):
     assert pw.compare_ulimits(info_same) is False
     assert pw.compare_ulimits(info_diff) is True
 
+
+def test_blank_volume_entries_ignored_podman():
+    worker = PodmanWorker(DummyModule(volumes=['/foo:/foo', '']))
+    info = {'HostConfig': {'Binds': ['/foo:/foo']}}
+    assert worker.compare_volumes(info) is False
+
+
+def test_no_ulimits_equivalent_podman():
+    worker = PodmanWorker(DummyModule())
+    assert worker.compare_ulimits({'HostConfig': {}}) is False
+
