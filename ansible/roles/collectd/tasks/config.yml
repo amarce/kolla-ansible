@@ -3,8 +3,8 @@
   file:
     path: "{{ node_config_directory }}/{{ item.key }}"
     state: "directory"
-    owner: "{{ config_owner_user }}"
-    group: "{{ config_owner_group }}"
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
     mode: "0770"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
@@ -13,16 +13,33 @@
   file:
     path: "{{ node_config_directory }}/{{ item.key }}/collectd.conf.d"
     state: "directory"
-    owner: "{{ config_owner_user }}"
-    group: "{{ config_owner_group }}"
-    mode: "0770"
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
+    mode: "0755"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
+
+- name: Copying over custom collectd plugin configuration
+  vars:
+    service: "{{ collectd_services['collectd'] }}"
+  copy:
+    src: "{{ item }}"
+    dest: "{{ node_config_directory }}/collectd/collectd.conf.d/"
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
+    mode: "0660"
+  become: true
+  when: service | service_enabled_and_mapped_to_host
+  with_fileglob:
+    - "{{ node_custom_config }}/collectd/collectd.conf.d/*.conf"
+    - "{{ node_custom_config }}/collectd/{{ inventory_hostname }}/collectd.conf.d/*.conf"
 
 - name: Copying over config.json files for services
   template:
     src: "{{ item.key }}.json.j2"
     dest: "{{ node_config_directory }}/{{ item.key }}/config.json"
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
     mode: "0660"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
@@ -33,6 +50,8 @@
   template:
     src: "{{ item }}"
     dest: "{{ node_config_directory }}/collectd/collectd.conf"
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
     mode: "0660"
   become: true
   with_first_found:
@@ -41,3 +60,11 @@
     - "{{ node_custom_config }}/collectd.conf"
     - "collectd.conf.j2"
   when: service | service_enabled_and_mapped_to_host
+
+- name: Ensuring collectd config directory has correct owner and permission
+  file:
+    path: "{{ node_config_directory }}/collectd"
+    recurse: yes
+    owner: "{{ collectd_user }}"
+    group: "{{ collectd_group }}"
+  become: true
