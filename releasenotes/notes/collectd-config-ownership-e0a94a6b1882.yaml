@@ -1,0 +1,4 @@
+features:
+  - |
+    The collectd role now ensures that files and directories in ``/etc/collectd``
+    inside the container are owned by the ``collectd`` user and group by default.
