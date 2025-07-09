@@ -144,6 +144,11 @@ def _as_set(value):
     return {value}
 
 
+def _clean_vols(vols):
+    """Return ``vols`` with any empty entries removed, preserving order."""
+    return [v for v in (vols or []) if v]
+
+
 
 
 def _empty_dimensions(d):
@@ -407,13 +412,11 @@ class ContainerWorker(ABC):
             return True
 
     def compare_volumes(self, container_info):
-        wanted = {_normalise_bind(v) for v in _as_iter(self.params.get("volumes"))}
-        current = {_normalise_bind(m) for m in container_info.get("Mounts", [])}
-        current |= {
-            _normalise_bind(b)
-            for b in _as_iter(container_info.get("HostConfig", {}).get("Binds"))
-        }
-        return self._changed_if_differs(wanted, current, "volumes")
+        desired = _clean_vols(self.params.get("volumes"))
+        current = _clean_vols(container_info.get("HostConfig", {}).get("Binds"))
+        if set(desired) != set(current):
+            return True
+        return False
 
     def dimensions_differ(self, a, b, key):
         """Compares two docker dimensions
@@ -522,7 +525,8 @@ class ContainerWorker(ABC):
             if new_val_present:
                 new_val = new_dimensions[spec_key]
                 if spec_key == "ulimits":
-                    if self.compare_ulimits(new_val, cur_val):
+                    desired_list = self.build_ulimits(new_val)
+                    if self.compare_ulimits(desired_list, cur_val):
                         diff_keys.append(spec_key)
                 elif spec_key in {
                     "mem_limit",
@@ -578,17 +582,14 @@ class ContainerWorker(ABC):
         if new_state != current_state:
             return True
 
-    def compare_ulimits(self, new_ulimits, current_ulimits):
-        # The new_ulimits is dict, we need make it to a list of Ulimit
-        # instance.
-        new_ulimits = self.build_ulimits(new_ulimits)
+    def compare_ulimits(self, desired, current) -> bool:
+        def norm(src):
+            d = {}
+            for item in src or []:
+                d[item["Name"]] = (item["Soft"], item["Hard"])
+            return d
 
-        def key(ulimit):
-            return ulimit["Name"]
-
-        if current_ulimits is None:
-            current_ulimits = []
-        return sorted(new_ulimits, key=key) != sorted(current_ulimits, key=key)
+        return norm(desired) != norm(current)
 
     def compare_command(self, container_info):
         new_command = self.params.get("command")

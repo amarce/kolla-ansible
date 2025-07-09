@@ -19,6 +19,11 @@ from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
 from ansible.module_utils.kolla_container_worker import ContainerWorker
 from ansible.module_utils.kolla_container_worker import _as_dict
 
+
+def _clean_vols(vols):
+    """Return ``vols`` with any empty entries removed, preserving order."""
+    return [v for v in (vols or []) if v]
+
 uri = "http+unix:/run/podman/podman.sock"
 
 CONTAINER_PARAMS = [
@@ -368,8 +373,9 @@ class PodmanWorker(ContainerWorker):
             # check for a match. Otherwise, ensure it is set to the default.
             if key1 in new_dimensions:
                 if key1 == "ulimits":
+                    desired_list = self.build_ulimits(new_dimensions[key1])
                     if self.compare_ulimits(
-                        new_dimensions[key1], current_dimensions[key2]
+                        desired_list, current_dimensions[key2]
                     ):
                         return True
                 elif new_dimensions[key1] != current_dimensions[key2]:
