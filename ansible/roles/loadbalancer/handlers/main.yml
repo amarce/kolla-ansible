@@ -98,7 +98,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
   when:
@@ -129,7 +129,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
   when:
@@ -164,7 +164,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
   when:
     - kolla_action != "config"
@@ -234,7 +234,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
   when:
@@ -264,7 +264,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
   when:
@@ -294,7 +294,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
   when:
     - kolla_action != "config"

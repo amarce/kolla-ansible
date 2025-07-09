@@ -18,7 +18,7 @@
       BOOTSTRAP:
     name: "bootstrap_mariadb"
     restart_policy: oneshot
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
   notify:
     - Bootstrap MariaDB cluster
 

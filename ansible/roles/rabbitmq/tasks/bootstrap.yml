@@ -22,5 +22,5 @@
       BOOTSTRAP:
     name: "{{ project_name }}_bootstrap"
     restart_policy: oneshot
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
   when: rabbitmq_volume is changed

@@ -21,7 +21,7 @@
     environment: "{{ etcd_base_environment | combine(etcd_bootstrap_service_environment) }}"
     image: "{{ service.image }}"
     name: "{{ service.container_name }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
 
 - name: Wait for etcd service port liveness

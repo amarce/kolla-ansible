@@ -15,7 +15,7 @@
       BOOTSTRAP:
     name: "{{ service.container_name }}"
     restart_policy: oneshot
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
   listen: Bootstrap MariaDB cluster
 
@@ -83,7 +83,7 @@
     common_options: "{{ docker_common_options }}"
     image: "{{ service.image }}"
     name: "{{ service.container_name }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     environment: "{{ service.environment }}"
   when:
