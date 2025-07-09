@@ -190,7 +190,7 @@ def _normalise_ulimits(spec, actual):
 def _volume_tuple(item):
     """Return ``(src, dst, opts)`` for comparison or ``None`` to skip."""
 
-    if not item:
+    if not item or (isinstance(item, str) and not item.strip()):
         return None
 
     if isinstance(item, dict):
@@ -227,15 +227,37 @@ def _volume_tuple(item):
     )
 
 
+def _normalize_volume(item):
+    """Return canonical ``src:dst[:opts]`` string or ``None`` to skip."""
+
+    t = _volume_tuple(item)
+    if t is None:
+        return None
+
+    src, dst, opts = t
+    if src:
+        vol = f"{src}:{dst}" if dst else src
+    else:
+        vol = dst
+    if opts:
+        vol += ":" + ",".join(opts)
+    return vol
+
+
 def _compare_volumes(spec, running) -> bool:
-    """Return ``True`` if volumes differ after normalisation."""
+    """Return ``True`` if volumes differ after normalisation.
+
+    Podman may inject a ``/dev/pts`` pseudo bind mount whose ``Source`` is
+    empty.  Old service files might also contain stray empty strings.  These are
+    ignored when comparing volumes.
+    """
 
     def as_set(vols):
         out = set()
         for v in vols or []:
-            t = _volume_tuple(v)
-            if t is not None:
-                out.add(t)
+            n = _normalize_volume(v)
+            if n is not None:
+                out.add(n)
         return out
 
     spec_set = as_set(spec)
@@ -927,3 +949,17 @@ class ContainerWorker(ABC):
     def _format_env_vars(self):
         env = self._inject_env_var(self.params.get("environment"))
         return {k: "" if env[k] is None else env[k] for k in env}
+
+
+if __name__ == "__main__":
+    # Basic sanity tests for volume comparison
+    assert not _compare_volumes(
+        ["devpts:/dev/pts"],
+        [{"Type": "bind", "Source": "", "Destination": "/dev/pts"}],
+    )
+    assert not _compare_volumes([""], [])
+    assert not _compare_volumes(
+        ["/foo:/bar"],
+        [{"Type": "bind", "Source": "/foo", "Destination": "/bar"}],
+    )
+    print("OK")
