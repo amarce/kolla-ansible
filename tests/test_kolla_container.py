@@ -28,8 +28,11 @@ kolla_container_file = os.path.join(ansible_dir,
                                     'library', 'kolla_container.py')
 docker_worker_file = os.path.join(ansible_dir,
                                   'module_utils', 'kolla_docker_worker.py')
+container_worker_file = os.path.join(
+    ansible_dir, 'module_utils', 'kolla_container_worker.py')
 kc = SourceFileLoader('kolla_container', kolla_container_file).load_module()
 dwm = SourceFileLoader('kolla_docker_worker', docker_worker_file).load_module()
+cwm = SourceFileLoader('kolla_container_worker', container_worker_file).load_module()
 
 
 class ModuleArgsTest(base.BaseTestCase):
@@ -125,3 +128,21 @@ class ModuleArgsTest(base.BaseTestCase):
             required_if=required_if,
             bypass_checks=False
         )
+
+
+def test_compare_volumes_ignores_empty_and_devpts():
+    spec = ['a:/a', '', 'devpts:/dev/pts']
+    running = ['a:/a']
+    assert cwm._compare_volumes(spec, running) is False
+
+
+def test_compare_volumes_devpts_representation():
+    spec = ['devpts:/dev/pts', '/data:/data']
+    running = [':/dev/pts', '/data:/data']
+    assert cwm._compare_volumes(spec, running) is False
+
+
+def test_compare_ulimits_missing_key():
+    spec = [{'Name': 'memlock', 'Soft': 64, 'Hard': 64}]
+    running = []
+    assert cwm._compare_ulimits(spec, running) is False
