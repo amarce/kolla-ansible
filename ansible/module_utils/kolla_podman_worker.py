@@ -24,6 +24,14 @@ def _clean_vols(vols):
     """Return ``vols`` with any empty entries removed, preserving order."""
     return [v for v in (vols or []) if v]
 
+
+def _ul_dict(ulimits):
+    """Convert list[dict] of ulimits -> {name: (soft, hard)}."""
+    d = {}
+    for u in ulimits or []:
+        d[u["Name"]] = (u["Soft"], u["Hard"])
+    return d
+
 uri = "http+unix:/run/podman/podman.sock"
 
 CONTAINER_PARAMS = [
@@ -373,10 +381,7 @@ class PodmanWorker(ContainerWorker):
             # check for a match. Otherwise, ensure it is set to the default.
             if key1 in new_dimensions:
                 if key1 == "ulimits":
-                    desired_list = self.build_ulimits(new_dimensions[key1])
-                    if self.compare_ulimits(
-                        desired_list, current_dimensions[key2]
-                    ):
+                    if self.compare_ulimits(container_info):
                         return True
                 elif new_dimensions[key1] != current_dimensions[key2]:
                     return True
@@ -384,6 +389,22 @@ class PodmanWorker(ContainerWorker):
                 # The default values of all (except ulimits) currently
                 # supported resources are '' or 0 - both falsey.
                 return True
+
+    def compare_volumes(self, container_info):
+        desired = set(_clean_vols(self.params.get("volumes")))
+        current = set(
+            _clean_vols(container_info["HostConfig"].get("Binds") or [])
+        )
+        return desired != current
+
+    def compare_ulimits(self, container_info) -> bool:
+        want_ul = _ul_dict(
+            self.build_ulimits(
+                self.params.get("dimensions", {}).get("ulimits", {})
+            )
+        )
+        have_ul = _ul_dict(container_info["HostConfig"].get("Ulimits", []))
+        return want_ul != have_ul
 
     def compare_config(self):
         try:
