@@ -201,6 +201,9 @@ default_docker_dimensions_el9:
     nofile:
       soft: 1048576
       hard: 1048576
+    nproc:
+      soft: 4194304
+      hard: 4194304
 default_podman_dimensions_el9:
   ulimits:
     RLIMIT_NOFILE:

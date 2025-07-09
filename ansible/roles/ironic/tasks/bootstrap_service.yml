@@ -65,5 +65,5 @@
       BOOTSTRAP:
     name: "bootstrap_ironic_tftp"
     restart_policy: oneshot
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
   when: service | service_enabled_and_mapped_to_host

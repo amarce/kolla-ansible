@@ -10,5 +10,5 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"

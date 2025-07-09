@@ -9,7 +9,7 @@
     common_options: "{{ docker_common_options }}"
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck }}"
   notify:
@@ -34,7 +34,7 @@
     common_options: "{{ docker_common_options }}"
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     privileged: "{{ service.privileged | default(False) }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck }}"

@@ -10,6 +10,6 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     environment: "{{ service.environment }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"

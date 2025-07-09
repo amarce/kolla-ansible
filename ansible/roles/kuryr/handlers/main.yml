@@ -11,6 +11,6 @@
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
     cap_add: "{{ service.cap_add }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"

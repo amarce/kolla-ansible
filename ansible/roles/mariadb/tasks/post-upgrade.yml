@@ -20,5 +20,5 @@
       UPGRADE:
     name: "upgrade_mariadb"
     restart_policy: oneshot
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
   no_log: true

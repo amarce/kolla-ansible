@@ -8,6 +8,6 @@
     common_options: "{{ docker_common_options }}"
     image: "{{ service.image }}"
     name: "{{ service.container_name }}"
-    volumes: "{{ service.volumes }}"
+    volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
