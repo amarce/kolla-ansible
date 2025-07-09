@@ -412,11 +412,11 @@ class ContainerWorker(ABC):
             return True
 
     def compare_volumes(self, container_info):
-        desired = _clean_vols(self.params.get("volumes"))
-        current = _clean_vols(container_info.get("HostConfig", {}).get("Binds"))
-        if set(desired) != set(current):
-            return True
-        return False
+        want = set(_clean_vols(self.params.get("volumes") or []))
+        have = set(
+            _clean_vols(container_info.get("HostConfig", {}).get("Binds", []) or [])
+        )
+        return want != have
 
     def dimensions_differ(self, a, b, key):
         """Compares two docker dimensions

@@ -391,11 +391,12 @@ class PodmanWorker(ContainerWorker):
                 return True
 
     def compare_volumes(self, container_info):
-        desired = set(_clean_vols(self.params.get("volumes")))
-        current = set(
-            _clean_vols(container_info["HostConfig"].get("Binds") or [])
+        # Sanitise *both* sides – Jinja sometimes leaves "" in wanted list
+        want = set(_clean_vols(self.params.get("volumes") or []))
+        have = set(
+            _clean_vols(container_info["HostConfig"].get("Binds", []) or [])
         )
-        return desired != current
+        return want != have
 
     def compare_ulimits(self, container_info) -> bool:
         want_ul = _ul_dict(
@@ -404,7 +405,8 @@ class PodmanWorker(ContainerWorker):
             )
         )
         have_ul = _ul_dict(container_info["HostConfig"].get("Ulimits", []))
-        return want_ul != have_ul
+        # Treat "no ulimits" the same whichever spellings Podman uses
+        return bool(want_ul) != bool(have_ul) or want_ul != have_ul
 
     def compare_config(self):
         try:
