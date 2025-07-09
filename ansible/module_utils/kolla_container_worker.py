@@ -187,6 +187,31 @@ def _normalise_ulimits(spec, actual):
     return want, have
 
 
+def _compare_volumes(spec, running) -> bool:
+    """Return True if the two volume lists differ after normalisation."""
+
+    spec_set = {
+        v
+        for v in _clean_vols(spec)
+        if not re.match(r"(^devpts:/dev/pts$|^:/dev/pts$)", v)
+    }
+    running_set = set(_clean_vols(running))
+
+    return spec_set != running_set
+
+
+def _compare_ulimits(spec, running) -> bool:
+    """Return True if the two ulimit mappings differ."""
+
+    want, have = _normalise_ulimits(spec, running)
+
+    for name in set(want) & set(have):
+        if want[name] != have[name]:
+            return True
+
+    return False
+
+
 
 
 def _empty_dimensions(d):
@@ -453,11 +478,9 @@ class ContainerWorker(ABC):
             return True
 
     def compare_volumes(self, container_info):
-        want = _normalise_volumes(self.params.get("volumes") or [])
-        have = _normalise_volumes(
-            container_info.get("HostConfig", {}).get("Binds", []) or []
-        )
-        return want != have
+        want = self.params.get("volumes") or []
+        have = container_info.get("HostConfig", {}).get("Binds", []) or []
+        return _compare_volumes(want, have)
 
     def dimensions_differ(self, a, b, key):
         """Compares two docker dimensions
@@ -645,8 +668,7 @@ class ContainerWorker(ABC):
         return norm(desired) != norm(current)
 
     def compare_ulimits(self, desired, current) -> bool:
-        want, have = _normalise_ulimits(desired, current)
-        return want != have
+        return _compare_ulimits(desired, current)
 
     def compare_command(self, container_info):
         new_command = self.params.get("command")

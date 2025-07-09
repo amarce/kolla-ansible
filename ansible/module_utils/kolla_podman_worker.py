@@ -15,14 +15,14 @@ from podman import PodmanClient
 
 import shlex
 
-from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
-from ansible.module_utils.kolla_container_worker import ContainerWorker
-from ansible.module_utils.kolla_container_worker import _as_dict
+from ansible.module_utils.kolla_container_worker import (
+    COMPARE_CONFIG_CMD,
+    ContainerWorker,
+    _as_dict,
+    _compare_volumes,
+    _compare_ulimits,
+)
 
-
-def _clean_vols(vols):
-    """Return ``vols`` with any empty entries removed, preserving order."""
-    return [v for v in (vols or []) if v]
 
 
 def _ul_dict(ulimits):
@@ -391,22 +391,16 @@ class PodmanWorker(ContainerWorker):
                 return True
 
     def compare_volumes(self, container_info):
-        # Sanitise *both* sides – Jinja sometimes leaves "" in wanted list
-        want = set(_clean_vols(self.params.get("volumes") or []))
-        have = set(
-            _clean_vols(container_info["HostConfig"].get("Binds", []) or [])
-        )
-        return want != have
+        want = self.params.get("volumes") or []
+        have = container_info["HostConfig"].get("Binds", []) or []
+        return _compare_volumes(want, have)
 
     def compare_ulimits(self, container_info) -> bool:
-        want_ul = _ul_dict(
-            self.build_ulimits(
-                self.params.get("dimensions", {}).get("ulimits", {})
-            )
+        desired = self.build_ulimits(
+            self.params.get("dimensions", {}).get("ulimits", {})
         )
-        have_ul = _ul_dict(container_info["HostConfig"].get("Ulimits", []))
-        # Treat "no ulimits" the same whichever spellings Podman uses
-        return bool(want_ul) != bool(have_ul) or want_ul != have_ul
+        current = container_info["HostConfig"].get("Ulimits", [])
+        return _compare_ulimits(desired, current)
 
     def compare_config(self):
         try:

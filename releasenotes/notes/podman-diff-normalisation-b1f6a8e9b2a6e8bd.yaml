@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Normalises Podman volume and ulimit comparisons in the
+    ``service-check-containers`` role to avoid spurious "volumes differ"
+    and "dimensions differ" warnings.
