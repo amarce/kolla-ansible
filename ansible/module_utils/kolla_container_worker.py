@@ -228,19 +228,20 @@ def _volume_tuple(item):
 
 
 def _normalize_volume(item):
-    """Return canonical ``src:dst[:opts]`` string or ``None`` to skip."""
+    """Return canonical ``src:dst`` string or ``None`` to skip.
+
+    Any access mode or other third-field options are ignored.
+    """
 
     t = _volume_tuple(item)
     if t is None:
         return None
 
-    src, dst, opts = t
+    src, dst, _opts = t
     if src:
         vol = f"{src}:{dst}" if dst else src
     else:
         vol = dst
-    if opts:
-        vol += ":" + ",".join(opts)
     return vol
 
 
@@ -249,7 +250,9 @@ def _compare_volumes(spec, running) -> bool:
 
     Podman may inject a ``/dev/pts`` pseudo bind mount whose ``Source`` is
     empty.  Old service files might also contain stray empty strings.  These are
-    ignored when comparing volumes.
+    ignored when comparing volumes.  Entries are normalised to ``src:dst`` and
+    any access mode such as ``:ro`` or ``:rw`` is discarded before
+    comparison.
     """
 
     def as_set(vols):
@@ -263,7 +266,11 @@ def _compare_volumes(spec, running) -> bool:
     spec_set = as_set(spec)
     running_set = as_set(running)
 
-    return spec_set != running_set
+    if spec_set != running_set:
+        LOG.debug("diff: %s %s", sorted(spec_set), sorted(running_set))
+        return True
+
+    return False
 
 
 def _compare_ulimits(spec, running) -> bool:
@@ -954,12 +961,12 @@ class ContainerWorker(ABC):
 if __name__ == "__main__":
     # Basic sanity tests for volume comparison
     assert not _compare_volumes(
+        ["/etc/timezone:/etc/timezone:ro"],
+        [{"Source": "/etc/timezone", "Destination": "/etc/timezone"}],
+    )
+    assert not _compare_volumes(
         ["devpts:/dev/pts"],
         [{"Type": "bind", "Source": "", "Destination": "/dev/pts"}],
     )
     assert not _compare_volumes([""], [])
-    assert not _compare_volumes(
-        ["/foo:/bar"],
-        [{"Type": "bind", "Source": "/foo", "Destination": "/bar"}],
-    )
-    print("OK")
+    print("ALL OK")
