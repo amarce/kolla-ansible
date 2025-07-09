@@ -14,6 +14,7 @@ from abc import ABC
 from abc import abstractmethod
 import logging
 import os
+import re
 import shlex
 
 from ansible.module_utils.kolla_systemd_worker import SystemdWorker
@@ -147,6 +148,43 @@ def _as_set(value):
 def _clean_vols(vols):
     """Return ``vols`` with any empty entries removed, preserving order."""
     return [v for v in (vols or []) if v]
+
+
+def _normalise_volumes(vols):
+    """Return a sorted list of volumes, ignoring Podman-injected mounts."""
+    vols = _clean_vols(vols)
+    pattern = re.compile(r'(^devpts:/dev/pts$|^:/dev/pts$)')
+    vols = [v for v in vols if not pattern.match(v)]
+    return sorted(vols)
+
+
+def _normalise_ulimits(spec, actual):
+    """Return normalised ulimit mappings for comparison."""
+
+    def to_dict(src):
+        d = {}
+        for item in src or []:
+            if isinstance(item, dict):
+                name = item.get('Name') or item.get('name')
+                soft = item.get('Soft') if 'Soft' in item else item.get('soft')
+                hard = item.get('Hard') if 'Hard' in item else item.get('hard')
+            else:
+                name = getattr(item, 'name', None)
+                soft = getattr(item, 'soft', None)
+                hard = getattr(item, 'hard', None)
+            if name is not None:
+                d[str(name).lower()] = {'soft': soft, 'hard': hard}
+        return d
+
+    want = to_dict(spec)
+    have = to_dict(actual)
+
+    nproc_key = next((k for k in have if k in {'nproc', 'rlimit_nproc'}), None)
+    spec_has_nproc = any(k in {'nproc', 'rlimit_nproc'} for k in want)
+    if nproc_key and not spec_has_nproc:
+        want[nproc_key] = have[nproc_key]
+
+    return want, have
 
 
 
@@ -288,6 +326,9 @@ class ContainerWorker(ABC):
         if self.compare_environment(container_info):
             self._debug("check_container_differs: environment differs")
             differs = True
+        if self.compare_restart_policy(container_info):
+            self._debug("check_container_differs: restart_policy differs")
+            differs = True
         if self.compare_container_state(container_info):
             self._debug("check_container_differs: container state differs")
             differs = True
@@ -412,9 +453,9 @@ class ContainerWorker(ABC):
             return True
 
     def compare_volumes(self, container_info):
-        want = set(_clean_vols(self.params.get("volumes") or []))
-        have = set(
-            _clean_vols(container_info.get("HostConfig", {}).get("Binds", []) or [])
+        want = _normalise_volumes(self.params.get("volumes") or [])
+        have = _normalise_volumes(
+            container_info.get("HostConfig", {}).get("Binds", []) or []
         )
         return want != have
 
@@ -519,16 +560,20 @@ class ContainerWorker(ABC):
 
         diff_keys = []
         for spec_key, host_key in self.dimension_map.items():
-            new_val_present = spec_key in new_dimensions and new_dimensions[spec_key] is not None
             cur_val = host_cfg.get(host_key)
+
+            if spec_key == "ulimits":
+                new_val = new_dimensions.get(spec_key)
+                desired_list = self.build_ulimits(new_val or {})
+                if self.compare_ulimits(desired_list, cur_val):
+                    diff_keys.append(spec_key)
+                continue
+
+            new_val_present = spec_key in new_dimensions and new_dimensions[spec_key] is not None
 
             if new_val_present:
                 new_val = new_dimensions[spec_key]
-                if spec_key == "ulimits":
-                    desired_list = self.build_ulimits(new_val)
-                    if self.compare_ulimits(desired_list, cur_val):
-                        diff_keys.append(spec_key)
-                elif spec_key in {
+                if spec_key in {
                     "mem_limit",
                     "mem_reservation",
                     "memswap_limit",
@@ -582,14 +627,26 @@ class ContainerWorker(ABC):
         if new_state != current_state:
             return True
 
-    def compare_ulimits(self, desired, current) -> bool:
-        def norm(src):
-            d = {}
-            for item in src or []:
-                d[item["Name"]] = (item["Soft"], item["Hard"])
-            return d
+    def compare_restart_policy(self, container_info):
+        if self.params.get("container_engine") != "podman":
+            return False
+        desired = self.params.get("restart_policy")
+        current = (
+            container_info.get("HostConfig", {})
+            .get("RestartPolicy", {})
+            .get("Name")
+        )
+
+        def norm(val):
+            if val in ("", None, "unless-stopped"):
+                return "unless-stopped"
+            return val
 
         return norm(desired) != norm(current)
+
+    def compare_ulimits(self, desired, current) -> bool:
+        want, have = _normalise_ulimits(desired, current)
+        return want != have
 
     def compare_command(self, container_info):
         new_command = self.params.get("command")
