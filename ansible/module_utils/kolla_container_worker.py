@@ -187,15 +187,59 @@ def _normalise_ulimits(spec, actual):
     return want, have
 
 
-def _compare_volumes(spec, running) -> bool:
-    """Return True if the two volume lists differ after normalisation."""
+def _volume_tuple(item):
+    """Return ``(src, dst, opts)`` for comparison or ``None`` to skip."""
 
-    spec_set = {
-        v
-        for v in _clean_vols(spec)
-        if not re.match(r"(^devpts:/dev/pts$|^:/dev/pts$)", v)
-    }
-    running_set = set(_clean_vols(running))
+    if not item:
+        return None
+
+    if isinstance(item, dict):
+        src = item.get("Source") or ""
+        if item.get("Type") == "volume" and item.get("Name"):
+            src = item["Name"]
+        dst = item.get("Destination") or ""
+        if dst == "/dev/pts" and src in {"devpts", ""}:
+            return None
+        opts = []
+        if item.get("Mode"):
+            opts.extend([o for o in str(item["Mode"]).split(";") if o])
+        if item.get("Propagation"):
+            opts.append(item["Propagation"])
+        if item.get("RW") is False:
+            opts.append("ro")
+        elif item.get("RW") and not opts:
+            opts.append("rw")
+    else:
+        s = str(item)
+        if re.match(r"(^devpts:/dev/pts$|^:/dev/pts$)", s):
+            return None
+        parts = s.split(":", 2)
+        src = parts[0]
+        dst = parts[1] if len(parts) > 1 else ""
+        if dst == "/dev/pts" and src in {"devpts", ""}:
+            return None
+        opts = parts[2].split(",") if len(parts) > 2 and parts[2] else []
+
+    return (
+        src.rstrip("/"),
+        dst.rstrip("/"),
+        tuple(sorted(o for o in opts if o)),
+    )
+
+
+def _compare_volumes(spec, running) -> bool:
+    """Return ``True`` if volumes differ after normalisation."""
+
+    def as_set(vols):
+        out = set()
+        for v in vols or []:
+            t = _volume_tuple(v)
+            if t is not None:
+                out.add(t)
+        return out
+
+    spec_set = as_set(spec)
+    running_set = as_set(running)
 
     return spec_set != running_set
 
