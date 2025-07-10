@@ -16,9 +16,9 @@
     owner: root
     group: root
     mode: "{{ item.mode if (item.mode | int(base=8)) <= 420 else '0644' }}"
-  loop: "{{ kolla_secret_files[group] }}"
+  loop: "{{ kolla_secret_files.get(group, []) }}"
   loop_control:
     label: "{{ item.path | basename }}"
 - name: Debug copied files
   debug:
-    msg: "Copied {{ kolla_secret_files[group] | length }} files for group {{ group }}"
+    msg: "Copied {{ kolla_secret_files.get(group, []) | length }} files for group {{ group }}"

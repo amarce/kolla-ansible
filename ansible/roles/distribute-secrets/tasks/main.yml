@@ -77,9 +77,7 @@
 
 - name: Process secrets for host groups
   include_tasks: process_group.yml
-  when:
-    - kolla_secret_files.get(group) is defined
-    - kolla_secret_files[group] | length > 0
+  when: kolla_secret_files.get(group, []) | length > 0
   vars:
     inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
     my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
@@ -91,7 +89,7 @@
 - name: Debug groups skipped
   debug:
     msg: "No secrets found for group {{ group }} - skipping"
-  when: kolla_secret_files.get(group) is not defined or kolla_secret_files[group] | length == 0
+  when: kolla_secret_files.get(group, []) | length == 0
   vars:
     inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
     my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
