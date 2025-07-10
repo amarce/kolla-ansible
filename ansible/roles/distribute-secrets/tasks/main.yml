@@ -38,10 +38,10 @@
 - name: Build secret files mapping
   delegate_to: localhost
   run_once: true
-  when: _secret_files_results is defined
+  when: _secret_files_results.results is defined
   set_fact:
     kolla_secret_files: "{{ kolla_secret_files | combine({ (_item.item.path | basename): _item.files }) }}"
-  loop: "{{ _secret_files_results.results }}"
+  loop: "{{ _secret_files_results.results | selectattr('item', 'defined') | selectattr('files', 'defined') | list }}"
   loop_control:
     loop_var: _item
 
@@ -53,6 +53,18 @@
   when:
     - _item.matched | default(0) | int == 0
   loop: "{{ _secret_files_results.results | default([]) }}"
+  loop_control:
+    loop_var: _item
+
+- name: Debug unexpected results from find
+  delegate_to: localhost
+  run_once: true
+  when:
+    - _secret_files_results.results is defined
+    - (_secret_files_results.results | rejectattr('item', 'defined')) | length > 0
+  debug:
+    msg: "Skipping unexpected result: {{ _item }}"
+  loop: "{{ _secret_files_results.results | rejectattr('item', 'defined') | list }}"
   loop_control:
     loop_var: _item
 
