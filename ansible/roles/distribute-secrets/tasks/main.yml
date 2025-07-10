@@ -29,12 +29,19 @@
     file_type: file
   register: _secret_files_results
 
-- name: Build secret files mapping
+- name: Ensure secret files fact exists
   delegate_to: localhost
   run_once: true
   set_fact:
-    kolla_secret_files: "{{ kolla_secret_files | default({}) | combine({ (_item.item.path | basename): _item.files }) }}"
-  loop: "{{ _secret_files_results.results | default([]) }}"
+    kolla_secret_files: "{{ kolla_secret_files | default({}) }}"
+
+- name: Build secret files mapping
+  delegate_to: localhost
+  run_once: true
+  when: _secret_files_results is defined
+  set_fact:
+    kolla_secret_files: "{{ kolla_secret_files | combine({ (_item.item.path | basename): _item.files }) }}"
+  loop: "{{ _secret_files_results.results }}"
   loop_control:
     loop_var: _item
 
