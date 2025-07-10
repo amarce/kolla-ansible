@@ -33,7 +33,7 @@
   delegate_facts: true
   run_once: true
   set_fact:
-    kolla_secret_files: "{{ kolla_secret_files | default({}) }}"
+    kolla_secret_files: "{{ hostvars['localhost'].kolla_secret_files | default({}) }}"
 
 - name: Build secret files mapping
   delegate_to: localhost
@@ -41,7 +41,7 @@
   run_once: true
   when: _secret_files_results.results is defined
   set_fact:
-    kolla_secret_files: "{{ kolla_secret_files | combine({ (_item.item.path | basename): _item.files }) }}"
+    kolla_secret_files: "{{ hostvars['localhost'].kolla_secret_files | default({}) | combine({ (_item.item.path | basename): _item.files }) }}"
   loop: "{{ _secret_files_results.results
             | selectattr('item', 'defined')
             | selectattr('matched', 'gt', 0)
