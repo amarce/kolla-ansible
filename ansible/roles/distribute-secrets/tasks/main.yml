@@ -1,0 +1,98 @@
+---
+- name: Check if secrets source directory exists
+  delegate_to: localhost
+  run_once: true
+  stat:
+    path: "{{ kolla_secrets_src }}"
+  register: _secrets_root
+
+- name: Find group secret directories
+  delegate_to: localhost
+  run_once: true
+  find:
+    paths: "{{ kolla_secrets_src }}"
+    file_type: directory
+    depth: 1
+  register: _secret_dirs
+  when: _secrets_root.stat.exists
+
+- name: Gather files for each secret directory
+  delegate_to: localhost
+  run_once: true
+  when: _secret_dirs.files is defined
+  loop: "{{ _secret_dirs.files }}"
+  loop_control:
+    loop_var: _dir
+    label: "{{ _dir.path }}"
+  find:
+    paths: "{{ _dir.path }}"
+    file_type: file
+  register: _secret_files_results
+
+- name: Build secret files mapping
+  delegate_to: localhost
+  run_once: true
+  set_fact:
+    kolla_secret_files: "{{ kolla_secret_files | default({}) | combine({ (_item.item.path | basename): _item.files }) }}"
+  loop: "{{ _secret_files_results.results | default([]) }}"
+  loop_control:
+    loop_var: _item
+
+- name: Debug empty secret directories
+  delegate_to: localhost
+  run_once: true
+  debug:
+    msg: "Secret directory {{ _item.item.path }} exists but contains no files"
+  when:
+    - _item.matched | default(0) | int == 0
+  loop: "{{ _secret_files_results.results | default([]) }}"
+  loop_control:
+    loop_var: _item
+
+- name: Share secret files mapping with all hosts
+  set_fact:
+    kolla_secret_files: "{{ hostvars['localhost'].kolla_secret_files | default({}) }}"
+
+- name: Process secrets for host groups
+  block:
+    - name: Debug processing group
+      debug:
+        msg: "Processing secrets for group {{ group }}"
+    - name: Ensure destination directory exists
+      become: true
+      file:
+        path: "{{ kolla_secrets_dest }}/{{ group }}"
+        state: directory
+        mode: '0700'
+    - name: Copy secret files for group
+      become: true
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ kolla_secrets_dest }}/{{ group }}/{{ item.path | basename }}"
+        owner: root
+        group: root
+        mode: "{{ item.mode if (item.mode | int(base=8)) <= 420 else '0644' }}"
+      loop: "{{ kolla_secret_files[group] }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+    - name: Debug copied files
+      debug:
+        msg: "Copied {{ kolla_secret_files[group] | length }} files for group {{ group }}"
+  when: kolla_secret_files.get(group) is defined and kolla_secret_files[group] | length > 0
+  vars:
+    my_groups: "{{ group_names }}"
+  loop: "{{ my_groups }}"
+  loop_control:
+    loop_var: group
+    label: "{{ group }}"
+
+- name: Debug groups skipped
+  debug:
+    msg: "No secrets found for group {{ group }} - skipping"
+  when: kolla_secret_files.get(group) is not defined or kolla_secret_files[group] | length == 0
+  vars:
+    my_groups: "{{ group_names }}"
+  loop: "{{ my_groups }}"
+  loop_control:
+    loop_var: group
+    label: "{{ group }}"
