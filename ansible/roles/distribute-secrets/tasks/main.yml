@@ -54,31 +54,10 @@
     kolla_secret_files: "{{ hostvars['localhost'].kolla_secret_files | default({}) }}"
 
 - name: Process secrets for host groups
-  block:
-    - name: Debug processing group
-      debug:
-        msg: "Processing secrets for group {{ group }}"
-    - name: Ensure destination directory exists
-      become: true
-      file:
-        path: "{{ kolla_secrets_dest }}/{{ group }}"
-        state: directory
-        mode: '0700'
-    - name: Copy secret files for group
-      become: true
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ kolla_secrets_dest }}/{{ group }}/{{ item.path | basename }}"
-        owner: root
-        group: root
-        mode: "{{ item.mode if (item.mode | int(base=8)) <= 420 else '0644' }}"
-      loop: "{{ kolla_secret_files[group] }}"
-      loop_control:
-        label: "{{ item.path | basename }}"
-    - name: Debug copied files
-      debug:
-        msg: "Copied {{ kolla_secret_files[group] | length }} files for group {{ group }}"
-  when: kolla_secret_files.get(group) is defined and kolla_secret_files[group] | length > 0
+  include_tasks: process_group.yml
+  when:
+    - kolla_secret_files.get(group) is defined
+    - kolla_secret_files[group] | length > 0
   vars:
     my_groups: "{{ group_names }}"
   loop: "{{ my_groups }}"
