@@ -12,3 +12,12 @@
   roles:
     - { role: openstack.kolla.baremetal,
         tags: baremetal }
+
+- name: Distribute service secrets
+  hosts: all
+  serial: '{{ kolla_serial|default("0") }}'
+  gather_facts: false
+  max_fail_percentage: >-
+    {{ secrets_max_fail_percentage | default(kolla_max_fail_percentage) | default(100) }}
+  roles:
+    - distribute-secrets
