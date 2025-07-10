@@ -22,10 +22,9 @@
   when: _secret_dirs.files is defined
   loop: "{{ _secret_dirs.files }}"
   loop_control:
-    loop_var: _dir
-    label: "{{ _dir.path }}"
+    label: "{{ item.path }}"
   find:
-    paths: "{{ _dir.path }}"
+    paths: "{{ item.path }}"
     file_type: file
   register: _secret_files_results
 
@@ -41,7 +40,10 @@
   when: _secret_files_results.results is defined
   set_fact:
     kolla_secret_files: "{{ kolla_secret_files | combine({ (_item.item.path | basename): _item.files }) }}"
-  loop: "{{ _secret_files_results.results | selectattr('item', 'defined') | selectattr('files', 'defined') | list }}"
+  loop: "{{ _secret_files_results.results
+            | selectattr('item', 'defined')
+            | selectattr('matched', 'gt', 0)
+            | list }}"
   loop_control:
     loop_var: _item
 
@@ -51,6 +53,7 @@
   debug:
     msg: "Secret directory {{ _item.item.path }} exists but contains no files"
   when:
+    - _item.item is defined
     - _item.matched | default(0) | int == 0
   loop: "{{ _secret_files_results.results | default([]) }}"
   loop_control:
@@ -78,7 +81,8 @@
     - kolla_secret_files.get(group) is defined
     - kolla_secret_files[group] | length > 0
   vars:
-    my_groups: "{{ group_names }}"
+    inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
+    my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
   loop: "{{ my_groups }}"
   loop_control:
     loop_var: group
@@ -89,7 +93,8 @@
     msg: "No secrets found for group {{ group }} - skipping"
   when: kolla_secret_files.get(group) is not defined or kolla_secret_files[group] | length == 0
   vars:
-    my_groups: "{{ group_names }}"
+    inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
+    my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
   loop: "{{ my_groups }}"
   loop_control:
     loop_var: group
