@@ -30,12 +30,14 @@
 
 - name: Ensure secret files fact exists
   delegate_to: localhost
+  delegate_facts: true
   run_once: true
   set_fact:
     kolla_secret_files: "{{ kolla_secret_files | default({}) }}"
 
 - name: Build secret files mapping
   delegate_to: localhost
+  delegate_facts: true
   run_once: true
   when: _secret_files_results.results is defined
   set_fact:
