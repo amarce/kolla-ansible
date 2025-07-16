@@ -335,19 +335,6 @@
     - { role: letsencrypt,
         tags: letsencrypt }
 
-- name: Apply role collectd
-  gather_facts: false
-  hosts:
-    - collectd
-    - '&enable_collectd_True'
-  serial: '{{ kolla_serial|default("0") }}'
-  max_fail_percentage: >-
-    {{ collectd_max_fail_percentage |
-       default(kolla_max_fail_percentage) |
-       default(100) }}
-  roles:
-    - { role: collectd,
-        tags: collectd }
 
 - name: Apply role influxdb
   gather_facts: false
@@ -1051,3 +1038,17 @@
   roles:
     - { role: skyline,
         tags: skyline }
+
+- name: Apply role collectd
+  gather_facts: false
+  hosts:
+    - collectd
+    - '&enable_collectd_True'
+  serial: '{{ kolla_serial|default("0") }}'
+  max_fail_percentage: >-
+    {{ collectd_max_fail_percentage |
+       default(kolla_max_fail_percentage) |
+       default(100) }}
+  roles:
+    - { role: collectd,
+        tags: collectd }
