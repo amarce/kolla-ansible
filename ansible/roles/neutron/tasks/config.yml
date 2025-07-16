@@ -25,6 +25,8 @@
 - name: Copy neutron-ovs-cleanup config files
   become: true
   vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
     ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
     cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
   copy:
@@ -41,6 +43,8 @@
 - name: Copy neutron-ovs-cleanup ML2 plugin configs
   become: true
   vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
     ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
     cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
   copy:
@@ -57,6 +61,8 @@
 - name: Copy neutron-ovs-cleanup policy file
   become: true
   vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
     ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
     cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
   copy:
