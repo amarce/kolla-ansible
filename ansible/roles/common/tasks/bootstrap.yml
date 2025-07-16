@@ -13,4 +13,5 @@
     src: "{{ container_engine_volumes_path }}/kolla_logs/_data"
     path: /var/log/kolla
     state: link
+    force: yes
   when: inventory_hostname in groups['kolla-logs']
