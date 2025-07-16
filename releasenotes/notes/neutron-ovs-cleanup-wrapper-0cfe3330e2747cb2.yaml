@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Ensure ``neutron-ovs-cleanup`` is run before starting the
+    ``neutron-openvswitch-agent`` container to remove any stale Open
+    vSwitch ports.

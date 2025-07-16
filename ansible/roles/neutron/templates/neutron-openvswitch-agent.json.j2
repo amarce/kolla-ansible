@@ -1,6 +1,12 @@
 {
-    "command": "neutron-openvswitch-agent --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini",
+    "command": "/usr/local/bin/neutron-openvswitch-agent-wrapper.sh",
     "config_files": [
+        {
+            "source": "{{ container_config_directory }}/neutron-openvswitch-agent-wrapper.sh",
+            "dest": "/usr/local/bin/neutron-openvswitch-agent-wrapper.sh",
+            "owner": "root",
+            "perm": "0755"
+        },
         {
             "source": "{{ container_config_directory }}/neutron.conf",
             "dest": "/etc/neutron/neutron.conf",
