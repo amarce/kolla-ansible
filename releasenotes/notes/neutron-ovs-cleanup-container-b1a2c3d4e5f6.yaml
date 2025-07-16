@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    Introduces a ``neutron-ovs-cleanup`` container which runs at host boot to
+    remove any stale Open vSwitch ports before starting the
+    ``neutron-openvswitch-agent`` container. The ``neutron-openvswitch-agent``
+    container now starts without running ``neutron-ovs-cleanup`` itself.

@@ -177,16 +177,6 @@
     mode: "0660"
   when: service | service_enabled_and_mapped_to_host
 
-- name: Copy neutron-openvswitch-agent-wrapper script
-  become: true
-  vars:
-    service_name: "neutron-openvswitch-agent"
-    service: "{{ neutron_services[service_name] }}"
-  template:
-    src: neutron-openvswitch-agent-wrapper.sh.j2
-    dest: "{{ node_config_directory }}/{{ service_name }}/neutron-openvswitch-agent-wrapper.sh"
-    mode: "0770"
-  when: service | service_enabled_and_mapped_to_host
 
 - name: Copying over sriov_agent.ini
   become: true
