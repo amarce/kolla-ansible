@@ -60,20 +60,6 @@
   notify:
     - Restart fake neutron-openvswitch-agent container
 
-- name: Copy neutron-openvswitch-agent-wrapper script
-  become: true
-  vars:
-    service_name: "{{ item }}"
-  template:
-    src: neutron-openvswitch-agent-wrapper.sh.j2
-    dest: "{{ node_config_directory }}/neutron-openvswitch-agent-fake-{{ item }}/neutron-openvswitch-agent-wrapper.sh"
-    mode: "0770"
-  with_sequence: start=1 end={{ num_nova_fake_per_node }}
-  when:
-    - inventory_hostname in groups['compute']
-    - neutron_plugin_agent == "openvswitch"
-  notify:
-    - Restart fake neutron-openvswitch-agent container
 
 - name: Checking neutron-openvswitch-agent container for nova fake node
   vars:
