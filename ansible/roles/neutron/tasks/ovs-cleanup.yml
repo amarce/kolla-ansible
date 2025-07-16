@@ -16,5 +16,5 @@
     name: "neutron_ovs_cleanup"
     restart_policy: no
     remove_on_exit: true
-    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup:' ~ container_config_directory ~ '/:ro' ] + (service.volumes[1:] | list) }}"
+    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro' ] + (service.volumes[1:] | list) }}"
   when: service | service_enabled_and_mapped_to_host
