@@ -9,6 +9,65 @@
     mode: "0770"
   with_dict: "{{ neutron_services | select_services_enabled_and_mapped_to_host }}"
 
+- name: Ensuring neutron-ovs-cleanup config directory exists
+  become: true
+  vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
+  file:
+    path: "{{ node_config_directory }}/neutron-ovs-cleanup"
+    state: "directory"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0770"
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copy neutron-ovs-cleanup config files
+  become: true
+  vars:
+    ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
+    cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
+  copy:
+    remote_src: true
+    src: "{{ item }}"
+    dest: "{{ cleanup_dir }}/{{ item | basename }}"
+    mode: "0660"
+  loop:
+    - "{{ ovs_agent_dir }}/config.json"
+    - "{{ ovs_agent_dir }}/neutron.conf"
+    - "{{ ovs_agent_dir }}/openvswitch_agent.ini"
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copy neutron-ovs-cleanup ML2 plugin configs
+  become: true
+  vars:
+    ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
+    cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
+  copy:
+    remote_src: true
+    src: "{{ ovs_agent_dir }}/{{ item.path | basename }}"
+    dest: "{{ cleanup_dir }}/{{ item.path | basename }}"
+    mode: "0660"
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - check_extra_ml2_plugins is defined
+    - check_extra_ml2_plugins.matched > 0
+  loop: "{{ check_extra_ml2_plugins.files }}"
+
+- name: Copy neutron-ovs-cleanup policy file
+  become: true
+  vars:
+    ovs_agent_dir: "{{ node_config_directory }}/neutron-openvswitch-agent"
+    cleanup_dir: "{{ node_config_directory }}/neutron-ovs-cleanup"
+  copy:
+    remote_src: true
+    src: "{{ ovs_agent_dir }}/{{ neutron_policy_file }}"
+    dest: "{{ cleanup_dir }}/{{ neutron_policy_file }}"
+    mode: "0660"
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - neutron_policy_file is defined
+
 - name: Check if extra ml2 plugins exists
   find:
     path: "{{ node_custom_config }}/neutron/plugins/"
