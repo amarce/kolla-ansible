@@ -12,9 +12,9 @@ Operation
 ---------
 
 During deployment the container runs once per host boot. After completing the
-cleanup it exits and remains stopped for manual reuse. A marker file
-``/run/kolla/neutron_ovs_cleanup_done`` is created to prevent the container
-from running again until the host is rebooted.
+cleanup it exits and remains stopped for manual reuse. The container itself
+creates a marker file ``/run/kolla/neutron_ovs_cleanup_done`` to prevent
+further automatic executions until the host is rebooted.
 
 Manual execution
 ----------------

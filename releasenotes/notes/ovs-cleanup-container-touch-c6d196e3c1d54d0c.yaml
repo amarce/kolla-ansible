@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    ``neutron-ovs-cleanup`` now creates the marker file
+    ``/run/kolla/neutron_ovs_cleanup_done`` after running. This prevents
+    accidental re-execution if the host is reconfigured while the file
+    is missing. The ansible task also touches the file as a fallback.
