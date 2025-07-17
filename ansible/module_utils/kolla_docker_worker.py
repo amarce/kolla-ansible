@@ -350,6 +350,16 @@ class DockerWorker(ContainerWorker):
         elif config_strategy == "COPY_ALWAYS":
             self.restart_container()
 
+    def recreate_container(self):
+        container = self.check_container()
+        if not container or self.check_container_differs():
+            if not self.check_image():
+                self.pull_image()
+            if container:
+                self.stop_container()
+                self.remove_container()
+            self.create_container()
+
     def start_container(self):
         if not self.check_image():
             self.pull_image()
