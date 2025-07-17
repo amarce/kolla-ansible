@@ -6,6 +6,15 @@
     state: directory
     mode: "0755"
 
+- name: Configure sudoers for neutron-ovs-cleanup
+  become: true
+  copy:
+    dest: /etc/sudoers.d/kolla_neutron_ovs_cleanup
+    content: "neutron ALL=(root) NOPASSWD: /usr/bin/touch {{ neutron_ovs_cleanup_marker_file }}\n"
+    owner: root
+    group: root
+    mode: "0440"
+
 - name: Check if neutron-ovs-cleanup has run
   become: true
   stat:
@@ -21,12 +30,13 @@
     action: "compare_container"
     common_options: "{{ docker_common_options }}"
     command: >-
-      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
+      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && sudo /usr/bin/touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
     labels:
       OVSCLEANUP:
     name: "neutron_ovs_cleanup"
     restart_policy: no
+    state: exited
     remove_on_exit: false
     volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list) }}"
   register: ovs_cleanup_compare
@@ -42,12 +52,13 @@
     action: "recreate_container"
     common_options: "{{ docker_common_options }}"
     command: >-
-      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
+      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && sudo /usr/bin/touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
     labels:
       OVSCLEANUP:
     name: "neutron_ovs_cleanup"
     restart_policy: no
+    state: exited
     remove_on_exit: false
     volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list) }}"
   when:
@@ -65,7 +76,7 @@
     common_options: "{{ docker_common_options }}"
     detach: False
     command: >-
-      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
+      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && sudo /usr/bin/touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
     labels:
       OVSCLEANUP:
