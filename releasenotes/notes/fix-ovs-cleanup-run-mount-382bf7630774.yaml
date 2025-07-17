@@ -1,0 +1,5 @@
+fixes:
+  - |
+    Mounts ``/run/kolla`` into the ``neutron-ovs-cleanup`` container so that
+    the cleanup marker file can be created successfully. The directory is
+    created on the host if needed.
