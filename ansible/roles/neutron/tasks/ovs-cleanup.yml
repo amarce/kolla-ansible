@@ -1,4 +1,18 @@
 ---
+--
+- name: Ensure neutron-ovs-cleanup marker directory exists
+  become: true
+  file:
+    path: "{{ neutron_ovs_cleanup_marker_file | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Check if neutron-ovs-cleanup has run
+  become: true
+  stat:
+    path: "{{ neutron_ovs_cleanup_marker_file }}"
+  register: ovs_cleanup_marker
+
 - name: Running neutron-ovs-cleanup container
   vars:
     service_name: "neutron-openvswitch-agent"
@@ -15,6 +29,17 @@
       OVSCLEANUP:
     name: "neutron_ovs_cleanup"
     restart_policy: no
-    remove_on_exit: true
+    remove_on_exit: false
     volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro' ] + (service.volumes[1:] | list) }}"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - not ovs_cleanup_marker.stat.exists
+
+- name: Mark neutron-ovs-cleanup complete
+  become: true
+  file:
+    path: "{{ neutron_ovs_cleanup_marker_file }}"
+    state: touch
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - not ovs_cleanup_marker.stat.exists
