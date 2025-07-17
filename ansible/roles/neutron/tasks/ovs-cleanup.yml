@@ -1,11 +1,28 @@
 ---
+- name: Get neutron uid
+  become: true
+  command: "{{ kolla_container_engine }} run --rm {{ neutron_openvswitch_agent_image_full }} id -u neutron"
+  register: neutron_uid_result
+  changed_when: false
+
+- name: Get neutron gid
+  become: true
+  command: "{{ kolla_container_engine }} run --rm {{ neutron_openvswitch_agent_image_full }} id -g neutron"
+  register: neutron_gid_result
+  changed_when: false
+
+- name: Set neutron uid and gid facts
+  set_fact:
+    neutron_uid: "{{ neutron_uid_result.stdout }}"
+    neutron_gid: "{{ neutron_gid_result.stdout }}"
+
 - name: Ensure neutron-ovs-cleanup marker directory exists
   become: true
   file:
     path: "{{ neutron_ovs_cleanup_marker_file | dirname }}"
     state: directory
-    owner: neutron
-    group: neutron
+    owner: "{{ neutron_uid }}"
+    group: "{{ neutron_gid }}"
     mode: "0755"
 
 - name: Check if neutron-ovs-cleanup has run
