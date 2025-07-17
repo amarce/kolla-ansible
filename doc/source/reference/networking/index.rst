@@ -14,5 +14,6 @@ Networking-SFC, QoS, and so on.
    dpdk
    neutron
    neutron-extensions
+   ovs-cleanup
    octavia
    sriov

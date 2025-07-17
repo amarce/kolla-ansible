@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    The ``neutron-ovs-cleanup`` container now runs only once per host boot.
+    A marker file ``/run/kolla/neutron_ovs_cleanup_done`` prevents further
+    automatic executions until the host is rebooted. The container remains in
+    the stopped state after completion and can be started manually if
+    additional cleanup is required.
