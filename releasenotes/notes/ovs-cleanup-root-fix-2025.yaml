@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Fixes creation of the ``neutron-ovs-cleanup`` marker file when using
+    Podman by running the container command without ``sudo`` and ensuring
+    the marker directory is writable by the ``neutron`` user.
