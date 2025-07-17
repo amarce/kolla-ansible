@@ -1,5 +1,4 @@
 ---
---
 - name: Ensure neutron-ovs-cleanup marker directory exists
   become: true
   file:
