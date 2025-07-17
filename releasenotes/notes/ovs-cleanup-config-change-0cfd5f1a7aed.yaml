@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    The ``neutron-ovs-cleanup`` container is now recreated and executed when its
+    configuration changes, even if the marker file exists. This ensures that
+    updates, such as modified cleanup commands, take effect without requiring a
+    reboot.

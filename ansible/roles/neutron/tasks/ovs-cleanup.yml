@@ -12,6 +12,27 @@
     path: "{{ neutron_ovs_cleanup_marker_file }}"
   register: ovs_cleanup_marker
 
+- name: Check neutron-ovs-cleanup container configuration
+  vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
+  become: true
+  kolla_container:
+    action: "compare_container"
+    common_options: "{{ docker_common_options }}"
+    command: >-
+      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
+    image: "{{ service.image }}"
+    labels:
+      OVSCLEANUP:
+    name: "neutron_ovs_cleanup"
+    restart_policy: no
+    remove_on_exit: false
+    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro' ] + (service.volumes[1:] | list) }}"
+  register: ovs_cleanup_compare
+  when:
+    - service | service_enabled_and_mapped_to_host
+
 - name: Running neutron-ovs-cleanup container
   vars:
     service_name: "neutron-openvswitch-agent"
@@ -32,7 +53,7 @@
     volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro' ] + (service.volumes[1:] | list) }}"
   when:
     - service | service_enabled_and_mapped_to_host
-    - not ovs_cleanup_marker.stat.exists
+    - not ovs_cleanup_marker.stat.exists or ovs_cleanup_compare.changed
 
 - name: Mark neutron-ovs-cleanup complete
   vars:
@@ -44,4 +65,4 @@
     state: touch
   when:
     - service | service_enabled_and_mapped_to_host
-    - not ovs_cleanup_marker.stat.exists
+    - not ovs_cleanup_marker.stat.exists or ovs_cleanup_compare.changed
