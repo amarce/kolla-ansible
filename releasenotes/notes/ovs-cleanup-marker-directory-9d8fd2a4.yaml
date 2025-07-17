@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The ``neutron-ovs-cleanup`` marker file is now created in
+    ``/run/kolla/neutron_ovs_cleanup/done``. A dedicated directory is used
+    so that ownership of ``/run/kolla`` no longer needs to be changed.
