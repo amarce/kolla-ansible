@@ -35,6 +35,9 @@
     - not ovs_cleanup_marker.stat.exists
 
 - name: Mark neutron-ovs-cleanup complete
+  vars:
+    service_name: "neutron-openvswitch-agent"
+    service: "{{ neutron_services[service_name] }}"
   become: true
   file:
     path: "{{ neutron_ovs_cleanup_marker_file }}"
