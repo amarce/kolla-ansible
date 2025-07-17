@@ -733,10 +733,16 @@ class ContainerWorker(ABC):
             .get("Name")
         )
 
+        # Podman does not honour the restart policy when creating a
+        # container.  Empty or missing values therefore correspond to the
+        # default behaviour which is effectively "no".
         def norm(val):
             if val in ("", None, "unless-stopped"):
                 return "unless-stopped"
             return val
+
+        if desired == "no" and current in ("", None, "unless-stopped"):
+            return False
 
         return norm(desired) != norm(current)
 
@@ -747,9 +753,10 @@ class ContainerWorker(ABC):
         new_command = self.params.get("command")
         if new_command is not None:
             new_command_split = shlex.split(new_command)
-            new_path = new_command_split[0]
+            new_path = os.path.basename(new_command_split[0])
             new_args = new_command_split[1:]
-            if new_path != container_info["Path"] or new_args != container_info["Args"]:
+            current_path = os.path.basename(container_info["Path"])
+            if new_path != current_path or new_args != container_info["Args"]:
                 return True
 
     def compare_healthcheck(self, container_info):
