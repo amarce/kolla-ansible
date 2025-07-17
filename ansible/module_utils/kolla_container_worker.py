@@ -850,6 +850,10 @@ class ContainerWorker(ABC):
         pass
 
     @abstractmethod
+    def recreate_container(self):
+        pass
+
+    @abstractmethod
     def start_container(self):
         pass
 

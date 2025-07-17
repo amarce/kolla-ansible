@@ -52,6 +52,7 @@ options:
       - remove_image
       - remove_volume
       - recreate_or_restart_container
+      - recreate_container
       - restart_container
       - start_container
       - stop_container
@@ -276,6 +277,7 @@ def generate_module():
                              'ensure_image',
                              'pull_image',
                              'recreate_or_restart_container',
+                             'recreate_container',
                              'remove_container',
                              'remove_image',
                              'remove_volume',
@@ -341,6 +343,7 @@ def generate_module():
         ['action', 'create_volume', ['name']],
         ['action', 'ensure_image', ['image']],
         ['action', 'recreate_or_restart_container', ['name']],
+        ['action', 'recreate_container', ['name']],
         ['action', 'remove_container', ['name']],
         ['action', 'remove_image', ['image']],
         ['action', 'remove_volume', ['name']],
