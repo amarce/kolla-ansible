@@ -9,7 +9,7 @@
     common_options: "{{ docker_common_options }}"
     detach: False
     command: >-
-      bash -c 'kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini'
+      bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini'
     image: "{{ service.image }}"
     labels:
       OVSCLEANUP:
