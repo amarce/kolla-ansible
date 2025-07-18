@@ -762,8 +762,24 @@ class ContainerWorker(ABC):
             new_command_split = shlex.split(new_command)
             new_path = os.path.basename(new_command_split[0])
             new_args = new_command_split[1:]
-            current_path = os.path.basename(container_info["Path"])
-            if new_path != current_path or new_args != container_info["Args"]:
+
+            current_path = os.path.basename(container_info.get("Path", ""))
+            current_args = container_info.get("Args")
+            if isinstance(current_args, str):
+                current_args = shlex.split(current_args)
+            current_args = current_args or []
+
+            if new_path != current_path or new_args != current_args:
+                # When podman reports the command as a list without quoting,
+                # the logical commands may still match even if the list
+                # elements differ.  Fall back to a string comparison to avoid
+                # needless container recreation when the commands are
+                # effectively the same.
+                if (
+                    new_path == current_path
+                    and " ".join(new_args) == " ".join(current_args)
+                ):
+                    return False
                 return True
 
     def compare_healthcheck(self, container_info):
