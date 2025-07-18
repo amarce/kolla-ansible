@@ -448,24 +448,25 @@ class ContainerWorker(ABC):
             self._debug("check_container_differs: healthcheck differs")
             differs = True
 
+        debug_enabled = (
+            getattr(self.module, "_verbosity", 0) >= 3 or
+            os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
+                "1", "true", "yes"
+            )
+        )
+
         if not differs:
             self._debug("check_container_differs: no differences found")
-        else:
-            debug_enabled = (
-                getattr(self.module, "_verbosity", 0) >= 3 or
-                os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
-                    "1", "true", "yes"
-                )
+
+        if debug_enabled:
+            self._debug(
+                "check_container_differs: container_info=" +
+                json.dumps(container_info, indent=2, sort_keys=True)
             )
-            if debug_enabled:
-                self._debug(
-                    "check_container_differs: container_info=" +
-                    json.dumps(container_info, indent=2, sort_keys=True)
-                )
-                self._debug(
-                    "check_container_differs: params=" +
-                    json.dumps(self.params, indent=2, sort_keys=True, default=str)
-                )
+            self._debug(
+                "check_container_differs: params=" +
+                json.dumps(self.params, indent=2, sort_keys=True, default=str)
+            )
 
         return differs
 
