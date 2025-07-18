@@ -323,13 +323,16 @@ class ContainerWorker(ABC):
         )
 
         if verbosity >= 3 or env_debug:
-            # Preferred (Ansible ≥2.8): use the Display object if available
-            display = getattr(self.module, "_display", None)
-            if display and hasattr(display, "vvv"):
-                display.vvv(msg)
+            # Use module.debug if available to avoid polluting module output
+            if hasattr(self.module, "debug"):
+                self.module.debug(msg)
             else:
                 # Fallback for very-old Ansible or direct execution
-                print(msg)
+                display = getattr(self.module, "_display", None)
+                if display and hasattr(display, "vvv"):
+                    display.vvv(msg)
+                else:
+                    print(msg)
 
     def _as_empty_list(self, value):
         """Return [] for any "empty" representation of a list-like arg."""
