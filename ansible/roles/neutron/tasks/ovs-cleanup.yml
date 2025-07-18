@@ -48,7 +48,7 @@
     restart_policy: no
     state: exited
     remove_on_exit: false
-    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list) }}"
+    volumes: "{{ ([ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list)) | reject('equalto', '') | list }}"
   register: ovs_cleanup_compare
   when:
     - service | service_enabled_and_mapped_to_host
@@ -70,7 +70,7 @@
     restart_policy: no
     state: exited
     remove_on_exit: false
-    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list) }}"
+    volumes: "{{ ([ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list)) | reject('equalto', '') | list }}"
   when:
     - service | service_enabled_and_mapped_to_host
     - ovs_cleanup_marker.stat.exists
@@ -93,7 +93,7 @@
     name: "neutron_ovs_cleanup"
     restart_policy: no
     remove_on_exit: false
-    volumes: "{{ [ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list) }}"
+    volumes: "{{ ([ node_config_directory ~ '/neutron-ovs-cleanup/:' ~ container_config_directory ~ '/:ro', neutron_ovs_cleanup_marker_file | dirname ~ ':' ~ neutron_ovs_cleanup_marker_file | dirname ] + (service.volumes[1:] | list)) | reject('equalto', '') | list }}"
   when:
     - service | service_enabled_and_mapped_to_host
     - not ovs_cleanup_marker.stat.exists
