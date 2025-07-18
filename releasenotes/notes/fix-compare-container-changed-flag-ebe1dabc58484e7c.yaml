@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Fix false changed status emitted by the compare_container action when no
+    diffs are present (affects neutron-ovs-cleanup idempotency).

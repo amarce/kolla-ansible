@@ -235,3 +235,28 @@ def test_compare_container_no_change(mock_generate_module):
         mock_dw.assert_called_once_with(module_mock)
         mock_dw.return_value.compare_container.assert_called_once_with()
     module_mock.exit_json.assert_called_once_with(changed=False, result=True)
+
+
+@mock.patch("kolla_container.generate_module")
+def test_compare_container_no_change_returns_ok(mock_generate_module):
+    module_mock = mock.MagicMock()
+    module_mock.params = {"name": "test", "action": "compare_container"}
+    mock_generate_module.return_value = module_mock
+    with mock.patch(
+        "ansible.module_utils.kolla_docker_worker.DockerWorker"
+    ) as mock_dw:
+        mock_dw.return_value.compare_container.return_value = True
+        mock_dw.return_value.changed = True
+        mock_dw.return_value.result = {
+            "diff": {},
+            "debug": ["no differences found"],
+        }
+        kc.main()
+        mock_dw.assert_called_once_with(module_mock)
+        mock_dw.return_value.compare_container.assert_called_once_with()
+    module_mock.exit_json.assert_called_once_with(
+        changed=False,
+        result=True,
+        diff={},
+        debug=["no differences found"],
+    )
