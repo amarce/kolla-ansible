@@ -98,3 +98,16 @@ The values ``<kolla_internal_vip_address>``, ``<kolla_external_vip_address>``
 ``<kolla_install_path>/kolla/ansible/group_vars/all.yml`` or if the default
 values are overridden, in ``/etc/kolla/globals.yml``. The value of
 ``<kibana_password>`` can be found in ``/etc/kolla/passwords.yml``.
+
+Task debugging
+--------------
+
+Kolla Ansible's container tasks can emit verbose debug output. To enable this
+logging, set ``kolla_action_debug`` to ``true`` when running Kolla Ansible:
+
+.. code-block:: console
+
+   kolla-ansible <command> -e kolla_action_debug=true
+
+This sets the ``KOLLA_ACTION_DEBUG`` environment variable for container
+actions, which can alternatively be specified directly in the environment.
