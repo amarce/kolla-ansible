@@ -218,3 +218,20 @@ def test_check_container_differs_debug():
     w.params["command"] = "/bin/new"
     assert w.check_container_differs() is True
     assert "command differs" in w.result["debug"]
+
+
+@mock.patch("kolla_container.generate_module")
+def test_compare_container_no_change(mock_generate_module):
+    module_mock = mock.MagicMock()
+    module_mock.params = {"name": "test", "action": "compare_container"}
+    mock_generate_module.return_value = module_mock
+    with mock.patch(
+        "ansible.module_utils.kolla_docker_worker.DockerWorker"
+    ) as mock_dw:
+        mock_dw.return_value.compare_container.return_value = False
+        mock_dw.return_value.changed = False
+        mock_dw.return_value.result = {}
+        kc.main()
+        mock_dw.assert_called_once_with(module_mock)
+        mock_dw.return_value.compare_container.assert_called_once_with()
+    module_mock.exit_json.assert_called_once_with(changed=False, result=False)

@@ -408,8 +408,8 @@ def generate_module():
 
 def _exit_compare(module, result, **kwargs):
     """Exit helper ensuring changed mirrors result for compare_container."""
-    # changed must be the inverse of result for compare_container
-    module.exit_json(changed=not bool(result), result=result, **kwargs)
+    # changed must mirror result for compare_container
+    module.exit_json(changed=bool(result), result=result, **kwargs)
 
 
 def main():
