@@ -28,6 +28,12 @@ The container can be started manually if needed. For example with Docker:
 
    docker start -a neutron_ovs_cleanup
 
+Or with Podman:
+
+.. code-block:: console
+
+   podman start -a neutron_ovs_cleanup
+
 To force automatic execution again remove the marker file:
 
 .. code-block:: console

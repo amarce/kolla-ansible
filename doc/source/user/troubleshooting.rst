@@ -103,11 +103,16 @@ Task debugging
 --------------
 
 Kolla Ansible's container tasks can emit verbose debug output. To enable this
-logging, set ``kolla_action_debug`` to ``true`` when running Kolla Ansible:
+logging, set ``kolla_action_debug`` to ``true`` when running Kolla Ansible and
+increase verbosity with ``-vvv``:
 
 .. code-block:: console
 
    kolla-ansible <command> -e kolla_action_debug=true
 
 This sets the ``KOLLA_ACTION_DEBUG`` environment variable for container
-actions, which can alternatively be specified directly in the environment.
+actions, which can alternatively be specified directly in the environment. The
+debug output includes the inspected container configuration and the parameters
+passed to the module. These details are also returned in the task result under
+the ``debug`` key and can be compared with ``podman inspect`` when
+troubleshooting container recreation.

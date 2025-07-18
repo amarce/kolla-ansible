@@ -336,6 +336,8 @@ class ContainerWorker(ABC):
                         display.display(msg)
                 else:
                     print(msg)
+            # Save debug messages for later inspection
+            self.result.setdefault("debug", []).append(msg)
 
     def _as_empty_list(self, value):
         """Return [] for any "empty" representation of a list-like arg."""
@@ -470,6 +472,8 @@ class ContainerWorker(ABC):
                 "check_container_differs: params=" +
                 json.dumps(self.params, indent=2, sort_keys=True, default=str)
             )
+            self.result["container_info"] = container_info
+            self.result["container_params"] = self.params
 
         return differs
 
