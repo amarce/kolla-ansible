@@ -432,11 +432,14 @@ def main():
         # meaningful data, we need to refactor all methods to return dicts.
         action = module.params.get('action')
         result = bool(getattr(cw, action)())
+        diff = cw.result.get('diff')
         if action == 'compare_container':
-            # ``result`` from ContainerWorker.compare_container() reflects
-            # whether the container differs from its spec.  Invert it so that
-            # ``result=True`` means the container is up-to-date.
-            _exit_compare(module, not result, **cw.result)
+            nothing_changed = not diff
+            result = nothing_changed
+            changed = not nothing_changed
+            if nothing_changed:
+                cw.result.setdefault('debug', ['no differences found'])
+            module.exit_json(changed=changed, result=result, **cw.result)
         else:
             module.exit_json(changed=cw.changed, result=result, **cw.result)
     except Exception:
