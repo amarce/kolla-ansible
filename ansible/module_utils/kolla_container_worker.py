@@ -12,6 +12,7 @@
 
 from abc import ABC
 from abc import abstractmethod
+import json
 import logging
 import os
 import re
@@ -313,10 +314,15 @@ class ContainerWorker(ABC):
     # Helper: emit debug lines only when Ansible is run with -vvv (or more)
     # ------------------------------------------------------------------
     def _debug(self, msg: str) -> None:
-        """Print `msg` at vvv verbosity, silently ignore otherwise."""
+        """Print ``msg`` when action debugging is enabled."""
         verbosity = getattr(self.module, "_verbosity", 0)
+        env_debug = os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
-        if verbosity >= 3:
+        if verbosity >= 3 or env_debug:
             # Preferred (Ansible ≥2.8): use the Display object if available
             display = getattr(self.module, "_display", None)
             if display and hasattr(display, "vvv"):
@@ -332,7 +338,6 @@ class ContainerWorker(ABC):
     def _as_empty_dict(self, value):
         """Return {} for any "empty" representation of a dict-like arg."""
         return {} if value in (None, {}, ()) else value
-                
     def _changed_if_differs(self, expected, actual, what):
         if expected != actual:
             self.module.debug(f"{what} differs: expected={expected} actual={actual}")
@@ -372,10 +377,10 @@ class ContainerWorker(ABC):
     def compare_container(self):
         container = self.check_container()
         if (
-            not container
-            or self.check_container_differs()
-            or self.compare_config()
-            or self.systemd.check_unit_change()
+            not container or
+            self.check_container_differs() or
+            self.compare_config() or
+            self.systemd.check_unit_change()
         ):
             self.changed = True
         return self.changed
@@ -442,6 +447,22 @@ class ContainerWorker(ABC):
 
         if not differs:
             self._debug("check_container_differs: no differences found")
+        else:
+            debug_enabled = (
+                getattr(self.module, "_verbosity", 0) >= 3 or
+                os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
+                    "1", "true", "yes"
+                )
+            )
+            if debug_enabled:
+                self._debug(
+                    "check_container_differs: container_info=" +
+                    json.dumps(container_info, indent=2, sort_keys=True)
+                )
+                self._debug(
+                    "check_container_differs: params=" +
+                    json.dumps(self.params, indent=2, sort_keys=True, default=str)
+                )
 
         return differs
 
@@ -628,13 +649,6 @@ class ContainerWorker(ABC):
                 unsupported_dimensions=unsupported,
             )
 
-        # Only include keys explicitly provided by the user.
-        desired = {
-            self.dimension_map[k]: v
-            for k, v in new_dimensions.items()
-            if v is not None
-        }
-
         defaults = {
             "PidsLimit": 2048,
             "CpuShares": 0,
@@ -649,10 +663,6 @@ class ContainerWorker(ABC):
         }
 
         host_cfg = container_info.get("HostConfig", {})
-        current = {
-            k: host_cfg.get(k)
-            for k in desired
-        }
 
         diff_keys = []
         for spec_key, host_key in self.dimension_map.items():
@@ -775,10 +785,8 @@ class ContainerWorker(ABC):
                 # elements differ.  Fall back to a string comparison to avoid
                 # needless container recreation when the commands are
                 # effectively the same.
-                if (
-                    new_path == current_path
-                    and " ".join(new_args) == " ".join(current_args)
-                ):
+                if (new_path == current_path and
+                        " ".join(new_args) == " ".join(current_args)):
                     return False
                 return True
 

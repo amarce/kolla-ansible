@@ -16,9 +16,11 @@ import docker
 import json
 import os
 
-from ansible.module_utils.kolla_container_worker import COMPARE_CONFIG_CMD
-from ansible.module_utils.kolla_container_worker import ContainerWorker
-from ansible.module_utils.kolla_container_worker import _as_dict
+from ansible.module_utils.kolla_container_worker import (
+    _as_dict,
+    COMPARE_CONFIG_CMD,
+    ContainerWorker,
+)
 
 
 def get_docker_client():

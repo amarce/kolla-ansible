@@ -302,10 +302,10 @@ class PodmanWorker(ContainerWorker):
     def compare_container(self):
         container = self.check_container()
         if (
-            not container
-            or self.check_container_differs()
-            or self.compare_config()
-            or self.systemd.check_unit_change()
+            not container or
+            self.check_container_differs() or
+            self.compare_config() or
+            self.systemd.check_unit_change()
         ):
             self.changed = True
         return self.changed
