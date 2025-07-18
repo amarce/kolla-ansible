@@ -760,11 +760,20 @@ class ContainerWorker(ABC):
         new_command = self.params.get("command")
         if new_command is not None:
             new_command_split = shlex.split(new_command)
-            new_path = os.path.basename(new_command_split[0])
-            new_args = new_command_split[1:]
-            current_path = os.path.basename(container_info["Path"])
-            if new_path != current_path or new_args != container_info["Args"]:
-                return True
+            if self.params.get("entrypoint") is None:
+                # When no entrypoint is explicitly configured we cannot
+                # rely on the container "Path" field, which will reflect
+                # the image entrypoint rather than the desired command.
+                # Instead, compare the full command line with the
+                # container arguments.
+                if new_command_split != container_info["Args"]:
+                    return True
+            else:
+                new_path = os.path.basename(new_command_split[0])
+                new_args = new_command_split[1:]
+                current_path = os.path.basename(container_info["Path"])
+                if new_path != current_path or new_args != container_info["Args"]:
+                    return True
 
     def compare_healthcheck(self, container_info):
         new_healthcheck = self.parse_healthcheck(self.params.get("healthcheck"))
