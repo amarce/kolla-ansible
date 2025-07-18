@@ -794,25 +794,37 @@ class ContainerWorker(ABC):
     def compare_command(self, container_info):
         new_command = self.params.get("command")
         if new_command is not None:
-            new_command_split = shlex.split(new_command)
-            new_path = os.path.basename(new_command_split[0])
-            new_args = new_command_split[1:]
+            new_cmd = shlex.split(new_command)
 
             current_path = os.path.basename(container_info.get("Path", ""))
             current_args = container_info.get("Args")
             if isinstance(current_args, str):
                 current_args = shlex.split(current_args)
             current_args = current_args or []
+            current_cmd = [current_path] + current_args
 
-            if new_path != current_path or new_args != current_args:
+            if new_cmd != current_cmd:
+                # If the only difference stems from the image entrypoint, and
+                # the caller did not override it, treat the commands as
+                # identical for idempotency.
+                if not self.params.get("entrypoint"):
+                    cfg = container_info.get("Config", {})
+                    cmd_cfg = cfg.get("Cmd") or []
+                    if isinstance(cmd_cfg, str):
+                        cmd_cfg = shlex.split(cmd_cfg)
+                    ep_cfg = cfg.get("Entrypoint") or []
+                    if isinstance(ep_cfg, str):
+                        ep_cfg = shlex.split(ep_cfg)
+                    cfg_cmd = ep_cfg + cmd_cfg
+                    if new_cmd == cmd_cfg and current_cmd == cfg_cmd:
+                        return False
+
                 # When podman reports the command as a list without quoting,
                 # the logical commands may still match even if the list
                 # elements differ.  Fall back to a string comparison to avoid
                 # needless container recreation when the commands are
                 # effectively the same.
-                if new_path == current_path and " ".join(new_args) == " ".join(
-                    current_args
-                ):
+                if " ".join(new_cmd) == " ".join(current_cmd):
                     return False
                 return True
 
