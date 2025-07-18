@@ -148,6 +148,9 @@ containerd_grpc_gid: 42463
 # Timeout after Docker sends SIGTERM before sending SIGKILL.
 docker_graceful_timeout: 60
 
+# Enable verbose debug logging from container actions
+kolla_action_debug: false
+
 # Common options used throughout Docker
 docker_common_options:
   auth_email: "{{ docker_registry_email }}"
@@ -156,6 +159,7 @@ docker_common_options:
   auth_username: "{{ docker_registry_username }}"
   environment:
     KOLLA_CONFIG_STRATEGY: "{{ config_strategy }}"
+    KOLLA_ACTION_DEBUG: "{{ 'true' if kolla_action_debug | bool else 'false' }}"
   restart_policy: "{{ docker_restart_policy }}"
   restart_retries: "{{ docker_restart_policy_retry }}"
   graceful_timeout: "{{ docker_graceful_timeout }}"
