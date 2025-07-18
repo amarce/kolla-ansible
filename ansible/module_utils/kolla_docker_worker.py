@@ -354,7 +354,12 @@ class DockerWorker(ContainerWorker):
 
     def recreate_container(self):
         container = self.check_container()
-        if not container or self.check_container_differs():
+        differs = False
+        if container:
+            differs = self.check_container_differs()
+        if not container or differs:
+            if container and differs:
+                self.emit_diff()
             if not self.check_image():
                 self.pull_image()
             if container:

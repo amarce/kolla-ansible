@@ -10,13 +10,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC
-from abc import abstractmethod
 import json
 import logging
 import os
 import re
 import shlex
+from abc import ABC, abstractmethod
+from difflib import unified_diff
 
 from ansible.module_utils.kolla_systemd_worker import SystemdWorker
 
@@ -154,7 +154,7 @@ def _clean_vols(vols):
 def _normalise_volumes(vols):
     """Return a sorted list of volumes, ignoring Podman-injected mounts."""
     vols = _clean_vols(vols)
-    pattern = re.compile(r'(^devpts:/dev/pts$|^:/dev/pts$)')
+    pattern = re.compile(r"(^devpts:/dev/pts$|^:/dev/pts$)")
     vols = [v for v in vols if not pattern.match(v)]
     return sorted(vols)
 
@@ -166,22 +166,22 @@ def _normalise_ulimits(spec, actual):
         d = {}
         for item in src or []:
             if isinstance(item, dict):
-                name = item.get('Name') or item.get('name')
-                soft = item.get('Soft') if 'Soft' in item else item.get('soft')
-                hard = item.get('Hard') if 'Hard' in item else item.get('hard')
+                name = item.get("Name") or item.get("name")
+                soft = item.get("Soft") if "Soft" in item else item.get("soft")
+                hard = item.get("Hard") if "Hard" in item else item.get("hard")
             else:
-                name = getattr(item, 'name', None)
-                soft = getattr(item, 'soft', None)
-                hard = getattr(item, 'hard', None)
+                name = getattr(item, "name", None)
+                soft = getattr(item, "soft", None)
+                hard = getattr(item, "hard", None)
             if name is not None:
-                d[str(name).lower()] = {'soft': soft, 'hard': hard}
+                d[str(name).lower()] = {"soft": soft, "hard": hard}
         return d
 
     want = to_dict(spec)
     have = to_dict(actual)
 
-    nproc_key = next((k for k in have if k in {'nproc', 'rlimit_nproc'}), None)
-    spec_has_nproc = any(k in {'nproc', 'rlimit_nproc'} for k in want)
+    nproc_key = next((k for k in have if k in {"nproc", "rlimit_nproc"}), None)
+    spec_has_nproc = any(k in {"nproc", "rlimit_nproc"} for k in want)
     if nproc_key and not spec_has_nproc:
         want[nproc_key] = have[nproc_key]
 
@@ -286,8 +286,6 @@ def _compare_ulimits(spec, running) -> bool:
     return False
 
 
-
-
 def _empty_dimensions(d):
     """Return ``True`` if dict is empty or all numeric values are 0/None."""
     if not d:
@@ -309,6 +307,9 @@ class ContainerWorker(ABC):
         self.result = {}
 
         self.systemd = SystemdWorker(self.params)
+
+        self._diff_keys: list[str] = []
+        self._last_container_info: dict | None = None
 
     # ------------------------------------------------------------------
     # Helper: emit debug lines only when Ansible is run with -vvv (or more)
@@ -346,6 +347,7 @@ class ContainerWorker(ABC):
     def _as_empty_dict(self, value):
         """Return {} for any "empty" representation of a dict-like arg."""
         return {} if value in (None, {}, ()) else value
+
     def _changed_if_differs(self, expected, actual, what):
         if expected != actual:
             self.module.debug(f"{what} differs: expected={expected} actual={actual}")
@@ -384,99 +386,111 @@ class ContainerWorker(ABC):
 
     def compare_container(self):
         container = self.check_container()
+        differs = False
+        if container:
+            differs = self.check_container_differs()
         if (
-            not container or
-            self.check_container_differs() or
-            self.compare_config() or
-            self.systemd.check_unit_change()
+            not container
+            or differs
+            or self.compare_config()
+            or self.systemd.check_unit_change()
         ):
             self.changed = True
+        if container and differs:
+            self.emit_diff()
         return self.changed
 
     def check_container_differs(self):
         container_info = self.get_container_info()
         if not container_info:
-            self._debug("check_container_differs: container does not exist")
+            self._debug("container does not exist")
             return True
 
         differs = False
+        self._diff_keys = []
+        self._last_container_info = container_info
 
         if self.compare_cap_add(container_info):
-            self._debug("check_container_differs: cap_add differs")
+            self._debug("cap_add differs")
+            self._diff_keys.append("cap_add")
             differs = True
         if self.compare_security_opt(container_info):
-            self._debug("check_container_differs: security_opt differs")
+            self._debug("security_opt differs")
+            self._diff_keys.append("security_opt")
             differs = True
         if self.compare_image(container_info):
-            self._debug("check_container_differs: image differs")
+            self._debug("image differs")
+            self._diff_keys.append("image")
             differs = True
         if self.compare_ipc_mode(container_info):
-            self._debug("check_container_differs: ipc_mode differs")
+            self._debug("ipc_mode differs")
+            self._diff_keys.append("ipc_mode")
             differs = True
         if self.compare_labels(container_info):
-            self._debug("check_container_differs: labels differ")
+            self._debug("labels differ")
+            self._diff_keys.append("labels")
             differs = True
         if self.compare_privileged(container_info):
-            self._debug("check_container_differs: privileged differs")
+            self._debug("privileged differs")
+            self._diff_keys.append("privileged")
             differs = True
         if self.compare_pid_mode(container_info):
-            self._debug("check_container_differs: pid_mode differs")
+            self._debug("pid_mode differs")
+            self._diff_keys.append("pid_mode")
             differs = True
         if self.compare_cgroupns_mode(container_info):
-            self._debug("check_container_differs: cgroupns_mode differs")
+            self._debug("cgroupns_mode differs")
+            self._diff_keys.append("cgroupns_mode")
             differs = True
         if self.compare_tmpfs(container_info):
-            self._debug("check_container_differs: tmpfs differs")
+            self._debug("tmpfs differs")
+            self._diff_keys.append("tmpfs")
             differs = True
         if self.compare_volumes(container_info):
-            self._debug("check_container_differs: volumes differ")
+            self._debug("volumes differ")
+            self._diff_keys.append("volumes")
             differs = True
         if self.compare_volumes_from(container_info):
-            self._debug("check_container_differs: volumes_from differs")
+            self._debug("volumes_from differs")
+            self._diff_keys.append("volumes_from")
             differs = True
         if self.compare_environment(container_info):
-            self._debug("check_container_differs: environment differs")
+            self._debug("environment differs")
+            self._diff_keys.append("environment")
             differs = True
         if self.compare_restart_policy(container_info):
-            self._debug("check_container_differs: restart_policy differs")
+            self._debug("restart_policy differs")
+            self._diff_keys.append("restart_policy")
             differs = True
         if self.compare_container_state(container_info):
-            self._debug("check_container_differs: container state differs")
+            self._debug("state differs")
+            self._diff_keys.append("state")
             differs = True
         if self.compare_dimensions(container_info):
-            self._debug("check_container_differs: dimensions differ")
+            self._debug("dimensions differ")
+            self._diff_keys.append("dimensions")
             differs = True
         if self.compare_command(container_info):
-            self._debug("check_container_differs: command differs")
+            self._debug("command differs")
+            self._diff_keys.append("command")
             differs = True
         if self.compare_healthcheck(container_info):
-            self._debug("check_container_differs: healthcheck differs")
+            self._debug("healthcheck differs")
+            self._diff_keys.append("healthcheck")
             differs = True
 
-        debug_enabled = (
-            getattr(self.module, "_verbosity", 0) >= 3 or
-            os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
-                "1", "true", "yes"
-            )
-        )
+        debug_enabled = getattr(self.module, "_verbosity", 0) >= 3 or os.environ.get(
+            "KOLLA_ACTION_DEBUG", ""
+        ).lower() in ("1", "true", "yes")
 
         if not differs:
-            self._debug("check_container_differs: no differences found")
+            self._debug("no differences found")
 
         if debug_enabled:
-            self._debug(
-                "check_container_differs: container_info=" +
-                json.dumps(container_info, indent=2, sort_keys=True)
-            )
-            self._debug(
-                "check_container_differs: params=" +
-                json.dumps(self.params, indent=2, sort_keys=True, default=str)
-            )
             self.result["container_info"] = container_info
             self.result["container_params"] = self.params
 
         return differs
-
 
     def compare_ipc_mode(self, container_info):
         new_ipc_mode = self.params.get("ipc_mode")
@@ -686,7 +700,9 @@ class ContainerWorker(ABC):
                     diff_keys.append(spec_key)
                 continue
 
-            new_val_present = spec_key in new_dimensions and new_dimensions[spec_key] is not None
+            new_val_present = (
+                spec_key in new_dimensions and new_dimensions[spec_key] is not None
+            )
 
             if new_val_present:
                 new_val = new_dimensions[spec_key]
@@ -756,9 +772,7 @@ class ContainerWorker(ABC):
             return False
         desired = self.params.get("restart_policy")
         current = (
-            container_info.get("HostConfig", {})
-            .get("RestartPolicy", {})
-            .get("Name")
+            container_info.get("HostConfig", {}).get("RestartPolicy", {}).get("Name")
         )
 
         # Podman does not honour the restart policy when creating a
@@ -796,8 +810,9 @@ class ContainerWorker(ABC):
                 # elements differ.  Fall back to a string comparison to avoid
                 # needless container recreation when the commands are
                 # effectively the same.
-                if (new_path == current_path and
-                        " ".join(new_args) == " ".join(current_args)):
+                if new_path == current_path and " ".join(new_args) == " ".join(
+                    current_args
+                ):
                     return False
                 return True
 
@@ -1009,6 +1024,84 @@ class ContainerWorker(ABC):
     def _format_env_vars(self):
         env = self._inject_env_var(self.params.get("environment"))
         return {k: "" if env[k] is None else env[k] for k in env}
+
+    # ------------------------------------------------------------------
+    # Diff helpers
+    # ------------------------------------------------------------------
+    def _current_value(self, info, key):
+        hc = info.get("HostConfig", {})
+        cfg = info.get("Config", {})
+        if key == "command":
+            args = info.get("Args")
+            if isinstance(args, str):
+                args = shlex.split(args)
+            return " ".join([info.get("Path", "")] + (args or []))
+        if key == "image":
+            return cfg.get("Image") or info.get("Image")
+        if key == "environment":
+            env = {}
+            for item in cfg.get("Env", []) or []:
+                if "=" in item:
+                    k, v = item.split("=", 1)
+                    env[k] = v
+            return env
+        if key == "labels":
+            return cfg.get("Labels", {})
+        if key == "volumes":
+            return sorted(hc.get("Binds", []) or [])
+        if key == "volumes_from":
+            return sorted(hc.get("VolumesFrom", []) or [])
+        if key == "cap_add":
+            return sorted(_as_list(hc.get("CapAdd")))
+        if key == "security_opt":
+            return sorted(_as_list(hc.get("SecurityOpt")))
+        if key == "ipc_mode":
+            return hc.get("IpcMode") or None
+        if key == "pid_mode":
+            return hc.get("PidMode") or None
+        if key == "cgroupns_mode":
+            return hc.get("CgroupnsMode") or hc.get("CgroupMode") or "host"
+        if key == "privileged":
+            return hc.get("Privileged")
+        if key == "tmpfs":
+            return sorted(_as_list(hc.get("Tmpfs")))
+        if key == "restart_policy":
+            return hc.get("RestartPolicy", {}).get("Name")
+        if key == "state":
+            return info.get("State", {}).get("Status")
+        if key == "dimensions":
+            d = {}
+            for sk, hk in self.dimension_map.items():
+                d[sk] = hc.get(hk)
+            return d
+        if key == "healthcheck":
+            return cfg.get("Healthcheck")
+        return info.get(key)
+
+    def _desired_value(self, key):
+        val = self.params.get(key)
+        if key in {"environment"}:
+            env = _as_dict(val)
+            env = {k: v for k, v in env.items() if not re.search("pass|token", k, re.I)}
+            return env
+        if key in {"volumes", "volumes_from", "cap_add", "security_opt", "tmpfs"}:
+            return sorted(val or [])
+        if key == "labels":
+            return _as_dict(val)
+        return val
+
+    def emit_diff(self):
+        if not self._diff_keys or not self._last_container_info:
+            return
+        before = {
+            k: self._current_value(self._last_container_info, k)
+            for k in self._diff_keys
+        }
+        after = {k: self._desired_value(k) for k in self._diff_keys}
+        before_s = json.dumps(before, indent=2, sort_keys=True).splitlines()
+        after_s = json.dumps(after, indent=2, sort_keys=True).splitlines()
+        diff = unified_diff(before_s, after_s, "current", "desired", lineterm="")
+        self.result["diff"] = "\n".join(diff)
 
 
 if __name__ == "__main__":

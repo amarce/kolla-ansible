@@ -504,7 +504,12 @@ class PodmanWorker(ContainerWorker):
 
     def recreate_container(self):
         container = self.get_container_info()
-        if not container or self.check_container_differs():
+        differs = False
+        if container:
+            differs = self.check_container_differs()
+        if not container or differs:
+            if container and differs:
+                self.emit_diff()
             self.ensure_image()
             if container:
                 self.stop_container()
