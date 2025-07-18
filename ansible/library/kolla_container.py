@@ -407,9 +407,12 @@ def generate_module():
 
 
 def _exit_compare(module, result, **kwargs):
-    """Exit helper ensuring changed mirrors result for compare_container."""
-    # changed must mirror result for compare_container
-    module.exit_json(changed=bool(result), result=result, **kwargs)
+    """Exit helper for compare_container.
+
+    ``result`` is ``True`` when the running container matches its
+    specification.  ``changed`` must therefore be the inverse of ``result``.
+    """
+    module.exit_json(changed=not bool(result), result=result, **kwargs)
 
 
 def main():
@@ -427,12 +430,13 @@ def main():
         # TODO(inc0): We keep it bool to have ansible deal with consistent
         # types. If we ever add method that will have to return some
         # meaningful data, we need to refactor all methods to return dicts.
-        result = bool(getattr(cw, module.params.get('action'))())
-        if module.params.get('action') == 'compare_container':
-            # For compare-only operations changed must mirror the actual
-            # comparison result. Returning ``changed=True`` unconditionally
-            # would make Ansible report changes even when there are none.
-            _exit_compare(module, result, **cw.result)
+        action = module.params.get('action')
+        result = bool(getattr(cw, action)())
+        if action == 'compare_container':
+            # ``result`` from ContainerWorker.compare_container() reflects
+            # whether the container differs from its spec.  Invert it so that
+            # ``result=True`` means the container is up-to-date.
+            _exit_compare(module, not result, **cw.result)
         else:
             module.exit_json(changed=cw.changed, result=result, **cw.result)
     except Exception:

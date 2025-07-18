@@ -258,7 +258,7 @@ def _compare_volumes(spec, running) -> bool:
 
     def as_set(vols):
         out = set()
-        for v in vols or []:
+        for v in _clean_vols(vols):
             n = _normalize_volume(v)
             if n is not None:
                 out.add(n)
@@ -590,8 +590,10 @@ class ContainerWorker(ABC):
             return True
 
     def compare_volumes_from(self, container_info):
-        new_vols_from = _as_list(self.params.get("volumes_from"))
-        current_vols_from = _as_list(container_info["HostConfig"].get("VolumesFrom"))
+        new_vols_from = _clean_vols(_as_list(self.params.get("volumes_from")))
+        current_vols_from = _clean_vols(
+            _as_list(container_info["HostConfig"].get("VolumesFrom"))
+        )
 
         if sorted(current_vols_from) != sorted(new_vols_from):
             return True
