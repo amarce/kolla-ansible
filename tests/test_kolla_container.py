@@ -234,4 +234,4 @@ def test_compare_container_no_change(mock_generate_module):
         kc.main()
         mock_dw.assert_called_once_with(module_mock)
         mock_dw.return_value.compare_container.assert_called_once_with()
-    module_mock.exit_json.assert_called_once_with(changed=False, result=False)
+    module_mock.exit_json.assert_called_once_with(changed=False, result=True)
