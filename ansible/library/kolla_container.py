@@ -422,7 +422,13 @@ def main():
         # types. If we ever add method that will have to return some
         # meaningful data, we need to refactor all methods to return dicts.
         result = bool(getattr(cw, module.params.get('action'))())
-        module.exit_json(changed=cw.changed, result=result, **cw.result)
+        if module.params.get('action') == 'compare_container':
+            # For compare-only operations changed must mirror the actual
+            # comparison result. Returning ``changed=True`` unconditionally
+            # would make Ansible report changes even when there are none.
+            module.exit_json(changed=result, result=result, **cw.result)
+        else:
+            module.exit_json(changed=cw.changed, result=result, **cw.result)
     except Exception:
         module.fail_json(changed=True, msg=repr(traceback.format_exc()),
                          **getattr(cw, 'result', {}))
