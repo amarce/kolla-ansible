@@ -406,6 +406,12 @@ def generate_module():
     return module
 
 
+def _exit_compare(module, result, **kwargs):
+    """Exit helper ensuring changed mirrors result for compare_container."""
+    # changed must mirror result for compare_container
+    module.exit_json(changed=bool(result), result=result, **kwargs)
+
+
 def main():
     module = generate_module()
 
@@ -426,7 +432,7 @@ def main():
             # For compare-only operations changed must mirror the actual
             # comparison result. Returning ``changed=True`` unconditionally
             # would make Ansible report changes even when there are none.
-            module.exit_json(changed=result, result=result, **cw.result)
+            _exit_compare(module, result, **cw.result)
         else:
             module.exit_json(changed=cw.changed, result=result, **cw.result)
     except Exception:
