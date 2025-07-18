@@ -42,6 +42,7 @@
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
+    privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
     name: "neutron_ovs_cleanup"
@@ -64,6 +65,7 @@
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
+    privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
     name: "neutron_ovs_cleanup"
@@ -88,6 +90,7 @@
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
     image: "{{ service.image }}"
+    privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
     name: "neutron_ovs_cleanup"
