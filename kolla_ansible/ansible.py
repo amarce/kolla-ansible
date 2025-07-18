@@ -294,8 +294,24 @@ def run_playbooks(parsed_args, playbooks: list, extra_vars: dict = {},
         verbose_level=verbose_level,
     )
 
+    env = os.environ.copy()
+    # Propagate kolla_action_debug to module environment so that
+    # container actions can emit debug output when requested. This is
+    # typically enabled via ``-e kolla_action_debug=true`` on the CLI.
+    kolla_action_debug = extra_vars.get("kolla_action_debug")
+    for var in getattr(parsed_args, "extra_vars", []) or []:
+        if var.startswith("kolla_action_debug="):
+            kolla_action_debug = var.split("=", 1)[1]
+            break
+    if kolla_action_debug is not None:
+        value = str(kolla_action_debug).lower()
+        if value in ("1", "true", "yes"):
+            env["KOLLA_ACTION_DEBUG"] = "true"
+        else:
+            env["KOLLA_ACTION_DEBUG"] = "false"
+
     try:
-        utils.run_command(executable, args, quiet=quiet)
+        utils.run_command(executable, args, quiet=quiet, env=env)
     except subprocess.CalledProcessError as e:
         LOG.error(
             "Kolla Ansible playbook(s) %s exited %d", ", ".join(
