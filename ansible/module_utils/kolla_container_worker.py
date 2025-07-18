@@ -720,6 +720,13 @@ class ContainerWorker(ABC):
 
         if new_state == "started" and current_state == "running":
             return False
+        # Podman reports the state of newly created but never started
+        # containers as ``configured``.  Such a container is effectively
+        # equivalent to one in the ``exited`` state when our desired state
+        # is ``exited``.  Treat these states as matching to avoid needless
+        # container recreation during deploys and reconfigures.
+        if new_state == "exited" and current_state in ("configured", "created"):
+            return False
         if new_state != current_state:
             return True
 
