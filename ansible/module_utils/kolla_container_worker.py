@@ -329,8 +329,11 @@ class ContainerWorker(ABC):
             else:
                 # Fallback for very-old Ansible or direct execution
                 display = getattr(self.module, "_display", None)
-                if display and hasattr(display, "vvv"):
-                    display.vvv(msg)
+                if display:
+                    if verbosity >= 3 and hasattr(display, "vvv"):
+                        display.vvv(msg)
+                    else:
+                        display.display(msg)
                 else:
                     print(msg)
 
