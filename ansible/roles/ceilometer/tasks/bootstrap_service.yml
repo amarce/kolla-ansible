@@ -20,3 +20,4 @@
     volumes: "{{ ceilometer_notification.volumes | reject('equalto', '') | list }}"
   run_once: True
   delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
+  changed_when: false
