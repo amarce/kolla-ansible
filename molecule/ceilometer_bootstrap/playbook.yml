@@ -1,0 +1,23 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:
+      ceilometer-notification:
+        - localhost
+    ceilometer_services:
+      ceilometer-notification:
+        image: "fake"
+        group: "ceilometer-notification"
+        volumes: []
+    ceilometer_database_type: ""
+    ceilometer_upgrade_params: ""
+    kolla_container_engine: "podman"
+    docker_common_options: {}
+    config_strategy: "COPY_ALWAYS"
+  tasks:
+    - name: Include bootstrap service
+      include_role:
+        name: ceilometer
+        tasks_from: bootstrap_service.yml

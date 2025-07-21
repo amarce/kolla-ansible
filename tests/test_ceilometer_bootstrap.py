@@ -27,7 +27,7 @@ class TestCeilometerBootstrap(base.BaseTestCase):
 
     def test_bootstrap_command(self):
         command = self.tasks[1]['kolla_container']['command']
-        self.assertIn('ceilometer-upgrade', command)
+        self.assertIn('ceilometer-dbsync', command)
 
     def test_when_prevents_rerun(self):
         cond = self.tasks[1]['when'][0]

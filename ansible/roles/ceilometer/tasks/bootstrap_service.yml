@@ -25,7 +25,7 @@
       CEILOMETER_UPGRADE_PARAMS: "{{ ceilometer_upgrade_params }}"
     command: >-
       bash -c 'sudo -E kolla_set_configs &&
-      ceilometer-upgrade {{ ceilometer_upgrade_params }}'
+      ceilometer-dbsync {{ ceilometer_upgrade_params }}'
     image: "{{ ceilometer_notification.image }}"
     labels:
       BOOTSTRAP:
