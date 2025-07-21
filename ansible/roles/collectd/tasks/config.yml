@@ -3,8 +3,6 @@
   file:
     path: "{{ node_config_directory }}/{{ item.key }}"
     state: "directory"
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
     mode: "0770"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
@@ -54,8 +52,8 @@
   template:
     src: "{{ item.key }}.json.j2"
     dest: "{{ node_config_directory }}/{{ item.key }}/config.json"
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
+    owner: "{{ collectd_uid }}"
+    group: "{{ collectd_gid }}"
     mode: "0660"
   become: true
   with_dict: "{{ collectd_services | select_services_enabled_and_mapped_to_host }}"
@@ -66,8 +64,8 @@
   template:
     src: "{{ item }}"
     dest: "{{ node_config_directory }}/collectd/collectd.conf"
-    owner: "{{ collectd_user }}"
-    group: "{{ collectd_group }}"
+    owner: "{{ collectd_uid }}"
+    group: "{{ collectd_gid }}"
     mode: "0660"
   become: true
   with_first_found:
