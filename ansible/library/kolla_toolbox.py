@@ -197,7 +197,12 @@ class KollaToolboxWorker():
         candidate = stdout if stdout.strip() else stderr
 
         # OPTIONAL ultra-verbose dump
-        if self.module._verbosity >= 4:
+        verbosity = getattr(self.module, "_verbosity", 0)
+        try:
+            verbosity = int(verbosity)
+        except (TypeError, ValueError):
+            verbosity = 0
+        if verbosity >= 4:
             with open("/tmp/ktbw.raw", "wb") as f:
                 f.write(candidate)
 

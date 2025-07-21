@@ -5,23 +5,38 @@ from oslotest import base
 
 
 class TestCeilometerBootstrap(base.BaseTestCase):
-    def test_delegate_to_templates(self):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         path = os.path.join(
             os.path.dirname(__file__),
             '..', 'ansible', 'roles', 'ceilometer', 'tasks',
             'bootstrap_service.yml')
         with open(path) as f:
-            tasks = list(yaml.safe_load_all(f))
+            cls.tasks = yaml.safe_load(f)
+        cls.env = Environment(undefined=StrictUndefined)
 
-        env = Environment(undefined=StrictUndefined)
-        # First task should not require ceilometer_notification variable
-        env.from_string(tasks[0]['delegate_to']).render(
-            groups={'ceilometer-notification': ['host']}
+    def test_delegate_to_templates(self):
+        self.env.from_string(self.tasks[0]['delegate_to']).render(
+            groups={'ceilometer-notification': ['host']},
         )
-
-        # Second task uses ceilometer_notification variable
-        env.from_string(tasks[1]['delegate_to']).render(
+        self.env.from_string(self.tasks[1]['delegate_to']).render(
             groups={'ceilometer-notification': ['host']},
             ceilometer_notification={'group': 'ceilometer-notification'}
         )
 
+    def test_bootstrap_command(self):
+        command = self.tasks[1]['kolla_container']['command']
+        self.assertIn('ceilometer-upgrade', command)
+
+    def test_when_prevents_rerun(self):
+        cond = self.tasks[1]['when'][0]
+        result_first = self.env.from_string(
+            '{% if ' + cond + ' %}true{% else %}false{% endif %}'
+        ).render(bootstrap_container_facts={'containers': {}})
+        self.assertEqual('true', result_first)
+
+        result_second = self.env.from_string(
+            '{% if ' + cond + ' %}true{% else %}false{% endif %}'
+        ).render(bootstrap_container_facts={'containers': {'bootstrap_ceilometer': {}}})
+        self.assertEqual('false', result_second)

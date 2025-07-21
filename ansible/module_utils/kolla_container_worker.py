@@ -311,12 +311,34 @@ class ContainerWorker(ABC):
         self._diff_keys: list[str] = []
         self._last_container_info: dict | None = None
 
+        # NOTE(mgoddard): The names used by Docker are inconsistent between
+        # configuration of a container's resources and the resources in
+        # container_info['HostConfig']. This provides a mapping between the two.
+        self.dimension_map = {
+            "mem_limit": "Memory",
+            "mem_reservation": "MemoryReservation",
+            "memswap_limit": "MemorySwap",
+            "cpu_period": "CpuPeriod",
+            "cpu_quota": "CpuQuota",
+            "cpu_shares": "CpuShares",
+            "cpuset_cpus": "CpusetCpus",
+            "cpuset_mems": "CpusetMems",
+            "kernel_memory": "KernelMemory",
+            "blkio_weight": "BlkioWeight",
+            "ulimits": "Ulimits",
+        }
+
     # ------------------------------------------------------------------
     # Helper: emit debug lines only when Ansible is run with -vvv (or more)
     # ------------------------------------------------------------------
     def _debug(self, msg: str) -> None:
         """Print ``msg`` when action debugging is enabled."""
         verbosity = getattr(self.module, "_verbosity", 0)
+        if not isinstance(verbosity, int):
+            try:
+                verbosity = int(verbosity)
+            except (TypeError, ValueError):
+                verbosity = 0
         env_debug = os.environ.get("KOLLA_ACTION_DEBUG", "").lower() in (
             "1",
             "true",
@@ -353,24 +375,6 @@ class ContainerWorker(ABC):
             self.module.debug(f"{what} differs: expected={expected} actual={actual}")
             return True
         return False
-
-        # NOTE(mgoddard): The names used by Docker are inconsistent between
-        # configuration of a container's resources and the resources in
-        # container_info['HostConfig']. This provides a mapping between the
-        # two.
-        self.dimension_map = {
-            "mem_limit": "Memory",
-            "mem_reservation": "MemoryReservation",
-            "memswap_limit": "MemorySwap",
-            "cpu_period": "CpuPeriod",
-            "cpu_quota": "CpuQuota",
-            "cpu_shares": "CpuShares",
-            "cpuset_cpus": "CpusetCpus",
-            "cpuset_mems": "CpusetMems",
-            "kernel_memory": "KernelMemory",
-            "blkio_weight": "BlkioWeight",
-            "ulimits": "Ulimits",
-        }
 
     @abstractmethod
     def check_image(self):

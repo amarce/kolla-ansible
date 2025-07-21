@@ -14,6 +14,7 @@ class NovaLibvirtTemplateTest(base.BaseTestCase):
         super().setUp()
         self.env = Environment(loader=FileSystemLoader(TEMPLATE_DIR),
                                autoescape=True)
+        self.env.filters['bool'] = bool
         self.template = self.env.get_template('nova-libvirt.json.j2')
         self.base_vars = {
             'container_config_directory': '/etc/kolla',
