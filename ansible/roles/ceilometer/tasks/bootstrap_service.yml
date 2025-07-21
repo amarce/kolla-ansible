@@ -1,4 +1,15 @@
 ---
+- name: Get Ceilometer bootstrap container facts
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name:
+      - bootstrap_ceilometer
+  register: bootstrap_container_facts
+  run_once: true
+  delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
+
 - name: Running Ceilometer bootstrap container
   vars:
     ceilometer_notification: "{{ ceilometer_services['ceilometer-notification'] }}"
@@ -20,3 +31,5 @@
     volumes: "{{ ceilometer_notification.volumes | reject('equalto', '') | list }}"
   run_once: True
   delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
+  when:
+    - bootstrap_container_facts.containers['bootstrap_ceilometer'] is not defined

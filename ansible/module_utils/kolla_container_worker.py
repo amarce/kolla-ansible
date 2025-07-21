@@ -390,10 +390,10 @@ class ContainerWorker(ABC):
         if container:
             differs = self.check_container_differs()
         if (
-            not container
-            or differs
-            or self.compare_config()
-            or self.systemd.check_unit_change()
+            not container or
+            differs or
+            self.compare_config() or
+            self.systemd.check_unit_change()
         ):
             self.changed = True
         if container and differs:
