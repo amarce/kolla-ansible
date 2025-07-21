@@ -195,6 +195,11 @@ ceilometer_ks_users:
 
 ceilometer_database_type: "{{ 'gnocchi' if (enable_gnocchi | bool) else '' }}"
 
+ceilometer_mongodb_cluster: "localhost"
+ceilometer_mongodb_user: "ceilometer"
+ceilometer_mongodb_password: ""
+ceilometer_mongodb_connection: "mongodb://{{ ceilometer_mongodb_user }}:{{ ceilometer_mongodb_password }}@{{ ceilometer_mongodb_cluster }}/ceilometer"
+
 ceilometer_upgrade_params: ""
 
 ####################
