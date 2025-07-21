@@ -9,6 +9,7 @@
   register: bootstrap_container_facts
   run_once: true
   delegate_to: "{{ groups['ceilometer-notification'][0] }}"
+  when: ceilometer_enable_db_sync | bool
 
 - name: Running Ceilometer bootstrap container
   vars:
@@ -35,4 +36,5 @@
   run_once: True
   delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
   when:
+    - ceilometer_enable_db_sync | bool
     - bootstrap_container_facts.containers['bootstrap_ceilometer'] is not defined
