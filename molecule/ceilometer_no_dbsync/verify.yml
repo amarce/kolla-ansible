@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check bootstrap container exists once
+      command: podman ps -a --filter name=bootstrap_ceilometer --format '{{.Names}}'
+      register: container
+      changed_when: false
+      failed_when: container.stdout_lines | length != 1
+
+    - name: Check bootstrap container is not running
+      command: podman ps --filter name=bootstrap_ceilometer --format '{{.Names}}'
+      register: running
+      changed_when: false
+      failed_when: running.stdout != ''
