@@ -3,7 +3,7 @@ ceilometer_services:
   ceilometer-notification:
     container_name: ceilometer_notification
     group: ceilometer-notification
-    enabled: True
+    enabled: "{{ enable_ceilometer | bool }}"
     image: "{{ ceilometer_notification_image_full }}"
     volumes: "{{ ceilometer_notification_default_volumes + ceilometer_notification_extra_volumes }}"
     dimensions: "{{ ceilometer_notification_dimensions }}"
@@ -11,7 +11,7 @@ ceilometer_services:
   ceilometer-central:
     container_name: ceilometer_central
     group: ceilometer-central
-    enabled: True
+    enabled: "{{ enable_ceilometer | bool }}"
     image: "{{ ceilometer_central_image_full }}"
     volumes: "{{ ceilometer_central_default_volumes + ceilometer_central_extra_volumes }}"
     dimensions: "{{ ceilometer_central_dimensions }}"
@@ -19,7 +19,7 @@ ceilometer_services:
   ceilometer-compute:
     container_name: ceilometer_compute
     group: ceilometer-compute
-    enabled: True
+    enabled: "{{ enable_ceilometer | bool }}"
     privileged: True
     image: "{{ ceilometer_compute_image_full }}"
     volumes: "{{ ceilometer_compute_default_volumes + ceilometer_compute_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine) }}"
