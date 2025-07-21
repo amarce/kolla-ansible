@@ -61,3 +61,8 @@ memcache_servers = {% for host in groups['memcached'] %}{{ 'api' | kolla_address
 
 [oslo_concurrency]
 lock_path = /var/lib/ceilometer/tmp
+
+{% if enable_ceilometer_mongodb_external | bool %}
+[database]
+connection = {{ ceilometer_mongodb_connection }}
+{% endif %}

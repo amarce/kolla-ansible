@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Adds variables ``enable_ceilometer_mongodb_external`` and
+    ``ceilometer_mongodb_cluster`` allowing Ceilometer to use an
+    externally managed MongoDB database. When enabled, the connection
+    information is written to ``ceilometer.conf`` and the MongoDB
+    backend counts as a telemetry publisher in Ceilometer prechecks.
