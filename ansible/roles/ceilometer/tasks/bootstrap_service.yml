@@ -8,7 +8,7 @@
       - bootstrap_ceilometer
   register: bootstrap_container_facts
   run_once: true
-  delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
+  delegate_to: "{{ groups['ceilometer-notification'][0] }}"
 
 - name: Running Ceilometer bootstrap container
   vars:
