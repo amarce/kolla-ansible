@@ -1,6 +1,6 @@
-========================
+============================
 Container configuration diff
-========================
+============================
 
 ``kolla_container`` now reports container changes using the Ansible diff
 mechanism.  When running a playbook with ``--diff`` any container that

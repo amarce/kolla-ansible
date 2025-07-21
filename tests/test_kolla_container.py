@@ -15,9 +15,9 @@
 
 # FIXME(yoctozepto): tests do not imitate how ansible would handle module args
 
+from importlib.machinery import SourceFileLoader
 import os
 import sys
-from importlib.machinery import SourceFileLoader
 from unittest import mock
 
 from oslotest import base
