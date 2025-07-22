@@ -1,1 +1,2 @@
 - Fix container recreation when unit exists
+- Handle enabled but inactive units when recreating containers
