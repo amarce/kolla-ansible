@@ -1,15 +1,16 @@
 ---
 # Verify that container and systemd unit exist and are active
-- name: Set unit name
+- name: Set container and unit names
   set_fact:
-    unit_name: "kolla-{{ item.key }}-container.service"
+    container_name: "{{ item.value.container_name | default(item.key) }}"
+    unit_name: "kolla-{{ container_name }}-container.service"
 
 - name: Check container presence
   become: true
   command: >-
     {{ kolla_container_engine }}
-    {{ 'container exists ' + item.key if kolla_container_engine == 'podman'
-       else 'container inspect ' + item.key }}
+    {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
+       else 'container inspect ' + container_name }}
   register: container_result
   changed_when: false
   failed_when: false
@@ -39,7 +40,7 @@
   debug:
     msg: Notifying restart handler
   changed_when: needs_start | bool
-  notify: "Restart {{ item.key }} container"
+  notify: "Restart {{ container_name }} container"
 
 - name: Ensure unit running when container exists
   become: true

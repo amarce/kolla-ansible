@@ -50,9 +50,10 @@
   when: (service.iterate | default(False)) | bool
 
 - name: Include verify tasks
+  vars:
+    service: "{{ item.value }}"
   include_tasks: verify.yml
-  # Use empty dict when facts are missing to avoid failure
-  loop: "{{ (service_container_facts | default({})) | dict2items }}"
+  loop: "{{ lookup('vars', (kolla_role_name | default(project_name)) + '_services') | select_services_enabled_and_mapped_to_host | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
   tags:
