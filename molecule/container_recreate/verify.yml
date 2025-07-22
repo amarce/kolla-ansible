@@ -1,0 +1,33 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Assert container running
+      command: podman inspect --format '{{.State.Running}}' test_rec
+      register: running
+      changed_when: false
+    - name: Check container running
+      assert:
+        that:
+          - running.stdout == 'true'
+
+    - name: Verify new volume present
+      command: podman volume inspect vol2
+      register: vol2
+      changed_when: false
+    - name: Assert vol2 exists
+      assert:
+        that:
+          - vol2.rc == 0
+
+    - name: Verify old volume removed
+      command: podman volume inspect vol1
+      register: vol1
+      changed_when: false
+      failed_when: false
+    - name: Assert vol1 absent
+      assert:
+        that:
+          - vol1.rc != 0
+

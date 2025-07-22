@@ -1,4 +1,33 @@
 ---
+# Manage named volumes prior to recreation
+- name: Determine named volume changes
+  set_fact:
+    _existing_named_vols: >-
+      {{ (container_inspect.Mounts | default([]))
+           | selectattr('Name', 'defined')
+           | map(attribute='Name') | list }}
+    _desired_named_vols: >-
+      {{ service.volumes | default([]) | select('match', '^[^/:]+$') | list }}
+    _vols_to_remove: "{{ _existing_named_vols | difference(_desired_named_vols) }}"
+    _vols_to_create: "{{ _desired_named_vols | difference(_existing_named_vols) }}"
+  when: container_needs_recreate | bool
+
+- name: Remove obsolete named volumes
+  become: true
+  command: "{{ kolla_container_engine }} volume rm {{ item }}"
+  loop: "{{ _vols_to_remove }}"
+  when:
+    - container_needs_recreate | bool
+    - _vols_to_remove | length > 0
+
+- name: Create new named volumes
+  become: true
+  command: "{{ kolla_container_engine }} volume create {{ item }}"
+  loop: "{{ _vols_to_create }}"
+  when:
+    - container_needs_recreate | bool
+    - _vols_to_create | length > 0
+
 - name: Recreate container
   become: true
   kolla_container:
@@ -20,3 +49,4 @@
     labels: "{{ service.labels | default(omit) }}"
     command: "{{ service.command | default(omit) }}"
     cgroupns_mode: "{{ service.cgroupns_mode | default(omit) }}"
+

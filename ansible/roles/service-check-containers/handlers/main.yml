@@ -2,6 +2,17 @@
 - name: Recreate container
   import_tasks: recreate.yml
 
+- name: Start container immediately after (re)create
+  become: true
+  command: "{{ kolla_container_engine }} start {{ container_name }}"
+
+- name: Ensure unit reflects new state
+  become: true
+  systemd:
+    name: "{{ unit_name }}"
+    state: restarted
+  when: unit_enabled
+
 - name: Recreate container when missing or drifted
   listen: Restart container
   when:
@@ -37,3 +48,4 @@
   when:
     - not container_needs_recreate | bool
     - runtime_restart.rc != 0
+

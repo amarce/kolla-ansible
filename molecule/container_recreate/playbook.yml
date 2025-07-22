@@ -1,0 +1,34 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:
+      testgroup:
+        - localhost
+    project_name: testrec
+    testrec_services:
+      test:
+        container_name: test_rec
+        group: testgroup
+        enabled: true
+        image: docker.io/library/busybox:latest
+        volumes: ["vol1:/data"]
+    kolla_container_engine: podman
+    docker_common_options: {}
+  tasks:
+    - name: Initial run
+      include_role:
+        name: service-check-containers
+
+    - name: Run role after volume change
+      vars:
+        testrec_services:
+          test:
+            container_name: test_rec
+            group: testgroup
+            enabled: true
+            image: docker.io/library/busybox:latest
+            volumes: ["vol2:/data"]
+      include_role:
+        name: service-check-containers
