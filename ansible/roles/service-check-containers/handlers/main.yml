@@ -1,4 +1,10 @@
 ---
+- name: Recreate container when missing
+  listen: Restart container
+  when: container_missing | bool
+  import_tasks: recreate_container.yml
+  notify: Restart unit as fallback
+
 - name: Attempt runtime restart first
   listen: Restart container
   become: true
