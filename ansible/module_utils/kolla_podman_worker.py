@@ -265,8 +265,12 @@ class PodmanWorker(ContainerWorker):
         return args
 
     def check_image(self):
+        image_name = self.params.get("image")
+        if not image_name:
+            return True
+
         try:
-            image = self.pc.images.get(self.params.get("image"))
+            image = self.pc.images.get(image_name)
             return image.attrs
         except APIError as e:
             if e.status_code == 404:
@@ -333,14 +337,18 @@ class PodmanWorker(ContainerWorker):
         if not container_info:
             return True
 
+        image_name = self.params.get("image")
         new_image = self.check_image()
         current_image = container_info["Image"]
+
+        if not image_name:
+            return False
         if not new_image:
             return True
         if new_image["Id"] != current_image:
             return True
         # compare name:tag
-        elif parse_tag(self.params.get("image")) != parse_tag(
+        elif parse_tag(image_name) != parse_tag(
             container_info["Config"]["Image"]
         ):
             return True
@@ -670,5 +678,9 @@ class PodmanWorker(ContainerWorker):
                 raise
 
     def ensure_image(self):
+        image_name = self.params.get("image")
+        if not image_name:
+            return
+
         if not self.check_image():
             self.pull_image()
