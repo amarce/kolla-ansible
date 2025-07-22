@@ -9,6 +9,7 @@
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
     unit_name: "kolla-{{ item.value.container_name | default(item.key) }}-container.service"
+    container_spec: "{{ item.value }}"
 
 - name: Check container presence
   become: true

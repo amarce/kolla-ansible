@@ -5,7 +5,7 @@
     action: "recreate_container"
     common_options: "{{ docker_common_options }}"
     name: "{{ container_name }}"
-    image: "{{ service.image | default(omit) }}"
+    image: "{{ container_spec.image | default(omit) }}"
     volumes: "{{ service.volumes | default(omit) }}"
     dimensions: "{{ service.dimensions | default(omit) }}"
     tmpfs: "{{ service.tmpfs | default(omit) }}"

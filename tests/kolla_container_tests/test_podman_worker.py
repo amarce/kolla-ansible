@@ -952,6 +952,16 @@ class TestImage(base.BaseTestCase):
             msg=(f"Internal error: {str(podman_except)}")
         )
 
+    def test_ensure_image_no_image(self):
+        self.pw = get_PodmanWorker({'name': 'dummy'})
+        self.pw.check_image = mock.Mock()
+        self.pw.pull_image = mock.Mock()
+
+        self.pw.ensure_image()
+
+        self.pw.check_image.assert_not_called()
+        self.pw.pull_image.assert_not_called()
+
 
 class TestVolume(base.BaseTestCase):
     def setUp(self):
