@@ -38,8 +38,8 @@
 
 - name: Set container_inspect fact
   set_fact:
-    container_inspect: "{{ inspect_result.containers[container_name] }}"
-  when: inspect_result is defined
+    container_inspect: >-
+      {{ (inspect_result.containers | default({})).get(container_name, {}) }}
 
 - name: Check unit enabled
   become: true
