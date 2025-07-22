@@ -48,3 +48,11 @@
   loop_control:
     loop_var: outer_item
   when: (service.iterate | default(False)) | bool
+
+- name: Include verify tasks
+  include_tasks: verify.yml
+  loop: "{{ service_container_facts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  tags:
+    - container-verify
