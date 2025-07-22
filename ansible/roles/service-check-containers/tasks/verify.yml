@@ -23,9 +23,13 @@
 - name: Check unit enabled
   become: true
   command: systemctl is-enabled --quiet {{ unit_name }}
-  register: unit_enabled
+  register: unit_enabled_res
   changed_when: false
   failed_when: false
+
+- name: Set unit enabled fact
+  set_fact:
+    unit_enabled: "{{ unit_enabled_res.rc == 0 }}"
 
 - name: Check unit active
   become: true
@@ -37,9 +41,9 @@
 - name: Record container and unit status
   set_fact:
     container_missing: "{{ container_result.rc != 0 }}"
-    unit_missing_or_disabled: "{{ unit_enabled.rc != 0 or unit_active.rc != 0 }}"
+    unit_missing_or_disabled: "{{ not unit_enabled }}"
     needs_start: >-
-      {{ container_result.rc != 0 or unit_enabled.rc != 0 or unit_active.rc != 0 }}
+      {{ container_result.rc != 0 or not unit_enabled or unit_active.rc != 0 }}
 
 - name: Notify recreate handler when needed
   when: container_missing | bool and not unit_missing_or_disabled
