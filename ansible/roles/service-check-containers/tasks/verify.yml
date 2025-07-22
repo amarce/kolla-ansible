@@ -4,12 +4,17 @@
   set_fact:
     container_missing: false
     unit_missing_or_disabled: false
+    container_needs_recreate: false
   when: container_missing is not defined or unit_missing_or_disabled is not defined
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
     unit_name: "kolla-{{ item.value.container_name | default(item.key) }}-container.service"
     container_spec: "{{ item.value }}"
+
+- name: Set desired healthcheck test
+  set_fact:
+    desired_healthcheck_test: "{{ container_spec.healthcheck.test | default([]) }}"
 
 - name: Check container presence
   become: true
@@ -20,6 +25,21 @@
   register: container_result
   changed_when: false
   failed_when: false
+
+- name: Inspect container
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name:
+      - "{{ container_name }}"
+  register: inspect_result
+  when: container_result.rc == 0
+
+- name: Set container_inspect fact
+  set_fact:
+    container_inspect: "{{ inspect_result.containers[container_name] }}"
+  when: inspect_result is defined
 
 - name: Check unit enabled
   become: true
@@ -46,6 +66,14 @@
     needs_start: >-
       {{ container_result.rc != 0 or not unit_enabled or unit_active.rc != 0 }}
 
+- name: Detect health-check drift
+  set_fact:
+    container_needs_recreate: true
+  when:
+    - not container_missing
+    - (container_inspect.Config.Healthcheck.Test | default([]) | to_json)
+      != (desired_healthcheck_test | to_json)
+
 - name: Init service fact for handlers
   set_fact:
     service: "{{ container_spec }}"
@@ -57,14 +85,15 @@
   debug:
     msg: "Scheduling container recreation"
   changed_when: true
-  when: container_missing | bool and unit_enabled | bool
+  when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
   notify: Recreate container
 
 - name: Notify restart when needed
   debug:
     msg: Notifying restart handler
-  changed_when: needs_start | bool
+  changed_when: needs_start | bool and not container_needs_recreate | bool
   notify: "Restart container"
+  when: not container_needs_recreate | bool
 
 - name: Flush restart handler
   meta: flush_handlers
