@@ -45,10 +45,15 @@
     needs_start: >-
       {{ container_result.rc != 0 or not unit_enabled or unit_active.rc != 0 }}
 
-- name: Notify recreate handler when needed
-  when: container_missing | bool and not unit_missing_or_disabled
+- name: Clear host error state
   meta: clear_host_errors
-  notify: "Recreate container when missing"
+
+- name: Notify recreate handler when needed
+  debug:
+    msg: "Scheduling container recreation"
+  changed_when: true
+  when: container_missing | bool and unit_enabled | bool
+  notify: Recreate container
 
 - name: Notify restart when needed
   debug:
