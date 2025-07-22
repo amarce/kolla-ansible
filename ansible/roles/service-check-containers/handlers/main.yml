@@ -1,14 +1,24 @@
 ---
-- name: Enable & start unit
+- name: Attempt runtime restart first
   listen: Restart container
   become: true
-  command: >
-    systemctl enable --now {{ unit_name }}
-  when: unit_name is defined
+  command: "{{ kolla_container_engine }} restart {{ container_name }}"
+  register: runtime_restart
+  failed_when: false
+  changed_when: runtime_restart.rc == 0
 
-- name: Start podman container if missing
+- name: Ensure unit enabled
   listen: Restart container
   become: true
-  command: >
-    podman run --detach {{ container_name }}
-  when: container_missing | default(false)
+  systemd:
+    name: "{{ unit_name }}"
+    enabled: true
+  when: runtime_restart.rc != 0
+
+- name: Restart unit as fallback
+  listen: Restart container
+  become: true
+  systemd:
+    name: "{{ unit_name }}"
+    state: restarted
+  when: runtime_restart.rc != 0
