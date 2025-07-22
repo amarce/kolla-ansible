@@ -1,0 +1,36 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:
+      testgroup:
+        - localhost
+    project_name: testhc
+    testhc_services:
+      test:
+        container_name: test_hc
+        group: testgroup
+        enabled: true
+        image: docker.io/library/busybox:latest
+        volumes: []
+        healthcheck:
+          test: "{{ my_healthcheck_test }}"
+          interval: 1
+          retries: 1
+          start_period: 0
+          timeout: 1
+    kolla_container_engine: podman
+    docker_common_options: {}
+  tasks:
+    - name: Run role with initial healthcheck
+      vars:
+        my_healthcheck_test: ["CMD-SHELL", "echo old"]
+      include_role:
+        name: service-check-containers
+
+    - name: Run role after healthcheck update
+      vars:
+        my_healthcheck_test: ["CMD-SHELL", "echo new"]
+      include_role:
+        name: service-check-containers

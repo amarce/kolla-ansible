@@ -2,9 +2,10 @@
 - name: Recreate container
   import_tasks: recreate.yml
 
-- name: Recreate container when missing
+- name: Recreate container when missing or drifted
   listen: Restart container
-  when: container_missing | bool
+  when:
+    - container_missing | bool or container_needs_recreate | bool
   import_tasks: recreate.yml
   notify: Restart unit as fallback
 
@@ -15,6 +16,7 @@
   register: runtime_restart
   failed_when: false
   changed_when: runtime_restart.rc == 0
+  when: not container_needs_recreate | bool
 
 - name: Ensure unit enabled
   listen: Restart container
@@ -22,7 +24,9 @@
   systemd:
     name: "{{ unit_name }}"
     enabled: true
-  when: runtime_restart.rc != 0
+  when:
+    - not container_needs_recreate | bool
+    - runtime_restart.rc != 0
 
 - name: Restart unit as fallback
   listen: Restart container
@@ -30,4 +34,6 @@
   systemd:
     name: "{{ unit_name }}"
     state: restarted
-  when: runtime_restart.rc != 0
+  when:
+    - not container_needs_recreate | bool
+    - runtime_restart.rc != 0

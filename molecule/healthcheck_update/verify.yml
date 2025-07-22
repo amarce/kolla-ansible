@@ -1,0 +1,13 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check healthcheck updated
+      command: podman container inspect test_hc --format '{{json .Config.Healthcheck.Test}}'
+      register: result
+      changed_when: false
+    - name: Assert new healthcheck
+      assert:
+        that:
+          - result.stdout == '["CMD-SHELL","echo new"]'
