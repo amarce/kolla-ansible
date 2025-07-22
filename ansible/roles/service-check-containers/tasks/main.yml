@@ -51,7 +51,8 @@
 
 - name: Include verify tasks
   include_tasks: verify.yml
-  loop: "{{ service_container_facts | dict2items }}"
+  # Use empty dict when facts are missing to avoid failure
+  loop: "{{ (service_container_facts | default({})) | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
   tags:
