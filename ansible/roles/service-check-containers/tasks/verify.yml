@@ -42,10 +42,8 @@
       {{ container_result.rc != 0 or unit_enabled.rc != 0 or unit_active.rc != 0 }}
 
 - name: Notify restart when needed
-  debug:
-    msg: Notifying restart handler
-  changed_when: needs_start | bool
-  notify: "Restart {{ container_name }} container"
+  meta: flush_handlers
+  notify: "Restart container"
 
 - name: Ensure unit running when container exists
   become: true
