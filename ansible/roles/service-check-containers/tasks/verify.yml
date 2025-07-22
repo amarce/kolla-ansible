@@ -46,6 +46,10 @@
     needs_start: >-
       {{ container_result.rc != 0 or not unit_enabled or unit_active.rc != 0 }}
 
+- name: Init service fact for handlers
+  set_fact:
+    service: "{{ container_spec }}"
+
 - name: Clear host error state
   meta: clear_host_errors
 
