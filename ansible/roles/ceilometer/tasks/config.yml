@@ -80,7 +80,7 @@
   become: true
   when:
     - should_copy_dynamic_pollster_definitions
-    - inventory_hostname in groups['ceilometer-central']
+    - inventory_hostname in (groups['ceilometer-central'] | default([]))
 
 - name: Copying dynamic pollsters definitions
   copy:
@@ -90,7 +90,7 @@
   become: true
   when:
     - should_copy_dynamic_pollster_definitions
-    - inventory_hostname in groups['ceilometer-central']
+    - inventory_hostname in (groups['ceilometer-central'] | default([]))
 
 - name: Check if custom polling.yaml exists
   stat:

@@ -8,8 +8,10 @@
       - bootstrap_ceilometer
   register: bootstrap_container_facts
   run_once: true
-  delegate_to: "{{ groups['ceilometer-notification'][0] }}"
-  when: ceilometer_enable_db_sync | bool
+  delegate_to: "{{ (groups['ceilometer-notification'] | default([])) | first }}"
+  when:
+    - ceilometer_enable_db_sync | bool
+    - groups['ceilometer-notification'] is defined
 
 - name: Running Ceilometer bootstrap container
   vars:
@@ -34,7 +36,8 @@
     restart_policy: oneshot
     volumes: "{{ ceilometer_notification.volumes | reject('equalto', '') | list }}"
   run_once: True
-  delegate_to: "{{ groups[ceilometer_notification.group][0] }}"
+  delegate_to: "{{ (groups[ceilometer_notification.group] | default([])) | first }}"
   when:
     - ceilometer_enable_db_sync | bool
     - bootstrap_container_facts.containers['bootstrap_ceilometer'] is not defined
+    - ceilometer_notification.group in groups
