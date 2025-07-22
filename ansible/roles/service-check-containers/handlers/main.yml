@@ -1,14 +1,14 @@
 ---
-- name: Restart container
+- name: Enable & start unit
   listen: Restart container
   become: true
-  block:
-    - name: Enable & start unit
-      command: >
-        systemctl enable --now {{ unit_name }}
-      when: unit_name is defined
+  command: >
+    systemctl enable --now {{ unit_name }}
+  when: unit_name is defined
 
-    - name: Start podman container if missing
-      command: >
-        podman run --detach {{ container_name }}
-      when: container_missing | default(false)
+- name: Start podman container if missing
+  listen: Restart container
+  become: true
+  command: >
+    podman run --detach {{ container_name }}
+  when: container_missing | default(false)
