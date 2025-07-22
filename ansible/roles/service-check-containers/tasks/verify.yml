@@ -1,5 +1,10 @@
 ---
 # Verify that container and systemd unit exist and are active
+- name: Init status vars when undefined
+  set_fact:
+    container_missing: false
+    unit_missing_or_disabled: false
+  when: container_missing is not defined or unit_missing_or_disabled is not defined
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
@@ -32,9 +37,9 @@
 - name: Record container and unit status
   set_fact:
     container_missing: "{{ container_result.rc != 0 }}"
-    unit_missing_or_disabled: >-
-      {{ unit_enabled.rc != 0 or unit_active.rc != 0 }}
-    needs_start: "{{ container_missing or unit_missing_or_disabled }}"
+    unit_missing_or_disabled: "{{ unit_enabled.rc != 0 or unit_active.rc != 0 }}"
+    needs_start: >-
+      {{ container_result.rc != 0 or unit_enabled.rc != 0 or unit_active.rc != 0 }}
 
 - name: Notify restart when needed
   debug:
