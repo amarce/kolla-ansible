@@ -1,0 +1,6 @@
+---
+- name: Restart container
+  listen: "^Restart .+ container$"
+  become: true
+  command: "{{ kolla_container_engine }} start {{ container_name }}"
+  when: kolla_container_engine == 'podman'
