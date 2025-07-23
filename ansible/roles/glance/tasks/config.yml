@@ -123,6 +123,28 @@
     - glance_policy_file is defined
     - service | service_enabled_and_mapped_to_host
 
+- name: Checking whether api-paste.ini file exists
+  vars:
+    service: "{{ glance_services['glance-api'] }}"
+  stat:
+    path: "{{ node_custom_config }}/glance/api-paste.ini"
+  delegate_to: localhost
+  run_once: True
+  register: check_glance_api_paste_ini
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copying over api-paste.ini
+  vars:
+    service: "{{ glance_services['glance-api'] }}"
+  template:
+    src: "{{ node_custom_config }}/glance/api-paste.ini"
+    dest: "{{ node_config_directory }}/glance-api/api-paste.ini"
+    mode: "0660"
+  become: true
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - check_glance_api_paste_ini.stat.exists
+
 - name: Copying over glance-haproxy-tls.cfg
   vars:
     service: "{{ glance_services['glance-tls-proxy'] }}"

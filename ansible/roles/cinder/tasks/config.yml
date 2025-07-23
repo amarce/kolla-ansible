@@ -122,6 +122,28 @@
     - cinder_policy_file is defined
   with_dict: "{{ cinder_services | select_services_enabled_and_mapped_to_host }}"
 
+- name: Checking whether api-paste.ini file exists
+  vars:
+    service: "{{ cinder_services['cinder-api'] }}"
+  stat:
+    path: "{{ node_custom_config }}/cinder/api-paste.ini"
+  delegate_to: localhost
+  run_once: True
+  register: check_cinder_api_paste_ini
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copying over api-paste.ini
+  vars:
+    service: "{{ cinder_services['cinder-api'] }}"
+  template:
+    src: "{{ node_custom_config }}/cinder/api-paste.ini"
+    dest: "{{ node_config_directory }}/cinder-api/api-paste.ini"
+    mode: "0660"
+  become: true
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - check_cinder_api_paste_ini.stat.exists
+
 - name: Copying over nfs_shares files for cinder_volume
   vars:
     service: "{{ cinder_services['cinder-volume'] }}"

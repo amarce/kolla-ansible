@@ -27,7 +27,14 @@
             "dest": "/etc/cinder/{{ cinder_policy_file }}",
             "owner": "cinder",
             "perm": "0600"
-        }{% endif %}{% if cinder_enable_tls_backend | bool %},
+        }{% endif %},
+        {
+            "source": "{{ container_config_directory }}/api-paste.ini",
+            "dest": "/etc/cinder/api-paste.ini",
+            "owner": "cinder",
+            "perm": "0600",
+            "optional": true
+        }{% if cinder_enable_tls_backend | bool %},
         {
             "source": "{{ container_config_directory }}/cinder-cert.pem",
             "dest": "/etc/cinder/certs/cinder-cert.pem",

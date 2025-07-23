@@ -79,6 +79,28 @@
     - item.key in nova_services_require_policy_json
   with_dict: "{{ nova_services | select_services_enabled_and_mapped_to_host }}"
 
+- name: Checking whether api-paste.ini file exists
+  vars:
+    service: "{{ nova_services['nova-api'] }}"
+  stat:
+    path: "{{ node_custom_config }}/nova/api-paste.ini"
+  delegate_to: localhost
+  run_once: True
+  register: check_nova_api_paste_ini
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copying over api-paste.ini
+  vars:
+    service: "{{ nova_services['nova-api'] }}"
+  template:
+    src: "{{ node_custom_config }}/nova/api-paste.ini"
+    dest: "{{ node_config_directory }}/nova-api/api-paste.ini"
+    mode: "0660"
+  become: true
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - check_nova_api_paste_ini.stat.exists
+
 - name: Copying over nova-api-wsgi.conf
   vars:
     service: "{{ nova_services['nova-api'] }}"

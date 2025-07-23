@@ -34,7 +34,14 @@
             "dest": "/etc/neutron/{{ neutron_policy_file }}",
             "owner": "neutron",
             "perm": "0600"
-        },{% endif %}
+        },{% endif %},
+        {
+            "source": "{{ container_config_directory }}/api-paste.ini",
+            "dest": "/etc/neutron/api-paste.ini",
+            "owner": "neutron",
+            "perm": "0600",
+            "optional": true
+        },
 {% if neutron_plugin_agent in ['vmware_nsxv', 'vmware_nsxv3', 'vmware_nsxp', 'vmware_dvs'] -%}
         {
             "source": "{{ container_config_directory }}/nsx.ini",

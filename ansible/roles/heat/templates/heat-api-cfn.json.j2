@@ -19,7 +19,14 @@
             "dest": "/etc/heat/{{ heat_policy_file }}",
             "owner": "heat",
             "perm": "0600"
-        }{% endif %}{% if heat_enable_tls_backend | bool %},
+        }{% endif %},
+        {
+            "source": "{{ container_config_directory }}/api-paste.ini",
+            "dest": "/etc/heat/api-paste.ini",
+            "owner": "heat",
+            "perm": "0600",
+            "optional": true
+        }{% if heat_enable_tls_backend | bool %},
         {
             "source": "{{ container_config_directory }}/heat-cert.pem",
             "dest": "/etc/heat/certs/heat-cert.pem",

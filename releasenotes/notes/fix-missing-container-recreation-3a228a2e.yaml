@@ -1,5 +1,5 @@
 ---
 fixes:
   - |
-    Missing containers are now recreated again when the service unit is enabled.
-    Fixes #1234.
+    Missing containers are now recreated again when the service unit is
+    enabled. Fixes #1234.
