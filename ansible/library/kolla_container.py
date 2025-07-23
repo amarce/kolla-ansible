@@ -434,10 +434,9 @@ def main():
         result = bool(getattr(cw, action)())
         diff = cw.result.get('diff')
         if action == 'compare_container':
-            nothing_changed = not diff
-            result = nothing_changed
-            changed = not nothing_changed
-            if nothing_changed:
+            changed = cw.changed
+            result = not changed
+            if not changed and not diff:
                 cw.result.setdefault('debug', ['no differences found'])
             module.exit_json(changed=changed, result=result, **cw.result)
         else:
