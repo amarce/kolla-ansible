@@ -36,7 +36,14 @@
             "dest": "/etc/glance/property-protections-rules.conf",
             "owner": "glance",
             "perm": "0600"
-        }{% endif %}{% if glance_copy_certs | bool %},
+        }{% endif %},
+        {
+            "source": "{{ container_config_directory }}/api-paste.ini",
+            "dest": "/etc/glance/api-paste.ini",
+            "owner": "glance",
+            "perm": "0600",
+            "optional": true
+        }{% if glance_copy_certs | bool %},
         {
             "source": "{{ container_config_directory }}/ca-certificates",
             "dest": "/var/lib/kolla/share/ca-certificates",

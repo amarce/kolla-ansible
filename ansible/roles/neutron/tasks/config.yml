@@ -76,6 +76,28 @@
     - neutron_policy_file is defined
   with_dict: "{{ neutron_services | select_services_enabled_and_mapped_to_host }}"
 
+- name: Checking whether api-paste.ini file exists
+  vars:
+    service: "{{ neutron_services['neutron-server'] }}"
+  stat:
+    path: "{{ node_custom_config }}/neutron/api-paste.ini"
+  delegate_to: localhost
+  run_once: True
+  register: check_neutron_api_paste_ini
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Copying over api-paste.ini
+  vars:
+    service: "{{ neutron_services['neutron-server'] }}"
+  template:
+    src: "{{ node_custom_config }}/neutron/api-paste.ini"
+    dest: "{{ node_config_directory }}/neutron-server/api-paste.ini"
+    mode: "0660"
+  become: true
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - check_neutron_api_paste_ini.stat.exists
+
 - name: Copying over config.json files for services
   become: true
   template:
