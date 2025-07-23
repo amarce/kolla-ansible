@@ -10,7 +10,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
 
@@ -25,6 +25,6 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"

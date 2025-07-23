@@ -12,7 +12,7 @@
     volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
-    environment: "{{ service.environment | default(omit) }}"
+    environment: "{{ service.environment | default({}) }}"
 
 - name: Restart letsencrypt-lego container
   vars:
@@ -27,4 +27,4 @@
     volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
-    environment: "{{ service.environment | default(omit) }}"
+    environment: "{{ service.environment | default({}) }}"

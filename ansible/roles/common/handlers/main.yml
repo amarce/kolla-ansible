@@ -10,7 +10,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     dimensions: "{{ service.dimensions }}"
 
 - name: Restart kolla-toolbox container
@@ -25,7 +25,7 @@
     image: "{{ service.image }}"
     privileged: "{{ service.privileged | default(False) }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     dimensions: "{{ service.dimensions }}"
   notify:
     - Initializing toolbox container using normal user
@@ -46,5 +46,5 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     dimensions: "{{ service.dimensions }}"

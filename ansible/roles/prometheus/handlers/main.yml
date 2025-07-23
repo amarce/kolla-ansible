@@ -90,7 +90,7 @@
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
-    environment: "{{ service.environment | default(omit) }}"
+    environment: "{{ service.environment | default({}) }}"
 
 - name: Restart prometheus-elasticsearch-exporter container
   vars:

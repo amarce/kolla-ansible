@@ -85,6 +85,6 @@
     name: "{{ service.container_name }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
   when:
     - service | service_enabled_and_mapped_to_host
