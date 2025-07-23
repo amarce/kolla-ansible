@@ -9,7 +9,7 @@
     common_options: "{{ docker_common_options }}"
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
-    environment: "{{ service.environment }}"
+    environment: "{{ service.environment | default({}) }}"
     volumes: "{{ service.volumes | select('truthy') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
