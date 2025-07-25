@@ -10,7 +10,7 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
-    ipc_mode: "{{ service.ipc_mode }}"
+    ipc_mode: "{{ service.ipc_mode | default(omit) }}"
     cap_add: "{{ service.cap_add }}"
     dimensions: "{{ service.dimensions }}"
 
@@ -26,7 +26,7 @@
     image: "{{ service.image }}"
     environment: "{{ service.environment | default({}) }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
-    ipc_mode: "{{ service.ipc_mode }}"
+    ipc_mode: "{{ service.ipc_mode | default(omit) }}"
     dimensions: "{{ service.dimensions }}"
 
 - name: Restart hacluster-pacemaker-remote container
@@ -40,5 +40,5 @@
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
-    ipc_mode: "{{ service.ipc_mode }}"
+    ipc_mode: "{{ service.ipc_mode | default(omit) }}"
     dimensions: "{{ service.dimensions }}"
