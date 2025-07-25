@@ -51,6 +51,6 @@
     common_options: "{{ docker_common_options }}"
     name: "{{ service.container_name }}"
     image: "{{ service.image }}"
-    ipc_mode: "{{ service.ipc_mode }}"
+    ipc_mode: "{{ service.ipc_mode | default(omit) }}"
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
     dimensions: "{{ service.dimensions }}"
