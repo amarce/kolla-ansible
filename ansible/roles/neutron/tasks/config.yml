@@ -313,6 +313,32 @@
     mode: "0660"
   when: service | service_enabled_and_mapped_to_host
 
+- name: Ensure mlnx agent config dir exists
+  file:
+    path: "{{ node_custom_config }}/{{ item.key }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0770"
+  loop: "{{ neutron_services | dict2items }}"
+  when:
+    - item.key == 'neutron-mlnx-agent'
+    - not (item.value.enabled | bool)
+    - item.value.host_in_groups | default(false) | bool
+
+- name: Ensuring neutron-mlnx-agent config directory exists
+  become: true
+  vars:
+    service_name: "neutron-mlnx-agent"
+    service: "{{ neutron_services[service_name] }}"
+  file:
+    path: "{{ node_config_directory }}/{{ service_name }}"
+    state: "directory"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0770"
+  when: service | service_enabled_and_mapped_to_host
+
 - name: Copying over mlnx_agent.ini
   become: true
   vars:
