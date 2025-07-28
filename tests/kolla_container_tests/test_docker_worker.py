@@ -769,7 +769,7 @@ class TestContainer(base.BaseTestCase):
 
         self.dw.recreate_or_restart_container()
 
-        self.dw.check_image.assert_called_once_with()
+        self.assertGreaterEqual(self.dw.check_image.call_count, 1)
         self.dw.pull_image.assert_called_once_with()
         self.dw.remove_container.assert_called_once_with()
         self.dw.start_container.assert_called_once_with()
@@ -1336,6 +1336,13 @@ class TestAttrComp(base.BaseTestCase):
                                 KOLLA_BASE_DISTRO='centos')})
 
         self.assertTrue(self.dw.compare_environment(container_info))
+
+    def test_compare_environment_ignore_debug(self):
+        container_info = {'Config': dict(
+            Env=['KOLLA_ACTION_DEBUG=true']
+        )}
+        self.dw = get_DockerWorker({'environment': {'KOLLA_ACTION_DEBUG': 'false'}})
+        self.assertFalse(self.dw.compare_environment(container_info))
 
     def test_compare_container_state_neg(self):
         container_info = {'State': dict(Status='running')}

@@ -211,7 +211,8 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
                       error.result['msg'])
 
     def test_run_command_success(self):
-        exec_return_value = (0, b'data')
+        podman_frame = b'\x01\x00\x00\x00\x00\x00\x00\x04data'
+        exec_return_value = (0, podman_frame)
         ktb_container = mock.MagicMock()
         ktb_container.exec_run.return_value = exec_return_value
         self.mock_container_client.containers.list.return_value = [
@@ -220,8 +221,8 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
         command_output = self.fake_ktbw._run_command(
             ktb_container, 'some_command')
 
-        self.assertEqual(exec_return_value[1], command_output)
-        self.assertIsInstance(command_output, bytes)
+        self.assertEqual((b'data', b''), command_output)
+        self.assertIsInstance(command_output, tuple)
         ktb_container.exec_run.assert_called_once_with('some_command')
 
     def test_process_container_output_invalid_json(self):
@@ -230,7 +231,7 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
         error = self.assertRaises(AnsibleFailJson,
                                   self.fake_ktbw._process_container_output,
                                   invalid_json)
-        self.assertIn('Parsing kolla_toolbox JSON output failed',
+        self.assertIn('Bad JSON from kolla_toolbox',
                       error.result['msg'])
 
     def test_process_container_output_invalid_structure(self):
