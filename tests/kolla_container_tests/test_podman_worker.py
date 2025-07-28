@@ -218,7 +218,7 @@ class TestContainer(base.BaseTestCase):
         params.update({'pid_mode': 'host', 'cgroupns_mode': 'host'})
         self.pw = get_PodmanWorker(params)
         args = self.pw.prepare_container_args()
-        self.assertEqual('host', args.get('pid'))
+        self.assertEqual('host', args.get('pid_mode'))
         self.assertEqual('host', args.get('cgroupns'))
 
     def test_create_container_with_dimensions(self):
