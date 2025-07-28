@@ -41,7 +41,7 @@
     common_options: "{{ docker_common_options }}"
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
-    image: "{{ service.image }}"
+    image: "{{ neutron_openvswitch_agent_image_full }}"
     privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
@@ -64,7 +64,7 @@
     common_options: "{{ docker_common_options }}"
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
-    image: "{{ service.image }}"
+    image: "{{ neutron_openvswitch_agent_image_full }}"
     privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
@@ -89,7 +89,7 @@
     detach: False
     command: >-
       bash -c 'sudo -E kolla_set_configs && neutron-ovs-cleanup --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/openvswitch_agent.ini && touch {{ neutron_ovs_cleanup_marker_file }}'
-    image: "{{ service.image }}"
+    image: "{{ neutron_openvswitch_agent_image_full }}"
     privileged: "{{ service.privileged | default(False) }}"
     labels:
       OVSCLEANUP: ""
