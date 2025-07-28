@@ -9,20 +9,6 @@
     mode: "0770"
   with_dict: "{{ neutron_services | select_services_enabled_and_mapped_to_host }}"
 
-- name: Ensure linuxbridge agent config dir exists
-  become: true
-  file:
-    path: "{{ node_custom_config }}/{{ item.key }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0770"
-  loop: "{{ neutron_services | dict2items }}"
-  when:
-    - item.key == 'neutron-linuxbridge-agent'
-    - item.value.enabled | bool
-    - item.value.host_in_groups | bool
-
 
 - name: Ensuring neutron-ovs-cleanup config directory exists
   become: true
@@ -231,6 +217,19 @@
   when:
     - item.key in services_need_ml2_conf_ini
   with_dict: "{{ neutron_services | select_services_enabled_and_mapped_to_host }}"
+
+- name: Ensure linuxbridge agent config dir exists
+  file:
+    path: "{{ node_custom_config }}/{{ item.key }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0770"
+  loop: "{{ neutron_services | dict2items }}"
+  when:
+    - item.key == 'neutron-linuxbridge-agent'
+    - item.value.enabled | bool
+    - item.value.host_in_groups | default(false) | bool
 
 - name: Copying over linuxbridge_agent.ini
   become: true
