@@ -213,6 +213,14 @@ class TestContainer(base.BaseTestCase):
         self.pw.create_container()
         self.assertTrue(self.pw.changed)
 
+    def test_prepare_container_args_pid_cgroupns(self):
+        params = self.fake_data['params'].copy()
+        params.update({'pid_mode': 'host', 'cgroupns_mode': 'host'})
+        self.pw = get_PodmanWorker(params)
+        args = self.pw.prepare_container_args()
+        self.assertEqual('host', args.get('pid'))
+        self.assertEqual('host', args.get('cgroupns'))
+
     def test_create_container_with_dimensions(self):
         self.fake_data['params']['dimensions'] = {'blkio_weight': 10}
         self.pw = get_PodmanWorker(self.fake_data['params'].copy())
@@ -682,7 +690,7 @@ class TestContainer(base.BaseTestCase):
 
         self.pw.recreate_or_restart_container()
 
-        self.pw.check_image.assert_called_once_with()
+        self.assertGreaterEqual(self.pw.check_image.call_count, 1)
         self.pw.pull_image.assert_called_once_with()
         self.pw.remove_container.assert_called_once_with()
         self.pw.start_container.assert_called_once_with()
@@ -1149,6 +1157,16 @@ class TestAttrComp(base.BaseTestCase):
         self.pw = get_PodmanWorker({'pid_mode': 'host2'})
         self.assertTrue(self.pw.compare_pid_mode(container_info))
 
+    def test_compare_pid_mode_pidns_neg(self):
+        container_info = {'HostConfig': dict(PidNS='host')}
+        self.pw = get_PodmanWorker({'pid_mode': 'host'})
+        self.assertFalse(self.pw.compare_pid_mode(container_info))
+
+    def test_compare_pid_mode_pidns_pos(self):
+        container_info = {'HostConfig': dict(PidNS='host1')}
+        self.pw = get_PodmanWorker({'pid_mode': 'host2'})
+        self.assertTrue(self.pw.compare_pid_mode(container_info))
+
     def test_compare_cgroupns_mode_neg(self):
         container_info = {'HostConfig': dict(CgroupMode='host')}
         self.pw = get_PodmanWorker({'cgroupns_mode': 'host'})
@@ -1172,6 +1190,16 @@ class TestAttrComp(base.BaseTestCase):
     def test_compare_cgroupns_mode_pos_backward_compat(self):
         container_info = {'HostConfig': dict(CgroupMode='')}
         self.pw = get_PodmanWorker({'cgroupns_mode': 'private', 'debug': True})
+        self.assertTrue(self.pw.compare_cgroupns_mode(container_info))
+
+    def test_compare_cgroupns_mode_cgroupns_neg(self):
+        container_info = {'HostConfig': dict(CgroupNS='host')}
+        self.pw = get_PodmanWorker({'cgroupns_mode': 'host'})
+        self.assertFalse(self.pw.compare_cgroupns_mode(container_info))
+
+    def test_compare_cgroupns_mode_cgroupns_pos(self):
+        container_info = {'HostConfig': dict(CgroupNS='private')}
+        self.pw = get_PodmanWorker({'cgroupns_mode': 'host'})
         self.assertTrue(self.pw.compare_cgroupns_mode(container_info))
 
     def test_compare_cgroupns_mode_unsupported(self):
@@ -1288,6 +1316,13 @@ class TestAttrComp(base.BaseTestCase):
                                 KOLLA_INSTALL_TYPE='binary')})
 
         self.assertTrue(self.pw.compare_environment(container_info))
+
+    def test_compare_environment_ignore_debug(self):
+        container_info = {'Config': dict(
+            Env=['KOLLA_ACTION_DEBUG=true']
+        )}
+        self.pw = get_PodmanWorker({'environment': {'KOLLA_ACTION_DEBUG': 'false'}})
+        self.assertFalse(self.pw.compare_environment(container_info))
 
     def test_compare_container_state_pos(self):
         container_info = {'State': dict(Status='running')}

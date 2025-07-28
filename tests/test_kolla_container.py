@@ -113,6 +113,7 @@ class ModuleArgsTest(base.BaseTestCase):
             ["action", "create_volume", ["name"]],
             ["action", "ensure_image", ["image"]],
             ["action", "recreate_or_restart_container", ["name"]],
+            ["action", "recreate_container", ["name"]],
             ["action", "remove_container", ["name"]],
             ["action", "remove_image", ["image"]],
             ["action", "remove_volume", ["name"]],

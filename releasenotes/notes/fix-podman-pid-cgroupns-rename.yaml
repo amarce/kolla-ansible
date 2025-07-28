@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fixes container comparisons when running with Podman 4.9 or later.
+    ``podman inspect`` renamed ``PidMode`` to ``PidNS`` and ``CgroupnsMode``
+    to ``CgroupNS``.  Kolla Ansible now recognises both names and passes the
+    correct ``--pid`` and ``--cgroupns`` options when creating containers.

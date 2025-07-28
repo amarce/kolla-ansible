@@ -130,7 +130,11 @@ class PodmanWorker(ContainerWorker):
 
         # maybe can be done straight away,
         # at first it was around 6 keys that's why it is this way
-        convert_keys = dict(graceful_timeout="stop_timeout", cgroupns_mode="cgroupns")
+        convert_keys = dict(
+            graceful_timeout="stop_timeout",
+            cgroupns_mode="cgroupns",
+            pid_mode="pid",
+        )
 
         # remap differing args
         for key_orig, key_new in convert_keys.items():
@@ -316,7 +320,10 @@ class PodmanWorker(ContainerWorker):
 
     def compare_pid_mode(self, container_info):
         new_pid_mode = self.params.get("pid_mode") or self.params.get("pid")
-        current_pid_mode = container_info["HostConfig"].get("PidMode")
+        current_pid_mode = (
+            container_info["HostConfig"].get("PidMode")
+            or container_info["HostConfig"].get("PidNS")
+        )
 
         if not current_pid_mode:
             current_pid_mode = None

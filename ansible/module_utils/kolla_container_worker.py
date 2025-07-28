@@ -553,8 +553,10 @@ class ContainerWorker(ABC):
         if new_cgroupns_mode is None:
             # means we don't care what it is
             return False
-        current_cgroupns_mode = (container_info["HostConfig"].get("CgroupnsMode")) or (
-            container_info["HostConfig"].get("CgroupMode")
+        current_cgroupns_mode = (
+            container_info["HostConfig"].get("CgroupnsMode")
+            or container_info["HostConfig"].get("CgroupNS")
+            or container_info["HostConfig"].get("CgroupMode")
         )
         if current_cgroupns_mode in ("", None):
             # means the container was created on Docker pre-20.10
@@ -752,6 +754,8 @@ class ContainerWorker(ABC):
                 current_env.update({k: v})
 
             for k, v in env_spec.items():
+                if k == "KOLLA_ACTION_DEBUG":
+                    continue
                 if k not in current_env:
                     return True
                 if current_env[k] != v:
@@ -1076,9 +1080,18 @@ class ContainerWorker(ABC):
         if key == "ipc_mode":
             return hc.get("IpcMode") or None
         if key == "pid_mode":
-            return hc.get("PidMode") or None
+            return (
+                hc.get("PidMode")
+                or hc.get("PidNS")
+                or None
+            )
         if key == "cgroupns_mode":
-            return hc.get("CgroupnsMode") or hc.get("CgroupMode") or "host"
+            return (
+                hc.get("CgroupnsMode")
+                or hc.get("CgroupNS")
+                or hc.get("CgroupMode")
+                or "host"
+            )
         if key == "privileged":
             return hc.get("Privileged")
         if key == "tmpfs":
