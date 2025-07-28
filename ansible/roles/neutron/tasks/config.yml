@@ -231,6 +231,19 @@
     - not (item.value.enabled | bool)
     - item.value.host_in_groups | default(false) | bool
 
+- name: Ensuring neutron-linuxbridge-agent config directory exists
+  become: true
+  vars:
+    service_name: "neutron-linuxbridge-agent"
+    service: "{{ neutron_services[service_name] }}"
+  file:
+    path: "{{ node_config_directory }}/{{ service_name }}"
+    state: "directory"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0770"
+  when: service | service_enabled_and_mapped_to_host
+
 - name: Copying over linuxbridge_agent.ini
   become: true
   vars:
