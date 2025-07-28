@@ -228,7 +228,7 @@
   loop: "{{ neutron_services | dict2items }}"
   when:
     - item.key == 'neutron-linuxbridge-agent'
-    - item.value.enabled | bool
+    - not (item.value.enabled | bool)
     - item.value.host_in_groups | default(false) | bool
 
 - name: Copying over linuxbridge_agent.ini
