@@ -12,14 +12,16 @@
 - name: Ensure linuxbridge agent config dir exists
   become: true
   file:
-    path: "{{ node_custom_config }}/neutron-linuxbridge-agent"
+    path: "{{ node_custom_config }}/{{ item.key }}"
     state: directory
     owner: root
     group: root
     mode: "0770"
+  loop: "{{ neutron_services | dict2items }}"
   when:
-    - neutron_plugin_agent == 'linuxbridge'
-    - service_enabled_and_mapped_to_host('neutron-linuxbridge-agent')
+    - item.key == 'neutron-linuxbridge-agent'
+    - item.value.enabled | bool
+    - item.value.host_in_groups | bool
 
 
 - name: Ensuring neutron-ovs-cleanup config directory exists
