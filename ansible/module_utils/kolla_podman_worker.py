@@ -133,7 +133,7 @@ class PodmanWorker(ContainerWorker):
         convert_keys = dict(
             graceful_timeout="stop_timeout",
             cgroupns_mode="cgroupns",
-            pid_mode="pid",
+            pid_mode="pid_mode",
         )
 
         # remap differing args
@@ -321,8 +321,8 @@ class PodmanWorker(ContainerWorker):
     def compare_pid_mode(self, container_info):
         new_pid_mode = self.params.get("pid_mode") or self.params.get("pid")
         current_pid_mode = (
-            container_info["HostConfig"].get("PidMode")
-            or container_info["HostConfig"].get("PidNS")
+            container_info["HostConfig"].get("PidMode") or
+            container_info["HostConfig"].get("PidNS")
         )
 
         if not current_pid_mode:
