@@ -340,7 +340,9 @@
     owner: "{{ config_owner_user }}"
     group: "{{ config_owner_group }}"
     mode: "0770"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - neutron_services['neutron-mlnx-agent']['enabled'] | bool
+    - inventory_hostname in groups['neutron-mlnx-agent']
 
 - name: Copying over mlnx_agent.ini
   become: true
@@ -354,7 +356,9 @@
       - "{{ node_custom_config }}/neutron/{{ inventory_hostname }}/mlnx_agent.ini"
     dest: "{{ node_config_directory }}/{{ service_name }}/mlnx_agent.ini"
     mode: "0660"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - neutron_services['neutron-mlnx-agent']['enabled'] | bool
+    - inventory_hostname in groups['neutron-mlnx-agent']
 
 - name: Ensure eswitchd config dir exists
   file:
@@ -381,7 +385,9 @@
     owner: "{{ config_owner_user }}"
     group: "{{ config_owner_group }}"
     mode: "0770"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - neutron_services['neutron-eswitchd']['enabled'] | bool
+    - inventory_hostname in groups['neutron-eswitchd']
 
 - name: Copying over eswitchd.conf
   become: true
@@ -395,7 +401,9 @@
       - "{{ node_custom_config }}/neutron/{{ inventory_hostname }}/eswitchd.conf"
     dest: "{{ node_config_directory }}/{{ service_name }}/eswitchd.conf"
     mode: "0660"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - neutron_services['neutron-eswitchd']['enabled'] | bool
+    - inventory_hostname in groups['neutron-eswitchd']
 
 - name: Copying over dhcp_agent.ini
   become: true
@@ -409,7 +417,9 @@
       - "{{ node_custom_config }}/neutron/{{ inventory_hostname }}/dhcp_agent.ini"
     dest: "{{ node_config_directory }}/{{ service_name }}/dhcp_agent.ini"
     mode: "0660"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - neutron_services['neutron-dhcp-agent']['enabled'] | bool
+    - inventory_hostname in groups['neutron-dhcp-agent']
 
 - name: Copying over dnsmasq.conf
   become: true
