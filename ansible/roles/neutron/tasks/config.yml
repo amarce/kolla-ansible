@@ -35,6 +35,34 @@
   when:
     - neutron_copy_certs
 
+- name: Check neutron TLS proxy directory
+  vars:
+    service: "{{ neutron_services['neutron-tls-proxy'] }}"
+  stat:
+    path: "{{ node_config_directory }}/neutron-tls-proxy/"
+  register: neutron_tls_proxy_dir
+  when: service | service_enabled_and_mapped_to_host
+
+- name: Check neutron TLS cert file
+  vars:
+    service: "{{ neutron_services['neutron-tls-proxy'] }}"
+  stat:
+    path: "{{ node_config_directory }}/neutron-tls-proxy/neutron-cert.pem"
+  register: neutron_tls_cert
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - neutron_tls_proxy_dir.stat.exists
+
+- name: Check neutron TLS key file
+  vars:
+    service: "{{ neutron_services['neutron-tls-proxy'] }}"
+  stat:
+    path: "{{ node_config_directory }}/neutron-tls-proxy/neutron-key.pem"
+  register: neutron_tls_key
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - neutron_tls_proxy_dir.stat.exists
+
 - name: Creating TLS backend PEM File
   vars:
     service: "{{ neutron_services['neutron-tls-proxy'] }}"
@@ -45,7 +73,11 @@
     regexp: "^neutron-(cert|key)\\.pem$"
     remote_src: true
   become: true
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - neutron_tls_proxy_dir.stat.exists
+    - neutron_tls_cert.stat.exists
+    - neutron_tls_key.stat.exists
 
 - name: Check if policies shall be overwritten
   stat:
@@ -458,7 +490,9 @@
     - "{{ node_custom_config }}/neutron/{{ inventory_hostname }}/neutron-tls-proxy.cfg"
     - "{{ node_custom_config }}/neutron/neutron-tls-proxy.cfg"
     - "neutron-tls-proxy.cfg.j2"
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - neutron_tls_proxy_dir.stat.exists
 
 - name: Copying over neutron_taas.conf
   become: true
