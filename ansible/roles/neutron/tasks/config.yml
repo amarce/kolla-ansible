@@ -227,8 +227,9 @@
     mode: "0770"
   loop: "{{ neutron_services | dict2items }}"
   when:
+    - enable_neutron | bool
     - item.key == 'neutron-linuxbridge-agent'
-    - not (item.value.enabled | bool)
+    - item.value.enabled | bool
     - item.value.host_in_groups | default(false) | bool
 
 - name: Ensuring neutron-linuxbridge-agent config directory exists
@@ -282,8 +283,9 @@
     mode: "0770"
   loop: "{{ neutron_services | dict2items }}"
   when:
+    - enable_neutron | bool
     - item.key == 'neutron-sriov-agent'
-    - not (item.value.enabled | bool)
+    - item.value.enabled | bool
     - item.value.host_in_groups | default(false) | bool
 
 - name: Ensuring neutron-sriov-agent config directory exists
@@ -322,8 +324,9 @@
     mode: "0770"
   loop: "{{ neutron_services | dict2items }}"
   when:
+    - enable_neutron | bool
     - item.key == 'neutron-mlnx-agent'
-    - not (item.value.enabled | bool)
+    - item.value.enabled | bool
     - item.value.host_in_groups | default(false) | bool
 
 - name: Ensuring neutron-mlnx-agent config directory exists
@@ -362,8 +365,9 @@
     mode: "0770"
   loop: "{{ neutron_services | dict2items }}"
   when:
+    - enable_neutron | bool
     - item.key == 'neutron-eswitchd'
-    - not (item.value.enabled | bool)
+    - item.value.enabled | bool
     - item.value.host_in_groups | default(false) | bool
 
 - name: Ensuring neutron-eswitchd config directory exists
