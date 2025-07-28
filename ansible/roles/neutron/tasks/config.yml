@@ -9,6 +9,17 @@
     mode: "0770"
   with_dict: "{{ neutron_services | select_services_enabled_and_mapped_to_host }}"
 
+- name: Ensuring neutron-linuxbridge-agent config directory exists
+  become: true
+  file:
+    path: "{{ node_config_directory }}/neutron-linuxbridge-agent"
+    state: "directory"
+    owner: "{{ config_owner_user }}"
+    group: "{{ config_owner_group }}"
+    mode: "0770"
+  when:
+    - neutron_plugin_agent == 'linuxbridge'
+
 - name: Ensuring neutron-ovs-cleanup config directory exists
   become: true
   vars:
