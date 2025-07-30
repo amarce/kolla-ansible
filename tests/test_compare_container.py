@@ -65,7 +65,7 @@ def cw():
 def test_compare_volumes_ignores_empty_strings(cw):
     cw.params['volumes'] = ['a:/a', '', 'b:/b']
     info = {'HostConfig': {'Binds': ['b:/b', 'a:/a']}}
-    assert cw.compare_volumes(info) is False  # nosec B101
+    assert cw.compare_volumes(info) is False
 
 
 def test_compare_ulimits_order_and_difference(cw):
@@ -81,5 +81,5 @@ def test_compare_ulimits_order_and_difference(cw):
         {'Name': 'n1', 'Soft': 1, 'Hard': 2},
     ]
 
-    assert cw.compare_ulimits(desired, current_same) is False  # nosec B101
-    assert cw.compare_ulimits(desired, current_diff) is True  # nosec B101
+    assert cw.compare_ulimits(desired, current_same) is False
+    assert cw.compare_ulimits(desired, current_diff) is True

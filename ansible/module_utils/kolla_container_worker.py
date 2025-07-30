@@ -1137,13 +1137,13 @@ class ContainerWorker(ABC):
 
 if __name__ == "__main__":
     # Basic sanity tests for volume comparison
-    assert not _compare_volumes(  # nosec B101
+    assert not _compare_volumes(
         ["/etc/timezone:/etc/timezone:ro"],
         [{"Source": "/etc/timezone", "Destination": "/etc/timezone"}],
     )
-    assert not _compare_volumes(  # nosec B101
+    assert not _compare_volumes(
         ["devpts:/dev/pts"],
         [{"Type": "bind", "Source": "", "Destination": "/dev/pts"}],
     )
-    assert not _compare_volumes([""], [])  # nosec B101
+    assert not _compare_volumes([""], [])
     print("ALL OK")

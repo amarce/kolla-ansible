@@ -203,7 +203,7 @@ class KollaToolboxWorker():
         except (TypeError, ValueError):
             verbosity = 0
         if verbosity >= 4:
-            with open("/tmp/ktbw.raw", "wb") as f:  # nosec B108
+            with open("/tmp/ktbw.raw", "wb") as f:
                 f.write(candidate)
 
         if not candidate.strip():
