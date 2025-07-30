@@ -70,12 +70,12 @@ def cw():
 def test_compare_cap_add(expected, actual, match, cw):
     cw.params['cap_add'] = expected
     container = {'HostConfig': {'CapAdd': actual}}
-    assert cw.compare_cap_add(container) is (not match)
+    assert cw.compare_cap_add(container) is (not match)  # nosec B101
 
 def test_compare_dimensions_zero_equals_empty(cw):
     cw.params['dimensions'] = {}
     container = {'HostConfig': {'DeviceCgroupRules': {}}}
-    assert cw.compare_dimensions(container) is False
+    assert cw.compare_dimensions(container) is False  # nosec B101
 
 
 @pytest.mark.parametrize(
@@ -90,4 +90,4 @@ def test_compare_dimensions_zero_equals_empty(cw):
 def test_compare_cap_add_implicit(monkeypatch, new, cur, expect):
     cw = DummyWorker(cap_add=new)
     info = {"HostConfig": {"CapAdd": cur}}
-    assert cw.compare_cap_add(info) == expect
+    assert cw.compare_cap_add(info) == expect  # nosec B101

@@ -15,7 +15,7 @@ class TestCeilometerBootstrap(base.BaseTestCase):
             'bootstrap_service.yml')
         with open(path) as f:
             cls.tasks = yaml.safe_load(f)
-        cls.env = Environment(undefined=StrictUndefined)
+        cls.env = Environment(undefined=StrictUndefined)  # nosec B701
         cls.env.filters['bool'] = to_bool
 
     def test_delegate_to_templates(self):
