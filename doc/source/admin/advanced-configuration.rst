@@ -319,7 +319,8 @@ Service start order
 ~~~~~~~~~~~~~~~~~~~
 
 Compute node services are started in the order defined by the variable
-``kolla_service_start_priority``.  The list may be overridden in
+``kolla_service_start_priority``.  A default list is provided in
+``ansible/group_vars/all.yml`` and may be overridden in
 ``/etc/kolla/globals.yml`` to adjust the startup sequence.
 
 .. code-block:: yaml
