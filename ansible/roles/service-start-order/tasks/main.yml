@@ -1,0 +1,3 @@
+---
+- include_tasks: deploy.yml
+  when: kolla_action in ['deploy', 'reconfigure']

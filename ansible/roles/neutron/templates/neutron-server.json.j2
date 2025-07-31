@@ -29,12 +29,14 @@
             "perm": "0600"
         },
 {% endif %}
-        {% if neutron_policy_file is defined %}{
+{% if neutron_policy_file is defined %}
+        {
             "source": "{{ container_config_directory }}/{{ neutron_policy_file }}",
             "dest": "/etc/neutron/{{ neutron_policy_file }}",
             "owner": "neutron",
             "perm": "0600"
-        },{% endif %},
+        },
+{% endif %}
         {
             "source": "{{ container_config_directory }}/api-paste.ini",
             "dest": "/etc/neutron/api-paste.ini",
