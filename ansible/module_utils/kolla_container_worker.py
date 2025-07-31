@@ -554,9 +554,9 @@ class ContainerWorker(ABC):
             # means we don't care what it is
             return False
         current_cgroupns_mode = (
-            container_info["HostConfig"].get("CgroupnsMode")
-            or container_info["HostConfig"].get("CgroupNS")
-            or container_info["HostConfig"].get("CgroupMode")
+            container_info["HostConfig"].get("CgroupnsMode") or
+            container_info["HostConfig"].get("CgroupNS") or
+            container_info["HostConfig"].get("CgroupMode")
         )
         if current_cgroupns_mode in ("", None):
             # means the container was created on Docker pre-20.10
@@ -1081,16 +1081,16 @@ class ContainerWorker(ABC):
             return hc.get("IpcMode") or None
         if key == "pid_mode":
             return (
-                hc.get("PidMode")
-                or hc.get("PidNS")
-                or None
+                hc.get("PidMode") or
+                hc.get("PidNS") or
+                None
             )
         if key == "cgroupns_mode":
             return (
-                hc.get("CgroupnsMode")
-                or hc.get("CgroupNS")
-                or hc.get("CgroupMode")
-                or "host"
+                hc.get("CgroupnsMode") or
+                hc.get("CgroupNS") or
+                hc.get("CgroupMode") or
+                "host"
             )
         if key == "privileged":
             return hc.get("Privileged")

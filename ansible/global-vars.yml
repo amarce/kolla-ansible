@@ -1,0 +1,11 @@
+kolla_service_start_priority:
+  - kolla_toolbox
+  - openvswitch_db
+  - openvswitch_vswitchd
+  - neutron_ovs_cleanup
+  - neutron_openvswitch_agent
+  - nova_libvirt
+  - nova_ssh
+  - nova_compute
+  - ceilometer_compute
+  - collectd
