@@ -1052,3 +1052,11 @@
   roles:
     - { role: collectd,
         tags: collectd }
+
+- name: Configure compute service start order
+  gather_facts: false
+  hosts:
+    - compute
+  roles:
+    - { role: service-start-order,
+        tags: service-start-order }
