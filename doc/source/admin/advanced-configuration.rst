@@ -344,6 +344,8 @@ Services start sequentially when a compute host boots or during
 The cleanup container executes only once per host boot; when the marker
 file ``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
 ``service-start-order`` role skips starting the container.
+The marker path may be customised via the variable
+``neutron_ovs_cleanup_marker_file``.
 
 Migrate container engine
 ~~~~~~~~~~~~~~~~~~~~~~~~

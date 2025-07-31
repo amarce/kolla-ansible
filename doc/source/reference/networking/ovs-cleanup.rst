@@ -18,6 +18,8 @@ further automatic executions until the host is rebooted. If the container
 configuration changes, the playbook recreates the container so the updated
 settings will be applied on the next run, but the container does not execute
 again while the marker file exists.
+The marker path can be changed by overriding the variable
+``neutron_ovs_cleanup_marker_file``.
 
 Manual execution
 ----------------

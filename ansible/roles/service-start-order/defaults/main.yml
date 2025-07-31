@@ -11,3 +11,9 @@ kolla_service_start_priority:
   - nova_compute
   - ceilometer_compute
   - collectd
+
+#####################
+# OVS cleanup
+#####################
+# Marker file used to ensure neutron_ovs_cleanup runs only once per boot
+neutron_ovs_cleanup_marker_file: "/tmp/kolla/neutron_ovs_cleanup/done"
