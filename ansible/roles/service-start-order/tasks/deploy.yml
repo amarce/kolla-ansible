@@ -26,22 +26,7 @@
 
 - name: Start compute services in order
   become: true
-  block:
-    - name: Start {{ item }} service
-      systemd:
-        name: "kolla-{{ item }}-container.service"
-        state: started
-        enabled: true
-    - name: Wait for neutron_ovs_cleanup to finish
-      kolla_container_facts:
-        action: get_containers_state
-        container_engine: "{{ kolla_container_engine }}"
-        name: neutron_ovs_cleanup
-      register: cleanup_state
-      retries: 12
-      delay: 5
-      until: cleanup_state.states.neutron_ovs_cleanup != 'running'
-      when: item == 'neutron_ovs_cleanup'
+  include_tasks: start_service.yml
   loop: "{{ kolla_service_start_priority }}"
   loop_control:
     label: "{{ item }}"
