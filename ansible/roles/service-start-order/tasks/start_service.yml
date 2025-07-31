@@ -1,10 +1,12 @@
 - name: Start {{ item }} service
+  become: true
   systemd:
     name: "kolla-{{ item }}-container.service"
     state: started
     enabled: true
 
 - name: Wait for neutron_ovs_cleanup to finish
+  become: true
   kolla_container_facts:
     action: get_containers_state
     container_engine: "{{ kolla_container_engine }}"

@@ -25,7 +25,6 @@
   notify: Reload systemd
 
 - name: Start compute services in order
-  become: true
   include_tasks: start_service.yml
   loop: "{{ kolla_service_start_priority }}"
   loop_control:
