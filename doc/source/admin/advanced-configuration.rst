@@ -315,6 +315,32 @@ To specify additional volumes for a single container, set
   nova_libvirt_extra_volumes:
     - "/etc/foo:/etc/foo"
 
+Service start order
+~~~~~~~~~~~~~~~~~~~
+
+Compute node services are started in the order defined by the variable
+``kolla_service_start_priority``.  The list may be overridden in
+``/etc/kolla/globals.yml`` to adjust the startup sequence.
+
+.. code-block:: yaml
+
+   kolla_service_start_priority:
+     - kolla_toolbox
+     - openvswitch_db
+     - openvswitch_vswitchd
+     - neutron_ovs_cleanup
+     - neutron_openvswitch_agent
+     - nova_libvirt
+     - nova_ssh
+     - nova_compute
+     - ceilometer_compute
+     - collectd
+
+Services start sequentially when a compute host boots or during
+``kolla-ansible deploy`` and ``reconfigure`` runs.  The
+``neutron_openvswitch_agent`` service waits for
+``neutron_ovs_cleanup`` to complete before starting.
+
 Migrate container engine
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
