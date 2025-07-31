@@ -1,9 +1,18 @@
+- name: Check neutron_ovs_cleanup marker
+  become: true
+  stat:
+    path: "{{ neutron_ovs_cleanup_marker_file }}"
+  register: ovs_cleanup_marker
+  when: item == 'neutron_ovs_cleanup'
+
 - name: Start {{ item }} service
   become: true
   systemd:
     name: "kolla-{{ item }}-container.service"
     state: started
     enabled: true
+  when:
+    - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
 
 - name: Wait for neutron_ovs_cleanup to finish
   become: true
@@ -15,4 +24,6 @@
   retries: 12
   delay: 5
   until: cleanup_state.states.neutron_ovs_cleanup != 'running'
-  when: item == 'neutron_ovs_cleanup'
+  when:
+    - item == 'neutron_ovs_cleanup'
+    - not ovs_cleanup_marker.stat.exists | default(false)
