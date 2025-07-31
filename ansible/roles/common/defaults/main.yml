@@ -100,8 +100,11 @@ kolla_toolbox_default_volumes:
   - "/etc/localtime:/etc/localtime:ro"
   - "{{ '/etc/timezone:/etc/timezone:ro' if ansible_facts.os_family == 'Debian' else '' }}"
   - "/dev/:/dev/"
-  - "{{ '/run/:/run/:shared' if kolla_container_engine == 'docker' else '' }}"   # see: https://github.com/containers/podman/issues/16305
-  # Podman cannot safely mount the whole /run directory
+  - "/run:/run{{ ':shared' if kolla_container_engine == 'docker' else '' }}"
+  # NOTE(mnasiadka): Podman cannot safely mount /run with the shared option
+  # (see https://github.com/containers/podman/issues/16305).  Mount it
+  # without ':shared' under podman so the toolbox can still access host
+  # runtime files.
   - "kolla_logs:/var/log/kolla/"
 cron_default_volumes:
   - "{{ node_config_directory }}/cron/:{{ container_config_directory }}/:ro"
