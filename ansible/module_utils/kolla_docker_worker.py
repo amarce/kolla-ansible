@@ -20,6 +20,7 @@ from ansible.module_utils.kolla_container_worker import (
     _as_dict,
     COMPARE_CONFIG_CMD,
     ContainerWorker,
+    ensure_host_path,
 )
 
 
@@ -474,14 +475,24 @@ class DockerWorker(ContainerWorker):
             )
 
     def create_container_volumes(self):
-        volumes = self.params.get("volumes", [])
+        volumes = self.params.get("volumes", []) or []
 
         for volume in volumes:
-            volume_name = volume.split(":")[0]
-            if "/" in volume_name:
+            if isinstance(volume, dict):
+                src = volume.get("Source") or ""
+                if volume.get("Type") == "volume" and volume.get("Name"):
+                    self.create_volume(name=volume["Name"])
+                elif src and src.startswith("/"):
+                    ensure_host_path(src)
+                elif src and "/" not in src:
+                    self.create_volume(name=src)
                 continue
 
-            self.create_volume(name=volume_name)
+            volume_name = str(volume).split(":", 1)[0]
+            if volume_name.startswith("/"):
+                ensure_host_path(volume_name)
+            elif volume_name:
+                self.create_volume(name=volume_name)
 
     def remove_volume(self):
         if self.check_volume():

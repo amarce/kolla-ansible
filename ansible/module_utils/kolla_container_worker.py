@@ -24,7 +24,7 @@ COMPARE_CONFIG_CMD = ["/usr/local/bin/kolla_set_configs", "--check"]
 LOG = logging.getLogger(__name__)
 
 # functions exported for use by other module_utils
-__all__ = ["_as_iter", "_as_dict"]
+__all__ = ["_as_iter", "_as_dict", "ensure_host_path"]
 
 
 def _normalise_caps(value):
@@ -272,6 +272,20 @@ def _compare_volumes(spec, running) -> bool:
         return True
 
     return False
+
+
+def ensure_host_path(path: str) -> None:
+    """Ensure that a host directory used for a bind mount exists.
+
+    Creates *path* with ``0755`` permissions if it does not already exist.
+    The call is idempotent and will not raise an error if the directory
+    exists.
+    """
+
+    if not path or not str(path).startswith("/"):
+        return
+    if not os.path.exists(path):
+        os.makedirs(path, mode=0o755, exist_ok=True)
 
 
 def _compare_ulimits(spec, running) -> bool:

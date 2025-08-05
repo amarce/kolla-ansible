@@ -315,6 +315,11 @@ To specify additional volumes for a single container, set
   nova_libvirt_extra_volumes:
     - "/etc/foo:/etc/foo"
 
+Kolla Ansible automatically creates any missing host directories
+referenced in ``*_extra_volumes`` with ownership ``root:root`` and
+permissions ``0755``. This removes the need to pre-create such
+directories before running the deployment.
+
 Service start order
 ~~~~~~~~~~~~~~~~~~~
 
