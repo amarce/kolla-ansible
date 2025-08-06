@@ -9,7 +9,8 @@
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
-    unit_name: "kolla-{{ item.value.container_name | default(item.key) }}-container.service"
+    unit_name: >-
+      {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ item.value.container_name | default(item.key) }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
     container_spec: "{{ item.value }}"
 
 - name: Set desired healthcheck test

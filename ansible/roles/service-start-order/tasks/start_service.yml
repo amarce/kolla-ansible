@@ -8,7 +8,7 @@
 - name: Start {{ item }} service
   become: true
   systemd:
-    name: "kolla-{{ item }}-container.service"
+    name: "{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
     state: started
     enabled: true
   when:

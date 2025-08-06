@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Correct the systemd unit dependencies when running with Podman so
+    container services start sequentially according to
+    ``kolla_service_start_priority``.  Ensures the ``neutron_ovs_cleanup``
+    container runs once per boot and delays dependent services until the
+    cleanup has finished.
