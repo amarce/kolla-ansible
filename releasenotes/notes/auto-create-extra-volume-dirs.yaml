@@ -1,5 +1,6 @@
 ---
 features:
   - |
-    Kolla-Ansible now automatically creates host directories referenced in any
-    ``*_extra_volumes`` option, removing the need for manual directory preparation.
+    Kolla-Ansible now automatically creates host directories referenced in
+    any ``*_extra_volumes`` option, removing the need for manual directory
+    preparation.
