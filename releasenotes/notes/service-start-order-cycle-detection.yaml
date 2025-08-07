@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    The ``service-start-order`` role now preserves the user-defined start
+    priority when generating drop-ins and detects systemd dependency cycles
+    using ``systemd-analyze verify``.
+fixes:
+  - |
+    Resolved a bug where missing systemd units were appended out of order,
+    leading to cyclic ``After``/``Requires`` chains and failed starts.

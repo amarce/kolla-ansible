@@ -21,4 +21,6 @@ previous container to report a ``healthy`` state via
 ``podman inspect --format '{{.State.Health.Status}}'`` before starting the next
 service. If the check does not report ``healthy`` within
 ``kolla_service_start_wait_seconds`` seconds (45 by default), the startup
-continues.
+continues. To prevent deadlocks at boot the role also verifies that the
+resulting systemd dependency graph is acyclic by running
+``systemd-analyze verify`` on the generated units.

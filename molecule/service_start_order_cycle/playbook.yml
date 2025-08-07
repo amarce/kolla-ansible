@@ -1,0 +1,69 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:  # noqa var-naming[read-only]
+      control:
+        - localhost
+    project_name: testsowait
+    testsowait_services:
+      c1:
+        container_name: c1
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
+      c2:
+        container_name: c2
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
+    kolla_container_engine: podman
+    docker_common_options: {}
+    kolla_service_start_wait_seconds: 5
+    kolla_service_start_priority:
+      - c1
+      - c2
+  tasks:
+    - name: Ensure c1 container is running
+      become: true
+      command: >-
+        podman run -d --name c1 docker.io/library/busybox:latest tail -f /dev/null
+      register: c1_run
+      changed_when: c1_run.rc == 0
+      failed_when: c1_run.rc not in [0,125]
+
+    - name: Ensure c2 container is running
+      become: true
+      command: >-
+        podman run -d --name c2 docker.io/library/busybox:latest tail -f /dev/null
+      register: c2_run
+      changed_when: c2_run.rc == 0
+      failed_when: c2_run.rc not in [0,125]
+
+    - name: Create systemd unit for c1 with dependency on c2
+      become: true
+      copy:
+        dest: /usr/lib/systemd/system/container-c1.service
+        content: |
+          [Unit]
+          Description=c1
+          Requires=container-c2.service
+          After=container-c2.service
+          [Service]
+          ExecStart=/usr/bin/podman start -a c1
+          ExecStop=/usr/bin/podman stop -t 10 c1
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - block:
+        - name: Run service-start-order role
+          include_role:
+            name: service-start-order
+      rescue:
+        - set_fact:
+            cycle_detected: true
+      always:
+        - assert:
+            that: cycle_detected | default(false)
