@@ -9,7 +9,14 @@
   become: true
   stat:
     path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
-  register: service_unit
+  register: service_unit_etc
+
+- name: Check if {{ item }} unit file exists in /usr/lib
+  become: true
+  stat:
+    path: "/usr/lib/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+  register: service_unit_usr
+  when: not service_unit_etc.stat.exists
 
 - name: Start {{ item }} service
   become: true
@@ -19,7 +26,7 @@
     enabled: true
   when:
     - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
-    - service_unit.stat.exists
+    - service_unit_etc.stat.exists or service_unit_usr.stat.exists | default(false)
 
 - name: Wait for neutron_ovs_cleanup to finish
   become: true
@@ -33,5 +40,5 @@
   until: cleanup_state.states.neutron_ovs_cleanup != 'running'
   when:
     - item == 'neutron_ovs_cleanup'
-    - service_unit.stat.exists
+    - service_unit_etc.stat.exists or service_unit_usr.stat.exists | default(false)
     - not ovs_cleanup_marker.stat.exists | default(false)

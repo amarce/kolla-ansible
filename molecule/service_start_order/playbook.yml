@@ -44,7 +44,7 @@
     - name: Create systemd unit for c1
       become: true
       copy:
-        dest: /etc/systemd/system/container-c1.service
+        dest: /usr/lib/systemd/system/container-c1.service
         content: |
           [Unit]
           Description=c1
@@ -58,7 +58,7 @@
     - name: Create systemd unit for c2
       become: true
       copy:
-        dest: /etc/systemd/system/container-c2.service
+        dest: /usr/lib/systemd/system/container-c2.service
         content: |
           [Unit]
           Description=c2
