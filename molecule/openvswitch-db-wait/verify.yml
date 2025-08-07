@@ -1,0 +1,14 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Get system-id
+      command: ovs-vsctl get Open_vSwitch . external_ids:system-id
+      register: system_id
+      changed_when: false
+
+    - name: Assert system-id matches hostname
+      assert:
+        that:
+          - system_id.stdout == ansible_facts.hostname
