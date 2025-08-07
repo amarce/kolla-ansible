@@ -1,0 +1,23 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read start order drop-in
+      become: true
+      slurp:
+        path: /etc/systemd/system/container-c2.service.d/start-order.conf
+      register: dropin
+
+    - name: Assert drop-in contains wait logic
+      vars:
+        content: "{{ dropin.content | b64decode }}"
+      assert:
+        that:
+          - "'After=container-c1.service' in content"
+          - "'Requires=container-c1.service' in content"
+          - "'ExecStartPre=/bin/sh -c' in content"
+          - "'systemctl is-active --quiet container-c1.service' in content"
+          - "'podman healthcheck run c1' in content"
+          - "'sleep 30' in content"
+          - "'SECONDS+45' in content"

@@ -343,9 +343,12 @@ Compute node services are started in the order defined by the variable
      - collectd
 
 Services start sequentially when a compute host boots or during
-``kolla-ansible deploy`` and ``reconfigure`` runs.  The
-``neutron_openvswitch_agent`` service waits for
-``neutron_ovs_cleanup`` to complete before starting.
+``kolla-ansible deploy`` and ``reconfigure`` runs. Each service waits for
+the previous unit to report ``active`` and, where a container health check
+exists, for that check to pass before the next service is started, waiting
+up to 45 seconds. If no health indicator exists, a fixed delay of 30
+seconds is applied before continuing. The ``neutron_openvswitch_agent`` service waits
+for ``neutron_ovs_cleanup`` to complete before starting.
 The cleanup container executes only once per host boot; when the marker
 file ``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
 ``service-start-order`` role skips starting the container.
