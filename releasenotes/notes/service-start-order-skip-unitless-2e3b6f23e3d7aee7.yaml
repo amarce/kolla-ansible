@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    The ``service-start-order`` role no longer fails when containers listed in
+    ``kolla_service_start_priority`` do not have corresponding systemd unit
+    files. Containers such as ``kolla_toolbox`` are now skipped, allowing the
+    playbook to complete successfully when running under Podman.
