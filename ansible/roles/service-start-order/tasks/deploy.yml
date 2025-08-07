@@ -25,6 +25,9 @@
   loop: "{{ missing_unit_services }}"
   loop_control:
     loop_var: service_name
+    label: "{{ service_name }}"
+  vars:
+    service_name: "{{ service_name }}"
   when:
     - kolla_container_engine == 'podman'
     - missing_unit_services | length > 0
