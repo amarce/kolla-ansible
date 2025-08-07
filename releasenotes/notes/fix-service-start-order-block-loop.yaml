@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Corrects the systemd unit generation in the service-start-order
+    role by iterating over containers without units properly.
+    This allows missing unit files to be generated and ensures the
+    playbook continues after processing each container.
+
