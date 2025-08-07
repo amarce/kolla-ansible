@@ -6,9 +6,12 @@
   loop: "{{ kolla_service_start_priority }}"
   register: service_units
 
-- name: Build start order pairs
+- name: Build list of services with systemd units
   set_fact:
     start_order_services: "{{ service_units.results | json_query('[?stat.exists].item') }}"
+
+- name: Build start order pairs
+  set_fact:
     start_order_pairs: "{{ start_order_services[:-1] | zip(start_order_services[1:]) | list }}"
 
 - name: Ensure override directories exist

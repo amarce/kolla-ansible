@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Ensure the ``service-start-order`` role defines the
+    ``start_order_services`` variable before building dependency
+    pairs. This prevents undefined variable errors when ordering
+    compute services.
