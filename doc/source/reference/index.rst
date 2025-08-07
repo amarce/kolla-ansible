@@ -19,3 +19,4 @@ Projects Deployment Configuration Reference
    deployment-and-bootstrapping/index
    high-availability/index
    rating/index
+   podman
