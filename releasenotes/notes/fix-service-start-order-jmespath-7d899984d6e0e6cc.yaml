@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Correct the JMESPath query in the ``service-start-order`` role so
+    that systemd unit detection works with multiple search paths.
