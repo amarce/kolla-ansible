@@ -1,0 +1,17 @@
+[Unit]
+After={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
+Requires={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
+
+[Service]
+ExecStartPre=/bin/sh -c '\
+  until systemctl is-active --quiet {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service; do sleep 1; done; \
+  if [ "{{ kolla_container_engine }}" = "podman" ]; then \
+    {{ kolla_container_engine }} healthcheck run {{ item.0 }} >/dev/null 2>&1; \
+    rc=$?; \
+    if [ $rc -eq 125 ]; then \
+      sleep 30; \
+    elif [ $rc -ne 0 ]; then \
+      until {{ kolla_container_engine }} healthcheck run {{ item.0 }} >/dev/null 2>&1; do sleep 1; done; \
+    fi; \
+  fi; \
+  exit 0'
