@@ -2,6 +2,7 @@
 # Default start priority for compute node services
 kolla_service_unit_prefix: "{{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}"
 kolla_service_unit_suffix: "{{ '' if kolla_container_engine == 'podman' else '-container' }}"
+kolla_service_start_wait_seconds: 45
 kolla_service_start_priority:
   - kolla_toolbox
   - openvswitch_db
