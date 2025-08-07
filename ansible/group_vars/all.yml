@@ -1224,6 +1224,7 @@ nova_console: "novnc"
 # Service start order
 #######################
 # Default compute service startup priority
+kolla_service_start_wait_seconds: 45
 kolla_service_start_priority:
   - kolla_toolbox
   - openvswitch_db
