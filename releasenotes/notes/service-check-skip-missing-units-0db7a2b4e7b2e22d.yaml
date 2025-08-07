@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    ``service-check-containers`` no longer attempts to enable or restart
+    systemd units when the unit file is absent, preventing failures on
+    clean hosts where units have not yet been generated. A new Molecule
+    test covers this scenario.
