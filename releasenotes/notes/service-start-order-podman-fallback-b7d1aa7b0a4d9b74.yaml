@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    The ``service-start-order`` role now handles Podman containers created via
+    the REST API that lack a stored ``CreateCommand``.  It first attempts
+    ``podman generate systemd --new`` and falls back to generating without
+    ``--new`` so that units are created for all running containers.
