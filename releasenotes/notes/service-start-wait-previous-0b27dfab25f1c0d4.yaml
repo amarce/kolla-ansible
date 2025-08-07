@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Compute services now wait for the previous service to report an active
+    systemd state and, when available, a successful container health check
+    before starting. If no positive status can be determined a 30 second
+    delay is applied, enforcing sequential container startup after reboot.

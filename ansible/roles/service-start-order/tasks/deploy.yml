@@ -24,12 +24,9 @@
 
 - name: Configure start order overrides
   become: true
-  copy:
+  template:
+    src: start-order.conf.j2
     dest: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service.d/start-order.conf"
-    content: |
-      [Unit]
-      After={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
-      Requires={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
     mode: "0644"
   loop: "{{ start_order_pairs }}"
   notify: Reload systemd
