@@ -42,16 +42,25 @@
     container_inspect: >-
       {{ (inspect_result.containers | default({})).get(container_name, {}) }}
 
+- name: Check unit file exists
+  become: true
+  stat:
+    path: "/etc/systemd/system/{{ unit_name }}"
+  register: unit_file
+  changed_when: false
+  failed_when: false
+
 - name: Check unit enabled
   become: true
   command: systemctl is-enabled --quiet {{ unit_name }}
   register: unit_enabled_res
   changed_when: false
   failed_when: false
+  when: unit_file.stat.exists
 
 - name: Set unit enabled fact
   set_fact:
-    unit_enabled: "{{ unit_enabled_res.rc == 0 }}"
+    unit_enabled: "{{ unit_file.stat.exists and (unit_enabled_res.rc | default(1)) == 0 }}"
 
 - name: Check unit active
   become: true
@@ -59,13 +68,14 @@
   register: unit_active
   changed_when: false
   failed_when: false
+  when: unit_file.stat.exists
 
 - name: Record container and unit status
   set_fact:
     container_missing: "{{ container_result.rc != 0 }}"
     unit_missing_or_disabled: "{{ not unit_enabled }}"
     needs_start: >-
-      {{ container_result.rc != 0 or not unit_enabled or unit_active.rc != 0 }}
+      {{ container_result.rc != 0 or (unit_file.stat.exists and (not unit_enabled or unit_active.rc | default(3) != 0)) }}
 
 - name: Detect health-check drift
   set_fact:
@@ -107,4 +117,5 @@
     enabled: true
   when:
     - not container_missing
-    - unit_active.rc != 0
+    - unit_file.stat.exists
+    - (unit_active.rc | default(0)) != 0

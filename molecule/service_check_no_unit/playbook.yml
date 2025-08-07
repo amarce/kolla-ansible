@@ -1,0 +1,29 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:  # noqa var-naming[read-only]
+      control:
+        - localhost
+    project_name: testnu
+    testnu_services:
+      toolbox:
+        container_name: kolla_toolbox
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
+    kolla_container_engine: podman
+    docker_common_options: {}
+  tasks:
+    - name: Ensure kolla_toolbox container is running without unit
+      become: true
+      command: >-
+        podman run -d --name kolla_toolbox docker.io/library/busybox:latest tail -f /dev/null
+      register: toolbox_run
+      changed_when: toolbox_run.rc == 0
+      failed_when: toolbox_run.rc not in [0,125]
+
+    - name: Run service-check-containers role
+      include_role:
+        name: service-check-containers
