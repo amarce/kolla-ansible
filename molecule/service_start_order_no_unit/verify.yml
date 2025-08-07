@@ -7,13 +7,13 @@
       become: true
       command: podman container exists kolla_toolbox
 
-    - name: Check no systemd unit exists
+    - name: Check generated systemd unit exists
       become: true
       stat:
         path: /etc/systemd/system/container-kolla_toolbox.service
       register: toolbox_unit
 
-    - name: Fail if unit exists
-      fail:
-        msg: "Unit should not exist"
-      when: toolbox_unit.stat.exists
+    - name: Assert unit created
+      assert:
+        that:
+          - toolbox_unit.stat.exists
