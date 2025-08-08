@@ -1,0 +1,58 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:  # noqa var-naming[read-only]
+      compute:
+        - localhost
+    enable_openvswitch: false
+    kolla_container_engine: podman
+    docker_common_options: {}
+  tasks:
+    - name: Start Podman REST API service
+      become: true
+      shell: podman system service --time=0 &
+      changed_when: false
+
+    - name: Wait for Podman REST socket
+      become: true
+      wait_for:
+        path: /run/podman/podman.sock
+        timeout: 5
+
+    - name: Ensure nova_libvirt container is present
+      become: true
+      command: >-
+        podman run -d --name nova_libvirt docker.io/library/busybox:latest tail -f /dev/null
+      register: container_run
+      changed_when: container_run.rc == 0
+      failed_when: container_run.rc not in [0,125]
+
+    - name: Create systemd unit for nova_libvirt
+      become: true
+      copy:
+        dest: /usr/lib/systemd/system/container-nova_libvirt.service
+        content: |
+          [Unit]
+          Description=nova_libvirt
+          [Service]
+          ExecStart=/usr/bin/podman start -a nova_libvirt
+          ExecStop=/usr/bin/podman stop -t 10 nova_libvirt
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      become: true
+      command: systemctl daemon-reload
+      changed_when: false
+
+    - name: Run service-start-order role
+      include_role:
+        name: service-start-order
+
+    - name: Assert openvswitch services skipped
+      assert:
+        that:
+          - start_order_services == ['nova_libvirt']
