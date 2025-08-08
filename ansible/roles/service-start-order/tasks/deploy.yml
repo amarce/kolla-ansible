@@ -22,10 +22,30 @@
 
 - name: Generate systemd units for containers lacking them
   become: true
-  include_tasks: generate_unit.yml
+  block:
+    - name: Generate systemd unit with create command
+      command: "{{ kolla_container_engine }} generate systemd --name {{ item }} --files --new"
+      args:
+        chdir: /etc/systemd/system
+      register: podman_generate
+      failed_when: podman_generate.rc not in [0, 125]
+      changed_when: podman_generate.rc == 0
+      notify: Reload systemd
+
+    - name: Generate systemd unit without create command
+      command: "{{ kolla_container_engine }} generate systemd --name {{ item }} --files"
+      args:
+        chdir: /etc/systemd/system
+      when: podman_generate.rc == 125
+      register: podman_generate_fallback
+      changed_when: podman_generate_fallback.rc == 0
+      notify: Reload systemd
+
+    - name: Fail if systemd unit generation failed
+      when: podman_generate.rc not in [0, 125] or (podman_generate.rc == 125 and podman_generate_fallback.rc != 0)
+      fail:
+        msg: "podman generate systemd failed for {{ item }}"
   loop: "{{ missing_unit_services }}"
-  loop_control:
-    loop_var: service
   when:
     - kolla_container_engine == 'podman'
     - missing_unit_services | length > 0
