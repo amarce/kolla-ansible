@@ -1,6 +1,0 @@
----
-fixes:
-  - |
-    Wait for the Open vSwitch database socket before configuring
-    system-id, hostname and hw-offload, preventing early failures on
-    fresh deployments where the OVSDB process is not yet ready.
