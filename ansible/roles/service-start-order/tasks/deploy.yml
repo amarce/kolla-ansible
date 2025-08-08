@@ -21,6 +21,7 @@
     missing_unit_services: "{{ start_order_containers.stdout_lines | intersect(kolla_service_start_priority) | difference(start_order_services) }}"
 
 - name: Generate systemd units for containers lacking them
+  become: true
   include_tasks: generate_unit.yml
   loop: "{{ missing_unit_services }}"
   loop_control:
