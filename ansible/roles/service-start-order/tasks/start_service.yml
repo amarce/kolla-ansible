@@ -8,23 +8,27 @@
 - name: Check if {{ item }} unit file exists
   become: true
   stat:
-    path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+    path: "/etc/systemd/system/{{ service_unit_map[item] }}.service"
   register: service_unit_etc
+  when: item in service_unit_map
 
 - name: Check if {{ item }} unit file exists in /usr/lib
   become: true
   stat:
-    path: "/usr/lib/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+    path: "/usr/lib/systemd/system/{{ service_unit_map[item] }}.service"
   register: service_unit_usr
-  when: not service_unit_etc.stat.exists
+  when:
+    - item in service_unit_map
+    - not service_unit_etc.stat.exists
 
 - name: Start {{ item }} service
   become: true
   systemd:
-    name: "{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+    name: "{{ service_unit_map[item] }}.service"
     state: started
     enabled: true
   when:
+    - item in service_unit_map
     - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
     - service_unit_etc.stat.exists or service_unit_usr.stat.exists | default(false)
 
@@ -40,5 +44,6 @@
   until: cleanup_state.states.neutron_ovs_cleanup != 'running'
   when:
     - item == 'neutron_ovs_cleanup'
+    - item in service_unit_map
     - service_unit_etc.stat.exists or service_unit_usr.stat.exists | default(false)
     - not ovs_cleanup_marker.stat.exists | default(false)

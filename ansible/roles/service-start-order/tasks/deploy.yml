@@ -1,14 +1,31 @@
 ---
-- name: Detect services with systemd units
+- name: Gather systemd service units
   become: true
-  stat:
-    path: "{{ item.0 }}/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service"
-  loop: "{{ kolla_service_unit_search_paths | product(kolla_service_start_priority) | list }}"
-  register: service_units
+  command: systemctl list-unit-files --type=service --no-legend
+  register: service_units_cmd
+  changed_when: false
 
-- name: Build list of services with systemd units
+- name: Initialize service unit map
   set_fact:
-    existing_unit_services: "{{ service_units.results | json_query('[?stat.exists].item[1]') | unique }}"
+    service_unit_map: {}
+
+- name: Build map of services with systemd units
+  set_fact:
+    service_unit_map: "{{ service_unit_map | default({}) | combine({ item: unit_name }) }}"
+  vars:
+    candidate_units: >-
+      {{
+        (kolla_container_engine == 'podman')
+        | ternary(['container-' + item + '.service', 'kolla-' + item + '-container.service'],
+                  ['kolla-' + item + '-container.service'])
+      }}
+    unit_name: >-
+      {{
+        (candidate_units | select('in', service_units_cmd.stdout_lines | map('split') | map('first') | list)
+         | list | first | default('')) | regex_replace('\\.service$','')
+      }}
+  loop: "{{ kolla_service_start_priority }}"
+  when: unit_name != ''
 
 - name: Gather running containers
   become: true
@@ -18,7 +35,7 @@
 
 - name: Determine services missing systemd units
   set_fact:
-    missing_unit_services: "{{ kolla_service_start_priority | difference(existing_unit_services) | intersect(start_order_containers.stdout_lines) }}"
+    missing_unit_services: "{{ kolla_service_start_priority | difference(service_unit_map.keys() | list) | intersect(start_order_containers.stdout_lines) }}"
 
 - name: Generate systemd units for containers lacking them
   include_tasks: generate_unit.yml
@@ -32,9 +49,17 @@
     - kolla_container_engine == 'podman'
     - missing_unit_services | length > 0
 
+- name: Update service unit map with generated units
+  set_fact:
+    service_unit_map: "{{ service_unit_map | combine({ item: 'container-' + item }) }}"
+  loop: "{{ missing_unit_services }}"
+  when:
+    - kolla_container_engine == 'podman'
+    - missing_unit_services | length > 0
+
 - name: Build start order services
   set_fact:
-    start_order_services: "{{ kolla_service_start_priority | select('in', existing_unit_services + missing_unit_services) | list }}"
+    start_order_services: "{{ kolla_service_start_priority | select('in', service_unit_map.keys() | list) | list }}"
 
 - name: Build start order pairs
   set_fact:
@@ -43,7 +68,7 @@
 - name: Ensure override directories exist
   become: true
   file:
-    path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service.d"
+    path: "/etc/systemd/system/{{ service_unit_map[item.1] }}.service.d"
     state: directory
   loop: "{{ start_order_pairs }}"
   notify: Reload systemd
@@ -52,14 +77,14 @@
   become: true
   template:
     src: start-order.conf.j2
-    dest: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service.d/start-order.conf"
+    dest: "/etc/systemd/system/{{ service_unit_map[item.1] }}.service.d/start-order.conf"
     mode: "0644"
   loop: "{{ start_order_pairs }}"
   notify: Reload systemd
 
 - name: Detect systemd dependency cycles
   become: true
-  command: "systemd-analyze verify {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+  command: "systemd-analyze verify {{ service_unit_map[item] }}.service"
   loop: "{{ start_order_services }}"
   loop_control:
     label: "{{ item }}"

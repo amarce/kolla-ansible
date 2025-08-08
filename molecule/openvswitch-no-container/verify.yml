@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check db container missing
+      become: true
+      command: podman container exists openvswitch_db
+      register: db_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Assert container missing
+      assert:
+        that:
+          - db_exists.rc != 0

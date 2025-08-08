@@ -1,5 +1,16 @@
 ---
 # NOTE(mnasiadka): external_ids:system-id uniquely identifies a physical system, used by OVN and other controllers
+- name: Check openvswitch db container presence
+  become: true
+  command: >-
+    {{ kolla_container_engine }}
+    {{ 'container exists openvswitch_db' if kolla_container_engine == 'podman' else 'container inspect openvswitch_db' }}
+  register: openvswitch_db_container
+  changed_when: false
+  failed_when: false
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+
 - name: Wait for openvswitch db service to be ready
   become: true
   command: "{{ kolla_container_engine }} exec openvswitch_db ovs-vsctl --no-wait show"
@@ -9,7 +20,8 @@
   delay: 1
   changed_when: false
   when:
-    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+    - openvswitch_db_container.rc == 0
 
 - name: Set system-id, hostname and hw-offload
   become: true
@@ -31,7 +43,8 @@
   loop_control:
     loop_var: ovsdb_item
   when:
-    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+    - openvswitch_db_container.rc == 0
   notify:
     - "Restart openvswitch-vswitchd container"
 
@@ -46,6 +59,8 @@
       fail_mode: standalone
   loop: "{{ neutron_bridge_name.split(',') }}"
   when:
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+    - openvswitch_db_container.rc == 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
 
@@ -62,5 +77,7 @@
     - "{{ neutron_bridge_name.split(',') }}"
     - "{{ neutron_external_interface.split(',') }}"
   when:
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+    - openvswitch_db_container.rc == 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
