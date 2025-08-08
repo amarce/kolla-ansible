@@ -34,11 +34,6 @@
       changed_when: container_run.rc == 0
       failed_when: container_run.rc not in [0,125]
 
-    - name: Stub ovs-vsctl in openvswitch_db container
-      become: true
-      command: podman exec openvswitch_db ln -s /bin/true /usr/bin/ovs-vsctl
-      changed_when: false
-
     - name: Create systemd units
       become: true
       loop:
