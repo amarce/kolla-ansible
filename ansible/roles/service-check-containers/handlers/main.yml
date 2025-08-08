@@ -38,7 +38,7 @@
   when:
     - not container_needs_recreate | bool
     - runtime_restart.rc != 0
-    - unit_file.stat.isreg | default(false)
+
 - name: Restart unit as fallback
   listen: Restart container
   become: true
@@ -48,4 +48,4 @@
   when:
     - not container_needs_recreate | bool
     - runtime_restart.rc != 0
-    - unit_file.stat.isreg | default(false)
+
