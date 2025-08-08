@@ -1,7 +1,0 @@
----
-fixes:
-  - |
-    The ``service-start-order`` role now detects Podman systemd unit files
-    in ``/usr/lib/systemd/system`` and generates missing units for running
-    containers. Drop-in configuration includes a health-check wait to
-    ensure sequential startup.

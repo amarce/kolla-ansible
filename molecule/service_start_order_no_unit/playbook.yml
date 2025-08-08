@@ -30,14 +30,7 @@
       include_role:
         name: service-start-order
 
-    - name: Check generated unit file
-      become: true
-      stat:
-        path: /etc/systemd/system/container-kolla_toolbox.service
-      register: toolbox_unit
-
-    - name: Assert service detected and unit created
+    - name: Assert start_order_services is defined and empty
       assert:
         that:
-          - start_order_services == ['kolla_toolbox']
-          - toolbox_unit.stat.exists
+          - start_order_services == []

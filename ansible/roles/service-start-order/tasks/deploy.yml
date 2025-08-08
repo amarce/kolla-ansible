@@ -2,39 +2,13 @@
 - name: Detect services with systemd units
   become: true
   stat:
-    path: "{{ item.0 }}/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service"
-  loop: "{{ kolla_service_unit_search_paths | product(kolla_service_start_priority) | list }}"
+    path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+  loop: "{{ kolla_service_start_priority }}"
   register: service_units
 
 - name: Build list of services with systemd units
   set_fact:
-    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item.1') | unique }}"
-
-- name: Gather running containers
-  become: true
-  command: "{{ kolla_container_engine }} ps --format '{{ '{{.Names}}' }}'"
-  register: start_order_containers
-  changed_when: false
-
-- name: Determine services missing systemd units
-  set_fact:
-    missing_unit_services: "{{ start_order_containers.stdout_lines | intersect(kolla_service_start_priority) | difference(start_order_services) }}"
-
-- name: Generate systemd units for containers lacking them
-  become: true
-  command: "{{ kolla_container_engine }} generate systemd --name {{ item }} --files --new"
-  args:
-    chdir: /etc/systemd/system
-  loop: "{{ missing_unit_services }}"
-  when:
-    - kolla_container_engine == 'podman'
-    - missing_unit_services | length > 0
-  notify: Reload systemd
-
-- name: Update start order services with generated units
-  set_fact:
-    start_order_services: "{{ start_order_services + missing_unit_services }}"
-  when: missing_unit_services | length > 0
+    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item') }}"
 
 - name: Build start order pairs
   set_fact:
