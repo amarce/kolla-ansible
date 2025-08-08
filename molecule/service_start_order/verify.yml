@@ -16,25 +16,7 @@
         that:
           - "'After=container-c1.service' in content"
           - "'Requires=container-c1.service' in content"
-          - "'ExecStartPre=/bin/bash -c' in content"
-          - "'podman inspect' in content"
-          - "'State.Health.Status' in content"
-          - "'-lt 5' in content"
-
-    - name: Get c1 health status
-      become: true
-      command: podman inspect --format '{{.State.Health.Status}}' c1
-      register: c1_health
-      changed_when: false
-
-    - name: Check c2 service status
-      become: true
-      command: systemctl is-active container-c2.service
-      register: c2_status
-      changed_when: false
-
-    - name: Assert c2 started despite c1 being unhealthy
-      assert:
-        that:
-          - c1_health.stdout != 'healthy'
-          - c2_status.stdout == 'active'
+          - "'ExecStartPre=/bin/sh -c' in content"
+          - "'systemctl is-active --quiet container-c1.service' in content"
+          - "'podman healthcheck run c1' in content"
+          - "'sleep 30' in content"

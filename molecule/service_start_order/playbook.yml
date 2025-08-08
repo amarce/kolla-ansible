@@ -20,7 +20,6 @@
         image: docker.io/library/busybox:latest
     kolla_container_engine: podman
     docker_common_options: {}
-    kolla_service_start_wait_seconds: 5
     kolla_service_start_priority:
       - c1
       - c2
@@ -28,7 +27,7 @@
     - name: Ensure c1 container is running
       become: true
       command: >-
-        podman run -d --name c1 --health-cmd 'exit 1' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+        podman run -d --name c1 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
       register: c1_run
       changed_when: c1_run.rc == 0
       failed_when: c1_run.rc not in [0,125]

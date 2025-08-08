@@ -1,8 +1,0 @@
----
-features:
-  - |
-    Compute service startup now waits for the previous container's health
-    status before continuing. Each service checks ``podman inspect`` for a
-    ``healthy`` state and waits up to ``kolla_service_start_wait_seconds``
-    seconds (45 by default) before proceeding.
-
