@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    The ``service-start-order`` role now verifies that Open vSwitch services
+    are present when ``enable_openvswitch`` is ``true``. Missing
+    ``openvswitch_db`` or ``openvswitch_vswitchd`` units cause the role to
+    fail early instead of starting dependent containers such as
+    ``neutron_openvswitch_agent`` and ``nova_libvirt``. When
+    ``enable_openvswitch`` is ``false`` these services are skipped entirely.
