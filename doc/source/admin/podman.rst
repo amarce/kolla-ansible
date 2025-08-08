@@ -27,12 +27,6 @@ service starts regardless. This ensures dependencies such as databases and
 messaging back ends are available before the corresponding API services are
 launched.
 
-Unit files may be supplied either in ``/usr/lib/systemd/system`` or
-``/etc/systemd/system``. If a running container lacks a unit file,
-``service-start-order`` generates one using ``podman generate systemd`` and
-installs it under ``/etc/systemd/system`` before applying the start-order
-overrides.
-
 One-shot cleanup containers
 ---------------------------
 

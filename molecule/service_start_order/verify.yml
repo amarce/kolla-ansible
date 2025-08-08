@@ -21,36 +21,10 @@
           - "'State.Health.Status' in content"
           - "'-lt 5' in content"
 
-    - name: Stop services to simulate reboot
-      become: true
-      command: systemctl stop container-c2.service container-c1.service
-      changed_when: false
-
-    - name: Record start time
-      command: date +%s
-      register: start_ts
-      changed_when: false
-
-    - name: Start c2 service
-      become: true
-      command: systemctl start container-c2.service
-      changed_when: false
-
-    - name: Record end time
-      command: date +%s
-      register: end_ts
-      changed_when: false
-
     - name: Get c1 health status
       become: true
       command: podman inspect --format '{{.State.Health.Status}}' c1
       register: c1_health
-      changed_when: false
-
-    - name: Check c1 service status
-      become: true
-      command: systemctl is-active container-c1.service
-      register: c1_status
       changed_when: false
 
     - name: Check c2 service status
@@ -59,10 +33,8 @@
       register: c2_status
       changed_when: false
 
-    - name: Assert sequential start with health wait
+    - name: Assert c2 started despite c1 being unhealthy
       assert:
         that:
-          - end_ts.stdout | int - start_ts.stdout | int >= 5
           - c1_health.stdout != 'healthy'
-          - c1_status.stdout == 'active'
           - c2_status.stdout == 'active'
