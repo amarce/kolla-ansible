@@ -1,6 +1,6 @@
 [Unit]
-After={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
-Requires={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
+After={{ service_unit_map[item.0] }}.service
+Requires={{ service_unit_map[item.0] }}.service
 
 [Service]
 ExecStartPre=/bin/bash -c '\

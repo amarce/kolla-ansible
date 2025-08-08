@@ -1,0 +1,31 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kolla_container_engine: podman
+    enable_openvswitch: true
+    openvswitch_services:
+      openvswitch-db-server:
+        container_name: openvswitch_db
+        enabled: true
+        host_in_groups: true
+      openvswitch-vswitchd:
+        container_name: openvswitch_vswitchd
+        enabled: true
+        host_in_groups: true
+  tasks:
+    - name: Ensure openvswitch containers are absent
+      become: true
+      command: podman container rm -f {{ item }}
+      register: rm_res
+      changed_when: rm_res.rc == 0
+      failed_when: rm_res.rc not in [0,1,125]
+      loop:
+        - openvswitch_db
+        - openvswitch_vswitchd
+
+    - name: Run openvswitch post-deploy tasks
+      include_role:
+        name: openvswitch
+        tasks_from: post-deploy

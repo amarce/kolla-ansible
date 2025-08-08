@@ -1,0 +1,31 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check container missing
+      become: true
+      command: podman container exists kolla_toolbox
+      register: toolbox_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Check no systemd unit created (container prefix)
+      become: true
+      stat:
+        path: /etc/systemd/system/container-kolla_toolbox.service
+      register: container_unit
+
+    - name: Check no systemd unit created (kolla prefix)
+      become: true
+      stat:
+        path: /etc/systemd/system/kolla-kolla_toolbox-container.service
+      register: kolla_unit
+
+    - name: Assert service skipped
+      assert:
+        that:
+          - toolbox_exists.rc != 0
+          - not container_unit.stat.exists
+          - not kolla_unit.stat.exists
+          - hostvars['localhost']['start_order_services'] == []
