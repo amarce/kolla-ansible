@@ -1060,3 +1060,22 @@
   roles:
     - { role: service-start-order,
         tags: service-start-order }
+
+- name: Apply openvswitch post-configuration
+  gather_facts: false
+  hosts:
+    - openvswitch
+    - '&enable_openvswitch_True_enable_ovs_dpdk_False'
+  serial: '{{ kolla_serial|default("0") }}'
+  max_fail_percentage: >-
+    {{ openvswitch_max_fail_percentage |
+       default(kolla_max_fail_percentage) |
+       default(100) }}
+  tags:
+    - openvswitch
+  tasks:
+    - name: Include openvswitch post-deploy.yml
+      include_role:
+        name: openvswitch
+        tasks_from: post-deploy.yml
+      when: kolla_action in ['deploy', 'reconfigure', 'upgrade']

@@ -7,5 +7,3 @@
 
 - name: Flush Handlers
   meta: flush_handlers
-
-- import_tasks: post-config.yml
