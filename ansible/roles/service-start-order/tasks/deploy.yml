@@ -1,4 +1,16 @@
 ---
+- name: Gather running containers
+  become: true
+  command: "{{ kolla_container_engine }} ps -a --format '{{ '{{.Names}}' }}'"
+  register: start_order_containers
+  changed_when: false
+
+- name: Remove Open vSwitch services when disabled
+  set_fact:
+    kolla_service_start_priority: "{{ kolla_service_start_priority | difference(['openvswitch_db', 'openvswitch_vswitchd', 'neutron_ovs_cleanup', 'neutron_openvswitch_agent']) }}"
+  when:
+    - not enable_openvswitch | bool
+
 - name: Gather systemd service units
   become: true
   command: systemctl list-unit-files --type=service --no-legend
@@ -8,12 +20,6 @@
 - name: Initialize service unit map
   set_fact:
     service_unit_map: {}
-
-- name: Remove Open vSwitch services when disabled
-  set_fact:
-    kolla_service_start_priority: "{{ kolla_service_start_priority | difference(['openvswitch_db', 'openvswitch_vswitchd', 'neutron_ovs_cleanup', 'neutron_openvswitch_agent']) }}"
-  when:
-    - not enable_openvswitch | bool
 
 - name: Build map of services with systemd units
   set_fact:
@@ -31,23 +37,9 @@
          | list | first | default('')) | regex_replace('\\.service$','')
       }}
   loop: "{{ kolla_service_start_priority }}"
-  when: unit_name != ''
-
-- name: Ensure Open vSwitch units are present when enabled
-  assert:
-    that:
-      - "'openvswitch_db' in service_unit_map"
-      - "'openvswitch_vswitchd' in service_unit_map"
-    fail_msg: >-
-      Open vSwitch services are missing. Ensure the openvswitch role has
-      deployed the required containers when enable_openvswitch is true.
-  when: enable_openvswitch | bool
-
-- name: Gather running containers
-  become: true
-  command: "{{ kolla_container_engine }} ps -a --format '{{ '{{.Names}}' }}'"
-  register: start_order_containers
-  changed_when: false
+  when:
+    - item in start_order_containers.stdout_lines
+    - unit_name != ''
 
 - name: Ensure Open vSwitch containers are present when enabled
   assert:
@@ -56,6 +48,16 @@
       - "'openvswitch_vswitchd' in start_order_containers.stdout_lines"
     fail_msg: >-
       Open vSwitch containers are missing. Ensure the openvswitch role has
+      deployed the required containers when enable_openvswitch is true.
+  when: enable_openvswitch | bool
+
+- name: Ensure Open vSwitch units are present when enabled
+  assert:
+    that:
+      - "'openvswitch_db' in service_unit_map"
+      - "'openvswitch_vswitchd' in service_unit_map"
+    fail_msg: >-
+      Open vSwitch services are missing. Ensure the openvswitch role has
       deployed the required containers when enable_openvswitch is true.
   when: enable_openvswitch | bool
 

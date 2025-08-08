@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    The ``service-start-order`` role now detects services based on existing
+    containers rather than systemd unit files, ignoring orphaned unit files.
+    When ``enable_openvswitch`` is ``true`` the role verifies that the
+    ``openvswitch_db`` and ``openvswitch_vswitchd`` containers are running and
+    ``ovs-vsctl --no-wait show`` succeeds before starting dependent services.
+    Stale Open vSwitch units without containers no longer allow downstream
+    services to start.
