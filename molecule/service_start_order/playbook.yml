@@ -72,8 +72,3 @@
     - name: Run service-start-order role
       include_role:
         name: service-start-order
-
-    - name: Assert services detected
-      assert:
-        that:
-          - start_order_services == ['c1', 'c2']

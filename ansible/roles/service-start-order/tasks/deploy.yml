@@ -8,7 +8,7 @@
 
 - name: Build list of services with systemd units
   set_fact:
-    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item[1]') | unique }}"
+    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item.1') | unique }}"
 
 - name: Gather running containers
   become: true
