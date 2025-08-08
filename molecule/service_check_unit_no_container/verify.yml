@@ -1,0 +1,31 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure container is absent
+      become: true
+      command: podman container exists kolla_toolbox
+      register: container_exists
+      failed_when: container_exists.rc == 0
+
+    - name: Check unit file exists
+      become: true
+      stat:
+        path: /etc/systemd/system/container-kolla_toolbox.service
+      register: toolbox_unit
+
+    - name: Assert unit file exists
+      assert:
+        that: toolbox_unit.stat.exists
+
+    - name: Check unit not enabled via symlink
+      become: true
+      stat:
+        path: /etc/systemd/system/multi-user.target.wants/container-kolla_toolbox.service
+      register: toolbox_wants
+
+    - name: Assert unit is not enabled
+      assert:
+        that:
+          - not toolbox_wants.stat.exists

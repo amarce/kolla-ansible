@@ -1,0 +1,40 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:  # noqa var-naming[read-only]
+      control:
+        - localhost
+    project_name: testnu
+    testnu_services:
+      toolbox:
+        container_name: kolla_toolbox
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
+    kolla_container_engine: podman
+    docker_common_options: {}
+  tasks:
+    - name: Ensure kolla_toolbox container is absent
+      become: true
+      command: podman rm -f kolla_toolbox
+      register: toolbox_rm
+      changed_when: toolbox_rm.rc == 0
+      failed_when: toolbox_rm.rc not in [0,1,125]
+
+    - name: Create disabled unit file
+      become: true
+      copy:
+        dest: /etc/systemd/system/container-kolla_toolbox.service
+        content: |
+          [Unit]
+          Description=Dummy unit for kolla_toolbox
+          [Service]
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Run service-check-containers role
+      include_role:
+        name: service-check-containers

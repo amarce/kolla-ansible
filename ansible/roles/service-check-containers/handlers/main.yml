@@ -28,6 +28,7 @@
     container_engine: "{{ kolla_container_engine }}"
     name: "{{ container_name }}"
   register: restart_container_state
+  failed_when: false
   changed_when: false
 
 - name: Attempt runtime restart first
@@ -39,7 +40,7 @@
   changed_when: runtime_restart.rc == 0
   when:
     - not container_needs_recreate | bool
-    - (restart_container_state.states[container_name] | default('')) == 'running'
+    - ((restart_container_state.states | default({}))[container_name] | default('')) == 'running'
 
 - name: Ensure unit enabled
   listen: Restart container
@@ -49,7 +50,7 @@
     enabled: true
   when:
     - not container_needs_recreate | bool
-    - (restart_container_state.states[container_name] | default('')) == 'running'
+    - ((restart_container_state.states | default({}))[container_name] | default('')) == 'running'
     - runtime_restart.rc != 0
     - unit_file.stat.isreg | default(false)
 - name: Restart unit as fallback
@@ -60,6 +61,6 @@
     state: restarted
   when:
     - not container_needs_recreate | bool
-    - (restart_container_state.states[container_name] | default('')) == 'running'
+    - ((restart_container_state.states | default({}))[container_name] | default('')) == 'running'
     - runtime_restart.rc != 0
     - unit_file.stat.isreg | default(false)

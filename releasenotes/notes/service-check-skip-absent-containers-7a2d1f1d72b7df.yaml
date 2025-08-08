@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    The ``service-check-containers`` role no longer attempts to restart
+    services when the container is missing and the corresponding systemd unit
+    is disabled. The restart handler now tolerates absent containers,
+    preventing failures on hosts where a service has not yet been deployed.
