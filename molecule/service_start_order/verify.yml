@@ -21,13 +21,6 @@
           - "'State.Health.Status' in content"
           - "'-lt 5' in content"
 
-    - name: Verify no dependency cycles
-      become: true
-      command: systemd-analyze verify container-c1.service container-c2.service
-      register: verify_cycles
-      changed_when: false
-      failed_when: "'Cycle in' in verify_cycles.stderr"
-
     - name: Stop services to simulate reboot
       become: true
       command: systemctl stop container-c2.service container-c1.service

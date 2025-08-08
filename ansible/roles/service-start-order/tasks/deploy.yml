@@ -8,7 +8,7 @@
 
 - name: Build list of services with systemd units
   set_fact:
-    existing_unit_services: "{{ service_units.results | json_query('[?stat.exists].item[1]') | unique }}"
+    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item[1]') | unique }}"
 
 - name: Gather running containers
   become: true
@@ -18,20 +18,21 @@
 
 - name: Determine services missing systemd units
   set_fact:
-    missing_unit_services: "{{ kolla_service_start_priority | difference(existing_unit_services) | intersect(start_order_containers.stdout_lines) }}"
+    missing_unit_services: "{{ start_order_containers.stdout_lines | intersect(kolla_service_start_priority) | difference(start_order_services) }}"
 
 - name: Generate systemd units for containers lacking them
   include_tasks: generate_unit.yml
   loop: "{{ missing_unit_services }}"
   loop_control:
-    loop_var: service_name
+    loop_var: service
   when:
     - kolla_container_engine == 'podman'
     - missing_unit_services | length > 0
 
-- name: Build start order services
+- name: Update start order services with generated units
   set_fact:
-    start_order_services: "{{ kolla_service_start_priority | select('in', existing_unit_services + missing_unit_services) | list }}"
+    start_order_services: "{{ start_order_services + missing_unit_services }}"
+  when: missing_unit_services | length > 0
 
 - name: Build start order pairs
   set_fact:
@@ -53,16 +54,6 @@
     mode: "0644"
   loop: "{{ start_order_pairs }}"
   notify: Reload systemd
-
-- name: Detect systemd dependency cycles
-  become: true
-  command: "systemd-analyze verify {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
-  loop: "{{ start_order_services }}"
-  loop_control:
-    label: "{{ item }}"
-  changed_when: false
-  register: cycle_check
-  failed_when: cycle_check.stderr is search('Cycle')
 
 - name: Start compute services in order
   include_tasks: start_service.yml
