@@ -16,6 +16,11 @@ reloads systemd.  Containers started via the Podman REST API do not store a
 attempts generation with ``--new`` first and falls back to generating a unit
 without it so that both CLI- and REST-created containers receive systemd units.
 
+When a service is not deployed on a host, and its container and corresponding
+systemd unit are absent or disabled, ``service-check-containers`` skips any
+restart or enablement attempts. This allows staged deployments where only a
+subset of services are present without causing unnecessary failures.
+
 When unit files are present, the ``service-start-order`` role waits for the
 previous container to report a ``healthy`` state via
 ``podman inspect --format '{{.State.Health.Status}}'`` before starting the next
