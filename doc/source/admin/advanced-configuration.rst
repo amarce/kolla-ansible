@@ -344,17 +344,10 @@ Compute node services are started in the order defined by the variable
 
 Services start sequentially when a compute host boots or during
 ``kolla-ansible deploy`` and ``reconfigure`` runs. Each service waits for
-the previous container to report ``healthy`` before the next service is
-started. Health is checked using ``podman inspect --format '{{.State.Health.Status}}'``.
-If the container does not become healthy within
-``kolla_service_start_wait_seconds`` seconds (45 by default), startup
-continues. The timeout may be adjusted in ``/etc/kolla/globals.yml``:
-
-.. code-block:: yaml
-
-   kolla_service_start_wait_seconds: 60
-
-The ``neutron_openvswitch_agent`` service waits
+the previous unit to report ``active`` and, where a container health check
+exists, for that check to pass before the next service is started. If a
+positive status cannot be determined a fixed delay of 30 seconds is
+applied before continuing. The ``neutron_openvswitch_agent`` service waits
 for ``neutron_ovs_cleanup`` to complete before starting.
 The cleanup container executes only once per host boot; when the marker
 file ``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the

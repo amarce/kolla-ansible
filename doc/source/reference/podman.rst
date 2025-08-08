@@ -17,10 +17,3 @@ be running as-is.
    This behaviour ensures deployments succeed even when containers such as
    ``kolla_toolbox`` are running without a systemd unit, both during service
    checks and while applying start-order sequencing.
-
-When unit files are present, the ``service-start-order`` role waits for the
-previous container to report a ``healthy`` state via
-``podman inspect --format '{{.State.Health.Status}}'`` before starting the
-next service. If the check does not report ``healthy`` within
-``kolla_service_start_wait_seconds`` seconds (45 by default), the startup
-continues.
