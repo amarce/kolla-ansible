@@ -16,17 +16,16 @@
       command: /usr/share/openvswitch/scripts/ovs-ctl start
       changed_when: false
 
-    - name: Wait for Open vSwitch database to be ready
+    - name: Wait for Open vSwitch database socket
       become: true
-      command: ovs-vsctl --no-wait show
-      register: ovsdb_check
-      until: ovsdb_check is success
-      retries: "{{ openvswitch_db_ready_timeout }}"
-      delay: 1
+      wait_for:
+        path: /var/run/openvswitch/db.sock
+        state: started
+        timeout: "{{ openvswitch_db_ready_timeout }}"
       changed_when: false
 
     - name: Configure system-id and hostname
       become: true
       command: >-
-        ovs-vsctl set Open_vSwitch . external_ids:system-id="{{ ansible_facts.hostname }}" external_ids:hostname="{{ ansible_facts.fqdn }}"
+        ovs-vsctl set Open_vSwitch . external_ids:system-id="$(hostname)" external_ids:hostname="$(hostname --fqdn)"
       changed_when: false
