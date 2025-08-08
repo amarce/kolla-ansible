@@ -33,12 +33,12 @@ Unit files may be supplied either in ``/usr/lib/systemd/system`` or
 installs it under ``/etc/systemd/system`` before applying the start-order
 overrides.
 
-When ``enable_openvswitch`` is ``true`` the role requires both the
-``openvswitch_db`` and ``openvswitch_vswitchd`` containers and their unit
-files to be present. If any are missing, the role fails early rather than
-starting dependent containers such as ``neutron_openvswitch_agent`` and
-``nova_libvirt``. Setting ``enable_openvswitch`` to ``false`` removes these
-services from the startup sequence.
+When ``enable_openvswitch`` is ``true`` the role requires the
+``openvswitch_db`` and ``openvswitch_vswitchd`` unit files to be present.
+If either is missing, the role fails early rather than starting dependent
+containers such as ``neutron_openvswitch_agent`` and ``nova_libvirt``.
+Setting ``enable_openvswitch`` to ``false`` removes these services from the
+startup sequence.
 
 One-shot cleanup containers
 ---------------------------

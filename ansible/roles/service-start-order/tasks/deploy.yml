@@ -49,16 +49,6 @@
   register: start_order_containers
   changed_when: false
 
-- name: Ensure Open vSwitch containers are present when enabled
-  assert:
-    that:
-      - "'openvswitch_db' in start_order_containers.stdout_lines"
-      - "'openvswitch_vswitchd' in start_order_containers.stdout_lines"
-    fail_msg: >-
-      Open vSwitch containers are missing. Ensure the openvswitch role has
-      deployed the required containers when enable_openvswitch is true.
-  when: enable_openvswitch | bool
-
 - name: Determine services missing systemd units
   set_fact:
     missing_unit_services: "{{ kolla_service_start_priority | difference(service_unit_map.keys() | list) | intersect(start_order_containers.stdout_lines) }}"
