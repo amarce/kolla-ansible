@@ -1,14 +1,15 @@
 ---
 # NOTE(mnasiadka): external_ids:system-id uniquely identifies a physical system, used by OVN and other controllers
-- name: Wait for openvswitch db socket
+- name: Wait for openvswitch db service to be ready
   become: true
-  wait_for:
-    path: /var/run/openvswitch/db.sock
-    state: started
-    timeout: "{{ openvswitch_db_ready_timeout }}"
+  command: "{{ kolla_container_engine }} exec openvswitch_db ovs-vsctl --no-wait show"
+  register: check_result
+  until: check_result is success
+  retries: "{{ openvswitch_db_ready_timeout | int }}"
+  delay: 1
+  changed_when: false
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
-  changed_when: false
 
 - name: Set system-id, hostname and hw-offload
   become: true

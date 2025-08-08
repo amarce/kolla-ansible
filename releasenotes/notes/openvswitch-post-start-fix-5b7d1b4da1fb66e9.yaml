@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Resolved a failure in the ``openvswitch`` role when containers are
+    started at the end. Configuration of the Open vSwitch database now
+    waits for the ``openvswitch_db`` container to be running before
+    applying settings.
