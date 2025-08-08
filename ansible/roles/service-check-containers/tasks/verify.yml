@@ -104,9 +104,7 @@
     msg: Notifying restart handler
   changed_when: needs_start | bool and not container_needs_recreate | bool
   notify: "Restart container"
-  when:
-    - not container_needs_recreate | bool
-    - not container_missing
+  when: not container_needs_recreate | bool
 
 - name: Flush restart handler
   meta: flush_handlers
