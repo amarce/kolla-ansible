@@ -21,13 +21,6 @@ systemd unit are absent or disabled, ``service-check-containers`` skips any
 restart or enablement attempts. This allows staged deployments where only a
 subset of services are present without causing unnecessary failures.
 
-The ``service-start-order`` role recognises both native Podman unit names
-such as ``container-<name>.service`` and Kolla wrapper units like
-``kolla-<name>-container.service``. Services without either a running
-container or a systemd unit are ignored. This mirrors the behaviour of
-``service-check-containers`` and permits hosts to omit specific services
-without triggering errors during startup sequencing.
-
 When unit files are present, the ``service-start-order`` role waits for the
 previous container to report a ``healthy`` state via
 ``podman inspect --format '{{.State.Health.Status}}'`` before starting the next
