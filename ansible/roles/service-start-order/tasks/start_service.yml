@@ -5,6 +5,15 @@
   register: ovs_cleanup_marker
   when: item == 'neutron_ovs_cleanup'
 
+- name: Ensure Open vSwitch is ready for {{ item }}
+  assert:
+    that:
+      - ovs_ready | default(false)
+    fail_msg: "Open vSwitch is not ready; cannot start {{ item }}"
+  when:
+    - enable_openvswitch | bool
+    - item in ['neutron_ovs_cleanup', 'neutron_openvswitch_agent', 'nova_libvirt']
+
 - name: Check if {{ item }} unit file exists
   become: true
   stat:
@@ -31,6 +40,37 @@
     - item in service_unit_map
     - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
     - service_unit_etc.stat.exists or service_unit_usr.stat.exists | default(false)
+
+- name: Check Open vSwitch readiness
+  when:
+    - item == 'openvswitch_vswitchd'
+    - enable_openvswitch | bool
+  block:
+    - name: Get Open vSwitch container states
+      become: true
+      kolla_container_facts:
+        action: get_containers_state
+        container_engine: "{{ kolla_container_engine }}"
+        name:
+          - openvswitch_db
+          - openvswitch_vswitchd
+      register: ovs_states
+
+    - name: Run ovs-vsctl show
+      become: true
+      command: "{{ kolla_container_engine }} exec openvswitch_db ovs-vsctl --no-wait show"
+      register: ovs_vsctl
+      changed_when: false
+
+    - name: Set ovs_ready flag
+      set_fact:
+        ovs_ready: "{{ ovs_states.states.openvswitch_db == 'running' and ovs_states.states.openvswitch_vswitchd == 'running' and ovs_vsctl.rc == 0 }}"
+
+    - name: Ensure Open vSwitch is ready
+      assert:
+        that:
+          - ovs_ready | bool
+        fail_msg: "Open vSwitch containers failed to start"
 
 - name: Wait for neutron_ovs_cleanup to finish
   become: true

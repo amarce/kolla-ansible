@@ -28,16 +28,19 @@ messaging back ends are available before the corresponding API services are
 launched.
 
 Unit files may be supplied either in ``/usr/lib/systemd/system`` or
-``/etc/systemd/system``. If a running container lacks a unit file,
-``service-start-order`` generates one using ``podman generate systemd`` and
-installs it under ``/etc/systemd/system`` before applying the start-order
-overrides.
+``/etc/systemd/system``.  The ``service-start-order`` role detects services
+based on the presence of a container.  Orphaned systemd unit files without a
+matching container are ignored so stale units do not affect startup.  If a
+running container lacks a unit file, ``service-start-order`` generates one
+using ``podman generate systemd`` and installs it under
+``/etc/systemd/system`` before applying the start-order overrides.
 
-When ``enable_openvswitch`` is ``true`` the role requires both the
-``openvswitch_db`` and ``openvswitch_vswitchd`` containers and their unit
-files to be present. If any are missing, the role fails early rather than
-starting dependent containers such as ``neutron_openvswitch_agent`` and
-``nova_libvirt``. Setting ``enable_openvswitch`` to ``false`` removes these
+When ``enable_openvswitch`` is ``true`` the role verifies that the
+``openvswitch_db`` and ``openvswitch_vswitchd`` containers exist, their unit
+files are present, and ``ovs-vsctl --no-wait show`` succeeds before starting
+dependent containers such as ``neutron_openvswitch_agent`` and
+``nova_libvirt``.  Stale unit files without containers are ignored and do not
+satisfy this check.  Setting ``enable_openvswitch`` to ``false`` removes these
 services from the startup sequence.
 
 One-shot cleanup containers
