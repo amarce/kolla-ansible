@@ -1,7 +1,7 @@
 ---
 - name: Generate systemd unit with create command
   become: true
-  command: "{{ kolla_container_engine }} generate systemd --name {{ service_name }} --files --new"
+  command: "{{ kolla_container_engine }} generate systemd --name {{ service }} --files --new"
   args:
     chdir: /etc/systemd/system
   register: podman_generate
@@ -11,7 +11,7 @@
 
 - name: Generate systemd unit without create command
   become: true
-  command: "{{ kolla_container_engine }} generate systemd --name {{ service_name }} --files"
+  command: "{{ kolla_container_engine }} generate systemd --name {{ service }} --files"
   args:
     chdir: /etc/systemd/system
   when: podman_generate.rc == 125
@@ -22,4 +22,4 @@
 - name: Fail if systemd unit generation failed
   when: podman_generate.rc not in [0, 125] or (podman_generate.rc == 125 and podman_generate_fallback.rc != 0)
   fail:
-    msg: "podman generate systemd failed for {{ service_name }}"
+    msg: "podman generate systemd failed for {{ service }}"
