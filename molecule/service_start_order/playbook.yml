@@ -25,17 +25,6 @@
       - c1
       - c2
   tasks:
-    - name: Start Podman REST API service
-      become: true
-      shell: podman system service --time=0 &
-      changed_when: false
-
-    - name: Wait for Podman REST socket
-      become: true
-      wait_for:
-        path: /run/podman/podman.sock
-        timeout: 5
-
     - name: Ensure c1 container is running
       become: true
       command: >-
@@ -44,10 +33,10 @@
       changed_when: c1_run.rc == 0
       failed_when: c1_run.rc not in [0,125]
 
-    - name: Ensure c2 container is running via REST
+    - name: Ensure c2 container is running
       become: true
       command: >-
-        podman --url unix:///run/podman/podman.sock run -d --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+        podman run -d --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
       register: c2_run
       changed_when: c2_run.rc == 0
       failed_when: c2_run.rc not in [0,125]
@@ -62,6 +51,20 @@
           [Service]
           ExecStart=/usr/bin/podman start -a c1
           ExecStop=/usr/bin/podman stop -t 10 c1
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Create systemd unit for c2
+      become: true
+      copy:
+        dest: /usr/lib/systemd/system/container-c2.service
+        content: |
+          [Unit]
+          Description=c2
+          [Service]
+          ExecStart=/usr/bin/podman start -a c2
+          ExecStop=/usr/bin/podman stop -t 10 c2
           Restart=always
           [Install]
           WantedBy=multi-user.target

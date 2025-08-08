@@ -11,10 +11,7 @@ containers through their systemd units. Unit files may reside in either
 ``/etc/systemd/system`` or ``/usr/lib/systemd/system`` and are detected in both
 locations. If a running container lacks a unit file, ``service-start-order``
 uses ``podman generate systemd`` to create one in ``/etc/systemd/system`` and
-reloads systemd.  Containers started via the Podman REST API do not store a
-``CreateCommand`` and Podman ``generate systemd --new`` rejects them.  The role
-attempts generation with ``--new`` first and falls back to generating a unit
-without it so that both CLI- and REST-created containers receive systemd units.
+reloads systemd.
 
 When unit files are present, the ``service-start-order`` role waits for the
 previous container to report a ``healthy`` state via
