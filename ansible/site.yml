@@ -630,10 +630,6 @@
     - { role: ovn-db,
         tags: [ovn, ovn-db] }
 
-# Nova deployment is more complicated than other services, so is covered in its
-# own playbook.
-- import_playbook: nova.yml
-
 - name: Apply role neutron
   gather_facts: false
   hosts:
@@ -657,6 +653,10 @@
   roles:
     - { role: neutron,
         tags: neutron }
+
+# Nova deployment is more complicated than other services, so is covered in its
+# own playbook.
+- import_playbook: nova.yml
 
 - name: Apply role kuryr
   gather_facts: false
