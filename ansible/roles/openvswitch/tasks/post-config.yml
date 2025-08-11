@@ -1,5 +1,16 @@
 ---
 # NOTE(mnasiadka): external_ids:system-id uniquely identifies a physical system, used by OVN and other controllers
+- name: Wait for Open vSwitch database socket
+  become: true
+  command: "{{ kolla_container_engine }} exec openvswitch_db ovsdb-client list-dbs"
+  register: ovsdb_wait
+  retries: 10
+  delay: 3
+  changed_when: false
+  until: ovsdb_wait.rc == 0
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+
 - name: Set system-id, hostname and hw-offload
   become: true
   kolla_toolbox:
