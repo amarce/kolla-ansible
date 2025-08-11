@@ -11,7 +11,10 @@
   systemd:
     name: "{{ unit_name }}"
     state: restarted
-  when: unit_enabled
+  when:
+    - unit_enabled
+    - service.unit_file_exists | default(false) | bool
+    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
 
 - name: Recreate container when missing or drifted
   listen: Restart container
@@ -38,6 +41,8 @@
   when:
     - not container_needs_recreate | bool
     - runtime_restart.rc != 0
+    - service.unit_file_exists | default(false) | bool
+    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
 
 - name: Restart unit as fallback
   listen: Restart container
@@ -48,4 +53,6 @@
   when:
     - not container_needs_recreate | bool
     - runtime_restart.rc != 0
+    - service.unit_file_exists | default(false) | bool
+    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
 

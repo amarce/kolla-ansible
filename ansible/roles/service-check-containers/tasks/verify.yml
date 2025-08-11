@@ -87,7 +87,7 @@
 
 - name: Init service fact for handlers
   set_fact:
-    service: "{{ container_spec }}"
+    service: "{{ container_spec | combine({'unit_file_exists': unit_file.stat.exists}) }}"
 
 - name: Clear host error state
   meta: clear_host_errors
@@ -118,4 +118,5 @@
   when:
     - not container_missing
     - unit_file.stat.exists
+    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
     - (unit_active.rc | default(0)) != 0

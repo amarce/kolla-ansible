@@ -98,6 +98,7 @@ database_enable_tls_internal: "{{ 'yes' if ((kolla_enable_tls_internal | bool ) 
 # Container engine options
 ####################
 kolla_container_engine: "docker"
+kolla_podman_use_systemd: false
 
 ####################
 # Docker options

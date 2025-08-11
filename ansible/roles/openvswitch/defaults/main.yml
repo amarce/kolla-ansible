@@ -33,6 +33,9 @@ openvswitch_services:
     volumes: "{{ openvswitch_vswitchd_default_volumes + openvswitch_vswitchd_extra_volumes }}"
     dimensions: "{{ openvswitch_vswitchd_dimensions }}"
     healthcheck: "{{ openvswitch_vswitchd_healthcheck }}"
+    podman_systemd_dependencies:
+      - "After=container-openvswitch_db.service"
+      - "Requires=container-openvswitch_db.service"
 
 ####################
 # Docker

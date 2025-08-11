@@ -90,6 +90,8 @@ workaround_ansible_issue_8743: yes
 # Set desired container engine to deploy on or migrate to
 # Valid options are [ docker, podman ]
 #kolla_container_engine: docker
+# Use systemd to manage Podman containers
+#kolla_podman_use_systemd: "no"
 
 
 ################
