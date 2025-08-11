@@ -30,7 +30,7 @@ StartLimitBurst=${restart_retries}
 
 [Service]
 ExecStart=/usr/bin/${engine} start -a ${name}
-ExecStop=/usr/bin/${engine} stop ${name} -t ${graceful_timeout}
+ExecStop=/usr/bin/${engine} stop -t ${graceful_timeout} ${name}
 Restart=${restart_policy}
 RestartSec=${restart_duration}
 SuccessExitStatus=143
@@ -51,8 +51,12 @@ class SystemdWorker(object):
         container_engine = params.get('container_engine')
         if container_engine == 'docker':
             dependencies = 'docker.service'
+            unit_prefix = 'kolla-'
+            unit_suffix = '-container'
         else:
             dependencies = 'network-online.target'
+            unit_prefix = 'container-'
+            unit_suffix = ''
 
         restart_policy = params.get('restart_policy', 'no')
         if restart_policy == 'unless-stopped':
@@ -69,7 +73,7 @@ class SystemdWorker(object):
         # container info
         self.container_dict = dict(
             name=name,
-            service_name='kolla-' + name + '-container.service',
+            service_name=f"{unit_prefix}{name}{unit_suffix}.service",
             engine=container_engine,
             deps=dependencies,
             graceful_timeout=params.get('graceful_timeout'),

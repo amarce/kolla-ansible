@@ -289,11 +289,12 @@ Kolla ships with several utilities intended to facilitate ease of operation.
 ``tools/cleanup-containers`` is used to remove deployed containers from the
 system. This can be useful when you want to do a new clean deployment. It will
 preserve the registry and the locally built images in the registry, but will
-remove all running Kolla containers from the local Docker daemon. It also
-removes the named volumes.
+remove all running Kolla containers from the selected container engine. It also
+removes the corresponding systemd units (``kolla-<name>-container.service`` for
+Docker and ``container-<name>.service`` for Podman) and the named volumes.
 
 ``tools/cleanup-host`` is used to remove remnants of network changes
-triggered on the Docker host when the neutron-agents containers are launched.
+triggered on the host when the neutron-agents containers are launched.
 This can be useful when you want to do a new clean deployment, particularly one
 changing the network topology.
 
