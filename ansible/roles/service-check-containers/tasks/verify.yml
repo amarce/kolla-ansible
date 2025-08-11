@@ -77,46 +77,48 @@
     needs_start: >-
       {{ container_result.rc != 0 or (unit_file.stat.exists and (not unit_enabled or unit_active.rc | default(3) != 0)) }}
 
-- name: Detect health-check drift
-  set_fact:
-    container_needs_recreate: true
-  when:
-    - not container_missing
-    - (container_inspect.Config.Healthcheck.Test | default([]) | to_json)
-      != (desired_healthcheck_test | to_json)
+- block:
+    - name: Detect health-check drift
+      set_fact:
+        container_needs_recreate: true
+      when:
+        - not container_missing
+        - (container_inspect.Config.Healthcheck.Test | default([]) | to_json)
+          != (desired_healthcheck_test | to_json)
 
-- name: Init service fact for handlers
-  set_fact:
-    service: "{{ container_spec | combine({'unit_file_exists': unit_file.stat.exists}) }}"
+    - name: Init service fact for handlers
+      set_fact:
+        service: "{{ container_spec | combine({'unit_file_exists': unit_file.stat.exists}) }}"
 
-- name: Clear host error state
-  meta: clear_host_errors
+    - name: Clear host error state
+      meta: clear_host_errors
 
-- name: Notify recreate handler when needed
-  debug:
-    msg: "Scheduling container recreation"
-  changed_when: true
-  when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
-  notify: Recreate container
+    - name: Notify recreate handler when needed
+      debug:
+        msg: "Scheduling container recreation"
+      changed_when: true
+      when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
+      notify: Recreate container
 
-- name: Notify restart when needed
-  debug:
-    msg: Notifying restart handler
-  changed_when: needs_start | bool and not container_needs_recreate | bool
-  notify: "Restart container"
-  when: not container_needs_recreate | bool
+    - name: Notify restart when needed
+      debug:
+        msg: Notifying restart handler
+      changed_when: needs_start | bool and not container_needs_recreate | bool
+      notify: "Restart container"
+      when: not container_needs_recreate | bool
 
-- name: Flush restart handler
-  meta: flush_handlers
+    - name: Flush restart handler
+      meta: flush_handlers
 
-- name: Ensure unit running when container exists
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    state: restarted
-    enabled: true
-  when:
-    - not container_missing
-    - unit_file.stat.exists
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - (unit_active.rc | default(0)) != 0
+    - name: Ensure unit running when container exists
+      become: true
+      systemd:
+        name: "{{ unit_name }}"
+        state: restarted
+        enabled: true
+      when:
+        - not container_missing
+        - unit_file.stat.exists
+        - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+        - (unit_active.rc | default(0)) != 0
+  when: not (container_missing | bool and not unit_file.stat.exists)
