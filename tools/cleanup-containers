@@ -11,6 +11,14 @@ fi
 
 echo "Using container engine: $engine"
 
+if [ "$engine" = "podman" ]; then
+    unit_prefix="container-"
+    unit_suffix=""
+else
+    unit_prefix="kolla-"
+    unit_suffix="-container"
+fi
+
 containers_running=$(sudo $engine ps --filter "label=kolla_version" --format "{{.Names}}")
 
 QEMU_PIDS=$(pgrep -l qemu | awk '!/qemu-ga/  && !/qemu-img/ {print $1}')
@@ -42,10 +50,10 @@ fi
 
 echo "Stopping containers..."
 for container in ${containers_to_kill}; do
-sudo systemctl disable kolla-${container}-container.service
-sudo systemctl stop kolla-${container}-container.service
-sudo systemctl is-failed kolla-${container}-container.service && \
-sudo systemctl reset-failed kolla-${container}-container.service
+sudo systemctl disable ${unit_prefix}${container}${unit_suffix}.service
+sudo systemctl stop ${unit_prefix}${container}${unit_suffix}.service
+sudo systemctl is-failed ${unit_prefix}${container}${unit_suffix}.service && \
+sudo systemctl reset-failed ${unit_prefix}${container}${unit_suffix}.service
 done
 
 echo "Removing containers..."
@@ -63,7 +71,7 @@ echo "Removing link of kolla_log volume..."
 (sudo rm -f /var/log/kolla 2>&1) > /dev/null
 
 echo "Removing unit files..."
-sudo rm -f /etc/systemd/system/kolla-*-container.service
+sudo rm -f /etc/systemd/system/${unit_prefix}*${unit_suffix}.service
 sudo systemctl daemon-reload
 
 echo "All cleaned up!"

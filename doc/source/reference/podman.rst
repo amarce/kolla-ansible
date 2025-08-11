@@ -2,9 +2,13 @@
 Podman Container Management
 ============================
 
+When using Podman, systemd unit files are generated as
+``container-<name>.service`` for each managed container. This differs from
+Docker where unit files are named ``kolla-<name>-container.service``.
+
 Some Kolla Ansible containers may be started outside of systemd and therefore
-lack a corresponding ``container-<name>.service`` unit. A common example is
-``kolla_toolbox``, which is launched during bootstrap and left running.
+lack a corresponding unit. A common example is ``kolla_toolbox``, which is
+launched during bootstrap and left running.
 
 The ``service-check-containers`` and ``service-start-order`` roles verify and
 start containers via their systemd units. When using Podman, these roles check
