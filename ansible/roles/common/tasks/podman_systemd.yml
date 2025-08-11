@@ -1,0 +1,37 @@
+---
+# Generate systemd unit for a Podman container
+- name: Generate systemd unit for {{ service.container_name }}
+  become: true
+  command: >-
+    podman generate systemd --name --files --restart-policy=always --output /etc/systemd/system {{ service.container_name }}
+  args:
+    creates: "/etc/systemd/system/container-{{ service.container_name }}.service"
+  when:
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+    - service.enabled | bool
+
+# Add optional dependency lines
+- name: Configure systemd dependencies for {{ service.container_name }}
+  become: true
+  lineinfile:
+    path: "/etc/systemd/system/container-{{ service.container_name }}.service"
+    line: "{{ item }}"
+    insertafter: '^\[Unit\]$'
+  loop: "{{ service.podman_systemd_dependencies | default([]) }}"
+  when:
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+    - service.enabled | bool
+    - service.podman_systemd_dependencies is defined
+
+- name: Reload systemd and enable unit {{ service.container_name }}
+  become: true
+  systemd:
+    name: "container-{{ service.container_name }}.service"
+    enabled: true
+    daemon_reload: true
+  when:
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+    - service.enabled | bool

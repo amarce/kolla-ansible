@@ -12,6 +12,15 @@ When using ``*_extra_volumes`` options, Kolla Ansible will automatically
 create any missing host directories referenced by bind mounts with
 permissions ``0755`` before starting containers.
 
+Optional systemd management
+---------------------------
+
+By default Podman containers are managed directly by Kolla Ansible.
+Set ``kolla_podman_use_systemd: true`` in ``/etc/kolla/globals.yml`` to
+generate and enable systemd unit files for services. Unit files are
+installed as ``/etc/systemd/system/container-<name>.service`` and allow
+systemd to start containers during host boot.
+
 Sequential container start
 --------------------------
 

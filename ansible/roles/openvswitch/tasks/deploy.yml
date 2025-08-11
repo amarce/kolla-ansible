@@ -8,4 +8,9 @@
 - name: Flush Handlers
   meta: flush_handlers
 
+- import_tasks: podman-systemd.yml
+  when:
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+
 - import_tasks: post-config.yml
