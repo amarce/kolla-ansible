@@ -181,6 +181,11 @@ applying any ``ovs-vsctl`` configuration, so running with
 ``Connection refused``, verify that the containers are running and that
 ``/run/openvswitch/db.sock`` exists.
 
+Verification of the Open vSwitch containers only proceeds when the
+corresponding systemd unit or container is present.  If neither exists, the
+check is skipped entirely, avoiding spurious failures on hosts where the role
+is not enabled.
+
 When using Open vSwitch on a compatible kernel (4.3+ upstream, consult the
 documentation of your distribution for support details), you can switch
 to using the native OVS firewall driver by employing a configuration override

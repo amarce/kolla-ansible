@@ -6,7 +6,8 @@
 - import_tasks: podman-systemd.yml
   when:
     - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
+    - enable_openvswitch | bool
+    - openvswitch_services['openvswitch-db-server'].host_in_groups | bool
 
 - import_tasks: check-containers.yml
 
