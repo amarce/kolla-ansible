@@ -173,8 +173,9 @@ mechanism, you can change that using the ``neutron_plugin_agent`` variable in
 On hosts in the ``openvswitch`` group the role creates and starts the
 ``openvswitch-db-server`` and ``openvswitch-vswitchd`` containers.  When
 using Podman their systemd units (``container-openvswitch_db.service`` and
-``container-openvswitch_vswitchd.service``) are generated and enabled.  The
-deployment waits for the Open vSwitch database socket to appear before
+``container-openvswitch_vswitchd.service``) are generated and enabled prior to
+any verification.  The deployment waits for the Open vSwitch database socket to
+appear before
 applying any ``ovs-vsctl`` configuration, so running with
 ``--limit`` still configures the host correctly.  If ``ovs-vsctl`` reports
 ``Connection refused``, verify that the containers are running and that
