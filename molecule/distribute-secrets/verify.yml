@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kolla_secrets_dest: /tmp/kolla/secrets
+  tasks:
+    - name: Stat private key
+      stat:
+        path: "{{ kolla_secrets_dest }}/compute/gitlab_key"
+      register: priv
+
+    - name: Assert private key
+      assert:
+        that:
+          - priv.stat.exists
+          - priv.stat.mode == '0600'
+
+    - name: Stat public key
+      stat:
+        path: "{{ kolla_secrets_dest }}/compute/gitlab_key.pub"
+      register: pub
+
+    - name: Assert public key
+      assert:
+        that:
+          - pub.stat.exists
+          - pub.stat.mode == '0644'

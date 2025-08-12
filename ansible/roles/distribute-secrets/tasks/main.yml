@@ -81,25 +81,30 @@
     kolla_secret_files: "{{ hostvars['localhost'].kolla_secret_files | default({}) }}"
   loop: "{{ ansible_play_hosts_all }}"
 
-- name: Process secrets for host groups
+- name: Process secrets for directories
   include_tasks: process_group.yml
-  when: (kolla_secret_files | default({})).get(group, []) | length > 0
   vars:
     inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
     my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
-  loop: "{{ my_groups }}"
+    group: "{{ secret_dir }}"
+  when: >-
+    (kolla_secret_files | default({})).get(secret_dir, []) | length > 0 and
+    (kolla_secrets_group_map.get(secret_dir, [secret_dir]) | intersect(my_groups)) | length > 0
+  loop: "{{ kolla_secret_files.keys() | list }}"
   loop_control:
-    loop_var: group
-    label: "{{ group }}"
+    loop_var: secret_dir
+    label: "{{ secret_dir }}"
 
-- name: Debug groups skipped
+- name: Debug secrets directories skipped
   debug:
-    msg: "No secrets found for group {{ group }} - skipping"
-  when: (kolla_secret_files | default({})).get(group, []) | length == 0
+    msg: "No secrets found for directory {{ secret_dir }} - skipping"
   vars:
     inventory_meta_groups: "{{ ['all', 'ungrouped'] + (groups.keys() | select('match','^all_') | list) }}"
     my_groups: "{{ group_names | difference(inventory_meta_groups) }}"
-  loop: "{{ my_groups }}"
+  when: >-
+    (kolla_secret_files | default({})).get(secret_dir, []) | length > 0 and
+    (kolla_secrets_group_map.get(secret_dir, [secret_dir]) | intersect(my_groups)) | length == 0
+  loop: "{{ kolla_secret_files.keys() | list }}"
   loop_control:
-    loop_var: group
-    label: "{{ group }}"
+    loop_var: secret_dir
+    label: "{{ secret_dir }}"

@@ -2,13 +2,17 @@
 
 This feature allows administrators to organise service specific secret files on
 the deploy host and automatically distribute them to the correct hosts during
-`kolla-ansible bootstrap-servers`.
+`kolla-ansible bootstrap-servers`, `deploy`, `deploy-containers`,
+`reconfigure` and `upgrade`.
 
 ## Organising Secrets
 
 On the deploy host place files under `/etc/kolla/config/secrets/<group>/` where
 `<group>` matches an inventory group name. All files in such a directory will be
 copied to `/etc/kolla/secrets/<group>/` on hosts belonging to that group.
+Secret directories can be mapped to multiple inventory groups via the
+`kolla_secrets_group_map` variable when the directory name does not match the
+group.
 
 Example:
 
@@ -16,19 +20,20 @@ Example:
 /etc/kolla/config/secrets/nova/gitlab_key.pub
 ```
 
-After running `kolla-ansible bootstrap-servers` the file will be available on
-all hosts in the `nova` group as:
+After running any of the above commands the file will be available on all hosts
+in the `nova` group as:
 
 ```text
 /etc/kolla/secrets/nova/gitlab_key.pub
 ```
 
-## Integration with bootstrap-servers
+## Integration with kolla-ansible
 
-No additional commands are required. When `bootstrap-servers` runs it now calls
+No additional commands are required. When the listed commands run they now call
 an additional role that performs the distribution. The destination directory is
 created with `0700` permissions and files default to `0644`. More restrictive
-source permissions such as `0600` are preserved.
+source permissions such as `0600` are preserved. The distribution may also be
+triggered manually using `kolla-ansible distribute-secrets`.
 
 Empty directories are skipped with a debug message and directories that do not
 exist are silently ignored. The tasks are idempotent and safe to run multiple
