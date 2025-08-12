@@ -31,6 +31,9 @@ start sequentially according to ``kolla_service_start_priority``. Each
 service waits for the previous unit to reach the ``active`` state and, if
 a container health check is defined, for that check to succeed. When no
 health indicator exists a 30 second delay is applied before continuing.
+The role reloads systemd after writing any drop-in files so that new
+dependencies are applied immediately. It also stops containers that were
+previously launched directly via Podman and restarts them under systemd.
 This ensures dependencies such as databases and messaging back ends are
 available before the corresponding API services are launched.
 
@@ -57,8 +60,9 @@ Troubleshooting
 
 The final restart sequence relies on systemd unit files when they are
 present. If systemd is unavailable or fails to start a unit, Kolla
-Ansible retries using ``podman start`` and reports the original systemd
-failure along with container logs to aid debugging.
+Ansible reloads systemd units, retries using ``podman start`` and reports
+the original systemd failure along with service status and journal output
+to aid debugging.
 
 One-shot cleanup containers
 ---------------------------

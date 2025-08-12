@@ -19,7 +19,6 @@
   failed_when: podman_stop.rc not in [0, 125]
   when:
     - kolla_container_engine == 'podman'
-    - item in kolla_changed_containers
     - service_unit.stat.exists
 
 - name: Start {{ item }} service
@@ -45,10 +44,12 @@
       ignore_errors: true
     - name: Fail starting {{ item }}
       fail:
-        msg: "Failed to start {{ item }} service"
-        data:
-          status: "{{ start_status.stdout }}"
-          journal: "{{ start_journal.stdout }}"
+        msg: |
+          Failed to start {{ item }} service
+          Status:
+          {{ start_status.stdout | default('') }}
+          Journal:
+          {{ start_journal.stdout | default('') }}
 
 - name: Wait for neutron_ovs_cleanup to finish
   become: true
