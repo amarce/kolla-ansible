@@ -190,6 +190,11 @@
   delegate_to: localhost
   register: ceilometer_event_definitions_file
 
+- name: Check notification config directory exists
+  stat:
+    path: "{{ node_config_directory }}/ceilometer-notification"
+  register: ceilometer_notification_conf_dir
+
 - name: Copying over event_definitions.yaml
   vars:
     service: "{{ ceilometer_services['ceilometer-notification'] }}"
@@ -203,6 +208,7 @@
   when:
     - ceilometer_event_definitions_file.stat.exists
     - service | service_enabled_and_mapped_to_host
+    - ceilometer_notification_conf_dir.stat.exists
 
 - name: Copying over event_definitions.yaml for notification service
   vars:
@@ -215,6 +221,7 @@
   register: ceilometer_event_definitions
   when:
     - service | service_enabled_and_mapped_to_host
+    - ceilometer_notification_conf_dir.stat.exists
     - not ceilometer_event_definitions_file.stat.exists
 
 - name: Copying over event_pipeline.yaml
@@ -228,7 +235,9 @@
     dest: "{{ node_config_directory }}/ceilometer-notification/event_pipeline.yaml"
     mode: "0660"
   become: true
-  when: service | service_enabled_and_mapped_to_host
+  when:
+    - service | service_enabled_and_mapped_to_host
+    - ceilometer_notification_conf_dir.stat.exists
 
 - name: Check custom pipeline.yaml exists
   stat:

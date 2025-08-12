@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Prevent Ceilometer deployment failures when the
+    ``ceilometer-notification`` service is not mapped to a host by
+    skipping event definition and event pipeline configuration if the
+    service configuration directory is absent.
