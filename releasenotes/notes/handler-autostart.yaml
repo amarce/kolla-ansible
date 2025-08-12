@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Containers recreated by Ansible handlers start immediately and may
+    be deferred with ``defer_start: true``. ``wait: true`` causes the module
+    to wait for the container to reach a running and healthy state.
+fixes:
+  - |
+    Added diagnostics when a container times out in ``created`` state,
+    including inspect state and recent log lines.

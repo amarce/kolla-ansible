@@ -29,6 +29,7 @@ docker_worker_file = os.path.join(ansible_dir, "module_utils", "kolla_docker_wor
 container_worker_file = os.path.join(
     ansible_dir, "module_utils", "kolla_container_worker.py"
 )
+sys.modules['dbus'] = mock.MagicMock()
 kc = SourceFileLoader("kolla_container", kolla_container_file).load_module()
 dwm = SourceFileLoader("kolla_docker_worker", docker_worker_file).load_module()
 cwm = SourceFileLoader("kolla_container_worker", container_worker_file).load_module()
@@ -49,6 +50,7 @@ class ModuleArgsTest(base.BaseTestCase):
                     "ensure_image",
                     "pull_image",
                     "recreate_or_restart_container",
+                    "recreate_container",
                     "remove_container",
                     "remove_image",
                     "remove_volume",
@@ -86,6 +88,9 @@ class ModuleArgsTest(base.BaseTestCase):
                 choices=["no", "on-failure", "oneshot", "always", "unless-stopped"],
             ),
             restart_retries=dict(required=False, type="int"),
+            start=dict(required=False, type="bool", default=True),
+            defer_start=dict(required=False, type="bool", default=False),
+            wait=dict(required=False, type="bool", default=False),
             state=dict(
                 required=False,
                 type="str",

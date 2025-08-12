@@ -14,6 +14,7 @@ from podman.errors import APIError
 from podman import PodmanClient
 
 import shlex
+import time
 
 from ansible.module_utils.kolla_container_worker import (
     COMPARE_CONFIG_CMD,
@@ -541,9 +542,19 @@ class PodmanWorker(ContainerWorker):
             self.remove_container()
             container = self.check_container()
 
+        start_requested = self.params.get("start", True)
+        wait = self.params.get("wait")
+        if self.params.get("defer_start") and not wait:
+            start_requested = False
+
         if not container:
             self.create_container()
             container = self.check_container()
+            if not start_requested and not wait:
+                return
+
+        if not start_requested and not wait:
+            return
 
         if container.status != "running":
             self.changed = True
@@ -553,11 +564,10 @@ class PodmanWorker(ContainerWorker):
             else:
                 self.systemd.create_unit_file()
                 if not self.systemd.start():
-                    self.module.fail_json(
-                        changed=True,
-                        msg="Container timed out",
-                        **self.check_container().attrs
-                    )
+                    self._fail_diagnostics("Container timed out")
+
+        if wait:
+            self._wait_for_container()
 
         if not self.params.get("detach"):
             container = self.check_container()
@@ -583,6 +593,48 @@ class PodmanWorker(ContainerWorker):
                     msg="Container exited with non-zero return code %s" % rc,
                     **self.result
                 )
+
+    def _wait_for_container(self):
+        timeout = self.params.get("client_timeout", 120)
+        deadline = time.time() + timeout
+        name = self.params.get("name")
+        while time.time() < deadline:
+            container = self.check_container()
+            if not container:
+                break
+            state = container.attrs.get("State", {})
+            status = state.get("Status")
+            health = state.get("Health", {})
+            if status == "running" and health.get("Status", "healthy") == "healthy":
+                return
+            if status == "created":
+                container.start()
+            time.sleep(2)
+        self._fail_diagnostics("Container timed out")
+
+    def _fail_diagnostics(self, msg):
+        container = self.check_container()
+        state = container.attrs.get("State") if container else {}
+        try:
+            logs = [line.decode() for line in container.logs(tail=20)] if container else []
+        except Exception:
+            logs = []
+        action = self.module.params.get("action")
+        if state and state.get("Status") == "created":
+            msg = (
+                f"Container {self.params.get('name')} is in 'created' (not running). "
+                "Start was required but not executed. This is a bug in orchestration path."
+            )
+        self.module.fail_json(
+            changed=True,
+            msg=msg,
+            action=action,
+            start=self.params.get("start", True),
+            defer_start=self.params.get("defer_start"),
+            wait=self.params.get("wait"),
+            state=state,
+            logs="\n".join(logs),
+        )
 
     def stop_container(self):
         name = self.params.get("name")

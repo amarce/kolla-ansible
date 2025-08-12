@@ -229,6 +229,24 @@ options:
     required: False
     default: dict()
     type: dict
+  start:
+    description:
+      - Start the container after create or recreate
+    required: False
+    default: true
+    type: bool
+  defer_start:
+    description:
+      - Create or recreate the container but defer starting it until a later ordered restart
+    required: False
+    default: false
+    type: bool
+  wait:
+    description:
+      - Wait for the container to reach the running and healthy state
+    required: False
+    default: false
+    type: bool
 author: Sam Yaple
 '''
 
@@ -297,6 +315,9 @@ def generate_module():
         name=dict(required=False, type='str'),
         environment=dict(required=False, type='dict'),
         healthcheck=dict(required=False, type='dict'),
+        start=dict(required=False, type='bool', default=True),
+        defer_start=dict(required=False, type='bool', default=False),
+        wait=dict(required=False, type='bool', default=False),
         image=dict(required=False, type='str'),
         ipc_mode=dict(required=False, type='str', choices=['',
                                                            'host',
@@ -433,7 +454,7 @@ def main():
         action = module.params.get('action')
         if action == 'create_container':
             result = bool(cw.create_container())
-            if cw.changed:
+            if module.params.get('start', True) or module.params.get('wait'):
                 cw.start_container()
         else:
             result = bool(getattr(cw, action)())
