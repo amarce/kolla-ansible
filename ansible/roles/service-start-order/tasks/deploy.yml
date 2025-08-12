@@ -32,14 +32,41 @@
   register: start_order_override_result
   notify: Reload systemd
 
+- name: Build restart list for changed overrides
+  set_fact:
+    start_order_restart_services: "{{ start_order_override_result.results | selectattr('changed') | map(attribute='item.1') | list }}"
+  when: start_order_override_result is defined
+
 - name: Restart services if start order changed
   become: true
-  systemd:
-    name: "{{ kolla_service_unit_prefix }}{{ item.item.1 }}{{ kolla_service_unit_suffix }}.service"
-    state: restarted
-    daemon_reload: yes
-  loop: "{{ start_order_override_result.results | selectattr('changed') | list }}"
-  when: start_order_override_result is defined
+  vars:
+    restart_services: "{{ (start_order_restart_services | default([])) | difference(kolla_changed_containers | default([])) }}"
+  loop: "{{ restart_services }}"
+  loop_control:
+    loop_var: svc
+    label: "{{ svc }}"
+  block:
+    - name: Restart {{ svc }} service
+      systemd:
+        name: "{{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service"
+        state: restarted
+        daemon_reload: yes
+      register: restart_result
+  rescue:
+    - name: Show {{ svc }} service status
+      command: "systemctl status {{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service"
+      register: restart_status
+      ignore_errors: true
+    - name: Show {{ svc }} service journal
+      command: "journalctl -u {{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service -n 100"
+      register: restart_journal
+      ignore_errors: true
+    - name: Fail restarting {{ svc }}
+      fail:
+        msg: "Failed to restart {{ svc }} service"
+        data:
+          status: "{{ restart_status.stdout }}"
+          journal: "{{ restart_journal.stdout }}"
 
 - name: Start compute services in order
   include_tasks: start_service.yml

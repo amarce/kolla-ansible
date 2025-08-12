@@ -21,3 +21,36 @@
           - "'systemctl is-active --quiet container-c1.service' in content"
           - "'podman healthcheck run c1' in content"
           - "'sleep 30' in content"
+
+    - name: Read recorded start times
+      become: true
+      slurp:
+        path: /tmp/start_times.json
+      register: start_file
+
+    - name: Set start times fact
+      set_fact:
+        start_before: "{{ start_file.content | b64decode | from_json }}"
+
+    - name: Get c1 start time after
+      command: >-
+        podman inspect c1 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c1_after
+      changed_when: false
+
+    - name: Get c2 start time after
+      command: >-
+        podman inspect c2 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c2_after
+      changed_when: false
+
+    - name: Ensure c1 now managed by systemd
+      command: systemctl is-active --quiet container-c1.service
+      register: c1_active
+      failed_when: c1_active.rc != 0
+
+    - name: Assert start times
+      assert:
+        that:
+          - c1_after.stdout != start_before.c1
+          - c2_after.stdout == start_before.c2

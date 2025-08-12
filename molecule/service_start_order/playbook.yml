@@ -32,13 +32,13 @@
       changed_when: c1_run.rc == 0
       failed_when: c1_run.rc not in [0,125]
 
-    - name: Ensure c2 container is running
+    - name: Ensure c2 container exists
       become: true
       command: >-
-        podman run -d --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
-      register: c2_run
-      changed_when: c2_run.rc == 0
-      failed_when: c2_run.rc not in [0,125]
+        podman create --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+      register: c2_create
+      changed_when: c2_create.rc == 0
+      failed_when: c2_create.rc not in [0,125]
 
     - name: Create systemd unit for c1
       become: true
@@ -68,6 +68,36 @@
           [Install]
           WantedBy=multi-user.target
 
+    - name: Start c2 via systemd
+      become: true
+      command: systemctl start container-c2.service
+      register: c2_systemd_start
+      changed_when: c2_systemd_start.rc == 0
+      failed_when: c2_systemd_start.rc != 0
+
+    - name: Record c1 start time
+      become: true
+      command: >-
+        podman inspect c1 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c1_start
+      changed_when: false
+
+    - name: Record c2 start time
+      become: true
+      command: >-
+        podman inspect c2 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c2_start
+      changed_when: false
+
+    - name: Write start times file
+      become: true
+      copy:
+        dest: /tmp/start_times.json
+        content: "{{ {'c1': c1_start.stdout, 'c2': c2_start.stdout} | to_nice_json }}"
+
     - name: Run service-start-order role
       include_role:
         name: service-start-order
+      vars:
+        kolla_changed_containers:
+          - c1
