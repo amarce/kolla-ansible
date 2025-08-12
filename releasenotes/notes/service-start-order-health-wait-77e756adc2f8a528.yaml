@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    The ``service-start-order`` role now waits for each container to reach a
+    running and healthy state before moving on to dependent services. The
+    wait is bounded by ``kolla_service_healthcheck_retries`` and
+    ``kolla_service_healthcheck_delay`` and containers already in a healthy
+    state are not restarted. This prevents deployment hangs when a service
+    fails to become ready.

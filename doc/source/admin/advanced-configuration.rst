@@ -351,12 +351,18 @@ applied before continuing. The delays are controlled by the variables
 ``kolla_service_start_timeout`` (systemd ``TimeoutStartSec`` applied while
 waiting for dependency health; ``0`` disables the timeout) and
 ``kolla_service_no_healthcheck_wait`` (seconds to pause when no health
-check exists).
+check exists). During deploy and reconfigure the role also verifies that
+each service reaches the ``running`` and ``healthy`` states before moving
+on to the next. Containers that are already healthy are left running. The
+polling behaviour is controlled by ``kolla_service_healthcheck_retries``
+and ``kolla_service_healthcheck_delay``.
 
 .. code-block:: yaml
 
    kolla_service_start_timeout: 0
    kolla_service_no_healthcheck_wait: 30
+   kolla_service_healthcheck_retries: 60
+   kolla_service_healthcheck_delay: 2
 
 For example ``nova_compute`` waits for ``nova_ssh`` to become healthy,
 ``neutron_openvswitch_agent`` pauses for
