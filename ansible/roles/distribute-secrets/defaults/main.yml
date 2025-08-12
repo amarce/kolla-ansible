@@ -1,3 +1,4 @@
 # Defaults for distribute-secrets role
 kolla_secrets_src: /etc/kolla/config/secrets
 kolla_secrets_dest: /etc/kolla/secrets
+kolla_secrets_group_map: {}

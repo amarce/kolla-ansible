@@ -1,0 +1,44 @@
+---
+- name: Converge
+  hosts: localhost
+  gather_facts: false
+  vars:
+    groups:
+      compute-kvm:
+        - localhost
+    group_names:
+      - compute-kvm
+    kolla_secrets_src: /tmp/kolla/config/secrets
+    kolla_secrets_dest: /tmp/kolla/secrets
+    kolla_secrets_group_map:
+      compute:
+        - compute
+        - compute-kvm
+  tasks:
+    - name: Prepare secret source directory
+      file:
+        path: "{{ kolla_secrets_src }}/compute"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      run_once: true
+
+    - name: Create private key
+      copy:
+        dest: "{{ kolla_secrets_src }}/compute/gitlab_key"
+        content: dummy
+        mode: '0600'
+      delegate_to: localhost
+      run_once: true
+
+    - name: Create public key
+      copy:
+        dest: "{{ kolla_secrets_src }}/compute/gitlab_key.pub"
+        content: dummy
+        mode: '0644'
+      delegate_to: localhost
+      run_once: true
+
+    - name: Run distribute-secrets role
+      include_role:
+        name: distribute-secrets

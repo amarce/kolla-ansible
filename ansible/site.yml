@@ -73,6 +73,19 @@
         - enable_zun_{{ enable_zun | bool }}
   tags: always
 
+- name: Distribute service secrets
+  hosts:
+    - kolla_action_deploy
+    - kolla_action_deploy-containers
+    - kolla_action_reconfigure
+    - kolla_action_upgrade
+  gather_facts: false
+  serial: '{{ kolla_serial|default("0") }}'
+  max_fail_percentage: >-
+    {{ secrets_max_fail_percentage | default(kolla_max_fail_percentage) | default(100) }}
+  roles:
+    - distribute-secrets
+
 - name: Apply role prechecks
   gather_facts: false
   # Apply only when kolla action is 'precheck'.

@@ -228,6 +228,20 @@ class OctaviaCertificates(KollaAnsibleMixin, Command):
         self.run_playbooks(parsed_args, playbooks, extra_vars=extra_vars)
 
 
+class DistributeSecrets(KollaAnsibleMixin, Command):
+    """Distribute service specific secrets to hosts"""
+
+    def take_action(self, parsed_args):
+        self.app.LOG.info("Distributing service secrets")
+
+        extra_vars = {}
+        extra_vars["kolla_action"] = "distribute-secrets"
+
+        playbooks = _choose_playbooks(parsed_args, "distribute-secrets")
+
+        self.run_playbooks(parsed_args, playbooks, extra_vars=extra_vars)
+
+
 class Deploy(KollaAnsibleMixin, Command):
     """Generate config, bootstrap and start all Kolla Ansible containers"""
 
