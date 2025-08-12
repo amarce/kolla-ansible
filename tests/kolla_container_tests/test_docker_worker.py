@@ -404,6 +404,13 @@ class TestContainer(base.BaseTestCase):
         self.dw.create_volume.assert_has_calls(expected_calls, any_order=True)
         self.assertEqual(self.dw.create_volume.call_count, 2)
 
+    def test_recreate_container_starts(self):
+        self.dw = get_DockerWorker(self.fake_data['params'])
+        self.dw.check_container = mock.MagicMock(return_value=None)
+        self.dw.start_container = mock.MagicMock()
+        self.dw.recreate_container()
+        self.dw.start_container.assert_called_once()
+
     def test_start_container_without_pull(self):
         self.fake_data['params'].update({'auth_username': 'fake_user',
                                          'auth_password': 'fake_psw',

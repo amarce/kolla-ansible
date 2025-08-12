@@ -366,7 +366,7 @@ class DockerWorker(ContainerWorker):
             if container:
                 self.stop_container()
                 self.remove_container()
-            self.create_container()
+            self.start_container()
 
     def start_container(self):
         if not self.check_image():

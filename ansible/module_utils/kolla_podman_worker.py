@@ -530,7 +530,7 @@ class PodmanWorker(ContainerWorker):
             if container:
                 self.stop_container()
                 self.remove_container()
-            self.create_container()
+            self.start_container()
 
     def start_container(self):
         self.ensure_image()

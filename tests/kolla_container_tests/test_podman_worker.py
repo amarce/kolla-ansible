@@ -306,6 +306,13 @@ class TestContainer(base.BaseTestCase):
         self.pw.create_volume.assert_has_calls(expected_calls, any_order=True)
         self.assertEqual(self.pw.create_volume.call_count, 2)
 
+    def test_recreate_container_starts(self):
+        self.pw = get_PodmanWorker(self.fake_data['params'])
+        self.pw.get_container_info = mock.MagicMock(return_value=None)
+        self.pw.start_container = mock.MagicMock()
+        self.pw.recreate_container()
+        self.pw.start_container.assert_called_once()
+
     def test_start_container_without_pull(self):
         self.fake_data['params'].update({'auth_username': 'fake_user',
                                          'auth_password': 'fake_psw',
