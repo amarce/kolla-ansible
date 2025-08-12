@@ -15,7 +15,15 @@
     dest: "{{ kolla_secrets_dest }}/{{ group }}/{{ item.path | basename }}"
     owner: root
     group: root
-    mode: "{{ item.mode if (item.mode | int(base=8)) <= 420 else '0644' }}"
+    mode: >-
+      {% set filename = item.path | basename %}
+      {% if filename == 'known_hosts' or filename.endswith('.pub') %}
+      0644
+      {% elif filename | regex_search('.*(_rsa|_dsa|_ed25519|_ecdsa|_key)$') %}
+      0600
+      {% else %}
+      {{ item.mode if (item.mode | int(base=8)) <= 420 else '0644' }}
+      {% endif %}
   loop: "{{ kolla_secret_files.get(group, []) }}"
   loop_control:
     label: "{{ item.path | basename }}"

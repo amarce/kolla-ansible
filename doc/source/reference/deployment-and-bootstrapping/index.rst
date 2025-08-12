@@ -10,3 +10,4 @@ hosts.
 
    bifrost
    bootstrap-servers
+   distribute-secrets
