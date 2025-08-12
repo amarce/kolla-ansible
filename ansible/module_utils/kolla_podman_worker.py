@@ -553,14 +553,12 @@ class PodmanWorker(ContainerWorker):
 
         if start_requested and container.status != "running":
             self.changed = True
+            # Always start containers directly with Podman. Any service restart
+            # ordering via systemd is handled later during the final restart
+            # phase.
+            self.systemd.create_unit_file()
             try:
-                if self.params.get("restart_policy") == "oneshot":
-                    container = self.check_container()
-                    container.start()
-                else:
-                    self.systemd.create_unit_file()
-                    if not self.systemd.start():
-                        raise Exception("systemd start failed")
+                container.start()
                 self.result["start_attempted"] = True
                 self.result["start_rc"] = 0
             except Exception as e:
@@ -600,7 +598,6 @@ class PodmanWorker(ContainerWorker):
     def _wait_for_container(self):
         timeout = self.params.get("client_timeout", 120)
         deadline = time.time() + timeout
-        name = self.params.get("name")
         while time.time() < deadline:
             container = self.check_container()
             if not container:
@@ -697,11 +694,35 @@ class PodmanWorker(ContainerWorker):
         else:
             self.changed = True
             self.systemd.create_unit_file()
-
-            if not self.systemd.restart():
-                self.module.fail_json(
-                    changed=True, msg="Container timed out", **container.attrs
-                )
+            try:
+                if not self.systemd.restart():
+                    raise Exception("systemd restart failed")
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 0
+            except Exception as e:
+                # Fallback to direct Podman start if systemd is unavailable or
+                # fails to start the unit. Record the systemd failure for
+                # troubleshooting.
+                self.module.debug(f"systemd restart failed: {e!r}")
+                container = self.check_container()
+                status = getattr(container, "status", "") if container else ""
+                if status != "running":
+                    try:
+                        container.start()
+                        self.result["start_attempted"] = True
+                        self.result["start_rc"] = 0
+                        self.result["start_stderr"] = repr(e)
+                    except Exception as ie:
+                        self.result["start_attempted"] = True
+                        self.result["start_rc"] = 1
+                        self.result["start_stderr"] = f"{repr(e)}; {repr(ie)}"
+                        self.module.fail_json(
+                            changed=True, msg="Container timed out", **container.attrs
+                        )
+                else:
+                    self.result["start_attempted"] = True
+                    self.result["start_rc"] = 0
+                    self.result["start_stderr"] = repr(e)
 
     def create_volume(self, name=None):
         volume_name = name if name else self.params.get("name")

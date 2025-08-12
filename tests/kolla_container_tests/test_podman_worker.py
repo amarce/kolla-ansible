@@ -377,12 +377,13 @@ class TestContainer(base.BaseTestCase):
             return_value=get_containers(self.fake_data['containers']))
         self.pw.check_container_differs = mock.MagicMock(return_value=False)
         container = mock.Mock()
+        container.start = mock.Mock()
         self.pw.check_container = mock.Mock(return_value=container)
 
         self.pw.start_container()
         self.assertTrue(self.pw.changed)
-        container.start.assert_not_called()
-        self.pw.systemd.start.assert_called_once()
+        container.start.assert_called_once_with()
+        self.pw.systemd.start.assert_not_called()
 
     def test_start_container_no_detach(self):
         self.fake_data['params'].update({'name': 'my_container',
@@ -405,14 +406,17 @@ class TestContainer(base.BaseTestCase):
         my_container.logs = mock.MagicMock(side_effect=[
             ['fake stdout'.encode()],
             ['fake stderr'.encode()]])
+        my_container.start = mock.Mock()
 
         self.pw.start_container()
         self.assertTrue(self.pw.changed)
+        my_container.start.assert_called_once_with()
         my_container.wait.assert_called_once_with()
         my_container.logs.assert_has_calls([
             mock.call(stdout=True, stderr=False),
             mock.call(stdout=False, stderr=True)])
         self.pw.systemd.stop.assert_called_once_with()
+        self.pw.systemd.start.assert_not_called()
         my_container.remove.assert_called_once_with(force=True)
         expected = {'rc': 0, 'stdout': 'fake stdout', 'stderr': 'fake stderr'}
         self.assertEqual(expected, self.pw.result)
@@ -433,38 +437,13 @@ class TestContainer(base.BaseTestCase):
             return_value=get_containers(self.fake_data['containers']))
         self.pw.check_container_differs = mock.MagicMock(return_value=False)
         container = mock.Mock()
+        container.start = mock.Mock()
         self.pw.check_container = mock.Mock(return_value=container)
 
         self.pw.start_container()
         self.assertTrue(self.pw.changed)
         container.start.assert_called_once()
         self.pw.systemd.start.assert_not_called()
-
-    def test_start_container_systemd_start_fail(self):
-        self.fake_data['params'].update({'name': 'my_container',
-                                         'auth_username': 'fake_user',
-                                         'auth_password': 'fake_psw',
-                                         'auth_registry': 'myrepo/myapp',
-                                         'auth_email': 'fake_mail@foogle.com'})
-        self.pw = get_PodmanWorker(self.fake_data['params'])
-        self.pw.pc.images = mock.MagicMock(
-            return_value=self.fake_data['images'])
-        self.fake_data['containers'][0].update(
-            {'State': {'Status': 'exited'}})
-        self.pw.pc.containers.list = mock.MagicMock(
-            return_value=get_containers(self.fake_data['containers']))
-        self.pw.check_container_differs = mock.MagicMock(return_value=False)
-        container = mock.Mock()
-        container.attrs = {'some': 'value'}
-        self.pw.check_container = mock.Mock(return_value=container)
-        self.pw.systemd.start = mock.Mock(return_value=False)
-
-        self.pw.start_container()
-        self.assertTrue(self.pw.changed)
-        container.start.assert_not_called()
-        self.pw.systemd.start.assert_called_once()
-        self.pw.module.fail_json.assert_called_once_with(
-            changed=True, msg='Container timed out', some='value')
 
     def test_stop_container(self):
         self.pw = get_PodmanWorker({'name': 'my_container',
@@ -571,13 +550,16 @@ class TestContainer(base.BaseTestCase):
     def test_restart_container(self):
         self.pw = get_PodmanWorker({'name': 'my_container',
                                     'action': 'restart_container'})
-        self.pw.pc.containers.list.return_value = get_containers(
-            self.fake_data['containers'])
+        full_cont_list = get_containers(self.fake_data['containers'])
+        my_container = full_cont_list[0]
+        my_container.start = mock.Mock()
+        self.pw.pc.containers.list.return_value = full_cont_list
         self.pw.restart_container()
 
         self.assertTrue(self.pw.changed)
         self.pw.pc.containers.list.assert_called_once_with(all=True)
         self.pw.systemd.restart.assert_called_once_with()
+        my_container.start.assert_not_called()
 
     def test_restart_container_not_exists(self):
         self.pw = get_PodmanWorker({'name': 'fake-container',
@@ -591,11 +573,12 @@ class TestContainer(base.BaseTestCase):
         self.pw.module.fail_json.assert_called_once_with(
             msg="No such container: fake-container")
 
-    def test_restart_systemd_timeout(self):
+    def test_restart_systemd_failure_fallback(self):
         self.pw = get_PodmanWorker({'name': 'my_container',
                                     'action': 'restart_container'})
         full_cont_list = get_containers(self.fake_data['containers'])
         my_container = full_cont_list[0]
+        my_container.start = mock.Mock()
         self.pw.pc.containers.list.return_value = full_cont_list
         self.pw.systemd.restart = mock.Mock(return_value=False)
         self.pw.restart_container()
@@ -603,6 +586,22 @@ class TestContainer(base.BaseTestCase):
         self.assertTrue(self.pw.changed)
         self.pw.pc.containers.list.assert_called_once_with(all=True)
         self.pw.systemd.restart.assert_called_once_with()
+        my_container.start.assert_called_once_with()
+        self.pw.module.fail_json.assert_not_called()
+
+    def test_restart_systemd_and_podman_fail(self):
+        self.pw = get_PodmanWorker({'name': 'my_container',
+                                    'action': 'restart_container'})
+        full_cont_list = get_containers(self.fake_data['containers'])
+        my_container = full_cont_list[0]
+        my_container.start = mock.Mock(side_effect=Exception('boom'))
+        self.pw.pc.containers.list.return_value = full_cont_list
+        self.pw.systemd.restart = mock.Mock(return_value=False)
+        self.pw.restart_container()
+
+        self.assertTrue(self.pw.changed)
+        self.pw.systemd.restart.assert_called_once_with()
+        my_container.start.assert_called_once_with()
         self.pw.module.fail_json.assert_called_once_with(
             changed=True, msg="Container timed out", **my_container.attrs)
 

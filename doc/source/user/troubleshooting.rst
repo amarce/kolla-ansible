@@ -99,6 +99,15 @@ The values ``<kolla_internal_vip_address>``, ``<kolla_external_vip_address>``
 values are overridden, in ``/etc/kolla/globals.yml``. The value of
 ``<kibana_password>`` can be found in ``/etc/kolla/passwords.yml``.
 
+Podman deployments
+------------------
+
+When using Podman, containers recreated by Ansible handlers start
+immediately via ``podman start`` and are later restarted in dependency
+order by systemd, if available. Should systemd fail to start a unit, Kolla
+Ansible falls back to ``podman start`` and reports both the systemd error
+and container logs in the task output.
+
 Task debugging
 --------------
 

@@ -71,13 +71,13 @@ def test_wait_overrides_defer_start():
     running = mock.MagicMock()
     running.status = "running"
     running.attrs = {'State': {'Status': 'running', 'Health': {'Status': 'healthy'}}}
+    created.start = mock.MagicMock()
     pw.check_container = mock.MagicMock(side_effect=[created, running, running])
     pw.check_container_differs = mock.MagicMock(return_value=False)
     pw.ensure_image = mock.MagicMock()
     pw.systemd.create_unit_file = mock.MagicMock()
-    pw.systemd.start = mock.MagicMock(return_value=True)
     pw.start_container()
-    pw.systemd.start.assert_called_once()
+    created.start.assert_called_once()
 
 
 def test_start_before_wait():
@@ -86,14 +86,14 @@ def test_start_before_wait():
     created = mock.MagicMock()
     created.status = "created"
     created.attrs = {'State': {'Status': 'created', 'Health': {'Status': 'starting'}}}
+    created.start = mock.MagicMock()
     pw.check_container = mock.MagicMock(return_value=created)
     pw.check_container_differs = mock.MagicMock(return_value=False)
     pw.ensure_image = mock.MagicMock()
     pw.systemd.create_unit_file = mock.MagicMock()
-    pw.systemd.start = mock.MagicMock(return_value=True)
     pw._wait_for_container = mock.MagicMock()
     pw.start_container()
-    pw.systemd.start.assert_called_once()
+    created.start.assert_called_once()
     pw._wait_for_container.assert_called_once()
 
 
@@ -103,12 +103,12 @@ def test_wait_triggers_start():
     created = mock.MagicMock()
     created.status = "created"
     created.attrs = {'State': {'Status': 'created', 'Health': {'Status': 'starting'}}}
+    created.start = mock.MagicMock()
     pw.check_container = mock.MagicMock(return_value=created)
     pw.check_container_differs = mock.MagicMock(return_value=False)
     pw.ensure_image = mock.MagicMock()
     pw.systemd.create_unit_file = mock.MagicMock()
-    pw.systemd.start = mock.MagicMock(return_value=True)
     pw._wait_for_container = mock.MagicMock()
     pw.start_container()
-    pw.systemd.start.assert_called_once()
+    created.start.assert_called_once()
     pw._wait_for_container.assert_called_once()
