@@ -542,29 +542,32 @@ class PodmanWorker(ContainerWorker):
             self.remove_container()
             container = self.check_container()
 
-        start_requested = self.params.get("start", True)
         wait = self.params.get("wait")
+        start_requested = self.params.get("start", True) or wait
         if self.params.get("defer_start") and not wait:
             start_requested = False
 
         if not container:
             self.create_container()
             container = self.check_container()
-            if not start_requested and not wait:
-                return
 
-        if not start_requested and not wait:
-            return
-
-        if container.status != "running":
+        if start_requested and container.status != "running":
             self.changed = True
-            if self.params.get("restart_policy") == "oneshot":
-                container = self.check_container()
-                container.start()
-            else:
-                self.systemd.create_unit_file()
-                if not self.systemd.start():
-                    self._fail_diagnostics("Container timed out")
+            try:
+                if self.params.get("restart_policy") == "oneshot":
+                    container = self.check_container()
+                    container.start()
+                else:
+                    self.systemd.create_unit_file()
+                    if not self.systemd.start():
+                        raise Exception("systemd start failed")
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 0
+            except Exception as e:
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 1
+                self.result["start_stderr"] = repr(e)
+                self._fail_diagnostics("Container timed out")
 
         if wait:
             self._wait_for_container()
@@ -607,16 +610,35 @@ class PodmanWorker(ContainerWorker):
             health = state.get("Health", {})
             if status == "running" and health.get("Status", "healthy") == "healthy":
                 return
-            if status == "created":
-                container.start()
+            if status == "created" and not self.params.get("defer_start"):
+                try:
+                    container.start()
+                    self.result["start_attempted"] = True
+                    self.result.setdefault("start_rc", 0)
+                except Exception as e:
+                    self.result["start_attempted"] = True
+                    self.result["start_rc"] = 1
+                    self.result["start_stderr"] = repr(e)
             time.sleep(2)
+        container = self.check_container()
+        state = container.attrs.get("State", {}) if container else {}
+        if state.get("Status") == "created" and not self.params.get("defer_start"):
+            try:
+                container.start()
+                self.result["start_attempted"] = True
+                self.result.setdefault("start_rc", 0)
+                return self._wait_for_container()
+            except Exception as e:
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 1
+                self.result["start_stderr"] = repr(e)
         self._fail_diagnostics("Container timed out")
 
     def _fail_diagnostics(self, msg):
         container = self.check_container()
         state = container.attrs.get("State") if container else {}
         try:
-            logs = [line.decode() for line in container.logs(tail=20)] if container else []
+            logs = [line.decode() for line in container.logs(tail=200)] if container else []
         except Exception:
             logs = []
         action = self.module.params.get("action")
@@ -632,6 +654,10 @@ class PodmanWorker(ContainerWorker):
             start=self.params.get("start", True),
             defer_start=self.params.get("defer_start"),
             wait=self.params.get("wait"),
+            start_attempted=self.result.get("start_attempted", False),
+            start_rc=self.result.get("start_rc"),
+            start_stdout=self.result.get("start_stdout", ""),
+            start_stderr=self.result.get("start_stderr", ""),
             state=state,
             logs="\n".join(logs),
         )
