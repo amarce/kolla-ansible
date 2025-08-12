@@ -34,6 +34,21 @@ health indicator exists a 30 second delay is applied before continuing.
 This ensures dependencies such as databases and messaging back ends are
 available before the corresponding API services are launched.
 
+Handler auto-start
+------------------
+
+Containers recreated from Ansible handlers now start immediately unless
+``defer_start: true`` is specified. When ``wait: true`` is also passed the
+handler waits for the container to reach the running and healthy state
+before continuing.
+
+Troubleshooting
+---------------
+
+If a handler times out and the container remains in ``created`` state,
+the failure message includes ``podman inspect`` state information and the
+last log lines to aid debugging.
+
 One-shot cleanup containers
 ---------------------------
 

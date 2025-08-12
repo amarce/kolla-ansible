@@ -82,6 +82,8 @@
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
+    start: true
+    wait: true
 
 - name: Restart nova-libvirt container
   vars:
