@@ -431,7 +431,12 @@ def main():
         # types. If we ever add method that will have to return some
         # meaningful data, we need to refactor all methods to return dicts.
         action = module.params.get('action')
-        result = bool(getattr(cw, action)())
+        if action == 'create_container':
+            result = bool(cw.create_container())
+            if cw.changed:
+                cw.start_container()
+        else:
+            result = bool(getattr(cw, action)())
         diff = cw.result.get('diff')
         if action == 'compare_container':
             changed = cw.changed
