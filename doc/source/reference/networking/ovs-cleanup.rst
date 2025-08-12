@@ -27,6 +27,8 @@ The container forms part of the compute service start sequence. The
 Podman is used these dependencies reference
 ``container-neutron_ovs_cleanup.service`` and
 ``container-neutron_openvswitch_agent.service`` units.
+Once the marker file is present the role skips restarting the cleanup
+container and does not wait for it to start.
 
 Manual execution
 ----------------
