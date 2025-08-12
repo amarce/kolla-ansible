@@ -6,7 +6,6 @@
   failed_when: podman_stop.rc not in [0, 125]
   when:
     - kolla_container_engine == 'podman'
-    - svc in kolla_changed_containers | default([])
 
 - name: Restart {{ svc }} service
   become: true
@@ -28,7 +27,9 @@
       ignore_errors: true
     - name: Fail restarting {{ svc }}
       fail:
-        msg: "Failed to restart {{ svc }} service"
-        data:
-          status: "{{ restart_status.stdout }}"
-          journal: "{{ restart_journal.stdout }}"
+        msg: |
+          Failed to restart {{ svc }} service
+          Status:
+          {{ restart_status.stdout | default('') }}
+          Journal:
+          {{ restart_journal.stdout | default('') }}

@@ -32,6 +32,9 @@
   register: start_order_override_result
   notify: Reload systemd
 
+- name: Reload systemd after applying overrides
+  meta: flush_handlers
+
 - name: Build restart list for changed overrides
   set_fact:
     start_order_restart_services: "{{ start_order_override_result.results | selectattr('changed') | map(attribute='item.1') | list }}"
