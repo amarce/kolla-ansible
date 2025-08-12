@@ -37,18 +37,22 @@ available before the corresponding API services are launched.
 Handler auto-start
 ------------------
 
-Containers recreated from Ansible handlers now start immediately unless
-``defer_start: true`` is specified. When ``wait: true`` is also passed the
-handler first ensures the container is started and then waits for it to
-reach the running and healthy state before continuing.
+Containers recreated from Ansible handlers now start immediately by
+invoking ``podman start`` directly unless ``defer_start: true`` is
+specified. These direct starts avoid any reliance on systemd inside the
+container. When ``wait: true`` is also passed the handler first ensures
+the container is started and then waits for it to reach the running and
+healthy state before continuing. Containers started in this way are still
+recorded for the final ordered restart phase, which uses systemd when
+available to sequence service dependencies.
 
 Troubleshooting
 ---------------
 
-If a handler times out and the container remains in ``created`` state,
-the failure message reports whether a start was attempted, includes
-``podman inspect`` state information and shows the last log lines to
-aid debugging.
+The final restart sequence relies on systemd unit files when they are
+present. If systemd is unavailable or fails to start a unit, Kolla
+Ansible retries using ``podman start`` and reports the original systemd
+failure along with container logs to aid debugging.
 
 One-shot cleanup containers
 ---------------------------
