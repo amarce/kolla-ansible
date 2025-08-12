@@ -1,0 +1,34 @@
+- name: Stop Podman-started {{ svc }} container
+  become: true
+  command: "podman stop {{ svc }}"
+  register: podman_stop
+  changed_when: podman_stop.rc == 0
+  failed_when: podman_stop.rc not in [0, 125]
+  when:
+    - kolla_container_engine == 'podman'
+    - svc in kolla_changed_containers | default([])
+
+- name: Restart {{ svc }} service
+  become: true
+  block:
+    - name: Restart {{ svc }} via systemd
+      systemd:
+        name: "{{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service"
+        state: "{{ 'started' if svc in (kolla_changed_containers | default([])) else 'restarted' }}"
+        daemon_reload: yes
+      register: restart_result
+  rescue:
+    - name: Show {{ svc }} service status
+      command: "systemctl status {{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service"
+      register: restart_status
+      ignore_errors: true
+    - name: Show {{ svc }} service journal
+      command: "journalctl -u {{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service -n 100"
+      register: restart_journal
+      ignore_errors: true
+    - name: Fail restarting {{ svc }}
+      fail:
+        msg: "Failed to restart {{ svc }} service"
+        data:
+          status: "{{ restart_status.stdout }}"
+          journal: "{{ restart_journal.stdout }}"

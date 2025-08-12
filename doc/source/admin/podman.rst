@@ -43,13 +43,14 @@ specified. These direct starts avoid any reliance on systemd inside the
 container. When ``wait: true`` is also passed the handler first ensures
 the container is started and then waits for it to reach the running and
 healthy state before continuing. Containers started in this way are still
-recorded for the final ordered restart phase, which uses systemd when
-available to sequence service dependencies.
-During the restart phase the ``service-start-order`` role stops these
-Podman-started containers once and then starts them under systemd using
-``systemctl start container-<name>.service``. This transfers control to
-systemd so that start-order dependencies are honoured. Containers that
-were already managed by systemd are left running and are not restarted.
+recorded in ``kolla_changed_containers`` for the final ordered restart
+phase, which uses systemd when available to sequence service
+dependencies. During the restart phase the ``service-start-order`` role
+consults this registry, stops any Podman-started containers once and then
+starts them under systemd using ``systemctl start
+container-<name>.service``. This transfers control to systemd so that
+start-order dependencies are honoured. Containers that were already
+managed by systemd are left running and are not restarted.
 
 Troubleshooting
 ---------------
