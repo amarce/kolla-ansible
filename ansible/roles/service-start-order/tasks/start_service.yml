@@ -11,6 +11,19 @@
     path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
   register: service_unit
 
+- name: Gather {{ item }} container facts
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name: "{{ item }}"
+  register: svc_facts
+
+- name: Evaluate {{ item }} container state
+  set_fact:
+    svc_running: "{{ (item in svc_facts.containers and svc_facts.containers[item]['State']['Status'] == 'running') | bool }}"
+    svc_healthy: "{{ (item in svc_facts.containers and (svc_facts.containers[item]['State']['Health']['Status'] | default('healthy')) == 'healthy') | bool }}"
+
 - name: Stop Podman-started {{ item }} container
   become: true
   command: "podman stop {{ item }}"
@@ -20,6 +33,7 @@
   when:
     - kolla_container_engine == 'podman'
     - service_unit.stat.exists
+    - not (svc_running and svc_healthy)
 
 - name: Start {{ item }} service
   become: true
@@ -33,6 +47,7 @@
       when:
         - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
         - service_unit.stat.exists
+        - not (svc_running and svc_healthy)
   rescue:
     - name: Show {{ item }} service status
       command: "systemctl status {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
@@ -51,6 +66,22 @@
           Journal:
           {{ start_journal.stdout | default('') }}
 
+- name: Wait for {{ item }} to be running and healthy
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name: "{{ item }}"
+  register: svc_health
+  retries: "{{ kolla_service_healthcheck_retries }}"
+  delay: "{{ kolla_service_healthcheck_delay }}"
+  until:
+    - svc_health.containers.get(item, {}).get('State', {}).get('Status') == 'running'
+    - (svc_health.containers.get(item, {}).get('State', {}).get('Health', {}).get('Status', 'healthy')) == 'healthy'
+  when:
+    - service_unit.stat.exists
+    - not (svc_running and svc_healthy)
+
 - name: Wait for neutron_ovs_cleanup to finish
   become: true
   kolla_container_facts:
@@ -65,3 +96,4 @@
     - item == 'neutron_ovs_cleanup'
     - service_unit.stat.exists
     - not ovs_cleanup_marker.stat.exists | default(false)
+    - not (svc_running and svc_healthy)

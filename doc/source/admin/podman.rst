@@ -35,7 +35,13 @@ The role reloads systemd after writing any drop-in files so that new
 dependencies are applied immediately. It also stops containers that were
 previously launched directly via Podman and restarts them under systemd.
 This ensures dependencies such as databases and messaging back ends are
-available before the corresponding API services are launched.
+available before the corresponding API services are launched. Each
+restart waits for the container to reach the ``running`` and ``healthy``
+states before the next service begins. Containers already in a healthy
+state are left running. If a service fails to become healthy within the
+configured timeout the playbook fails rather than waiting indefinitely.
+The timeout is governed by ``kolla_service_healthcheck_retries`` and
+``kolla_service_healthcheck_delay``.
 
 Handler auto-start
 ------------------
