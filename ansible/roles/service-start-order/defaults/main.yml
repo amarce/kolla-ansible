@@ -36,3 +36,13 @@ kolla_service_healthcheck_delay: 2
 #####################
 # Marker file used to ensure neutron_ovs_cleanup runs only once per boot
 neutron_ovs_cleanup_marker_file: "/tmp/kolla/neutron_ovs_cleanup/done"
+
+#####################
+# One-shot services
+#####################
+# Mapping of services which execute only once per host boot and should not be
+# restarted or waited on after completion. Each entry may define a marker file
+# indicating that the service has already run.
+kolla_service_one_shot:
+  neutron_ovs_cleanup:
+    marker: "{{ neutron_ovs_cleanup_marker_file }}"

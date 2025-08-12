@@ -374,8 +374,9 @@ The ``neutron_openvswitch_agent`` service waits for
 ``neutron_ovs_cleanup`` to complete before starting. The cleanup
 container executes only once per host boot; when the marker file
 ``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
-``service-start-order`` role skips starting the container. The marker path
-may be customised via the variable ``neutron_ovs_cleanup_marker_file``.
+``service-start-order`` role skips starting the container and does not
+wait for it to reach a running state. The marker path may be customised
+via the variable ``neutron_ovs_cleanup_marker_file``.
 
 Troubleshooting start ordering and health checks can be done with:
 

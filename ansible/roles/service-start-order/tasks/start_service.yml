@@ -1,9 +1,9 @@
-- name: Check neutron_ovs_cleanup marker
+- name: Check {{ item }} marker
   become: true
   stat:
-    path: "{{ neutron_ovs_cleanup_marker_file }}"
-  register: ovs_cleanup_marker
-  when: item == 'neutron_ovs_cleanup'
+    path: "{{ kolla_service_one_shot[item].marker }}"
+  register: one_shot_marker
+  when: item in kolla_service_one_shot
 
 - name: Check if {{ item }} unit file exists
   become: true
@@ -34,6 +34,7 @@
     - kolla_container_engine == 'podman'
     - service_unit.stat.exists
     - not (svc_running and svc_healthy)
+    - item not in kolla_service_one_shot or not one_shot_marker.stat.exists | default(false)
 
 - name: Start {{ item }} service
   become: true
@@ -45,7 +46,7 @@
         enabled: true
       register: start_result
       when:
-        - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
+        - item not in kolla_service_one_shot or not one_shot_marker.stat.exists | default(false)
         - service_unit.stat.exists
         - not (svc_running and svc_healthy)
   rescue:
@@ -81,19 +82,20 @@
   when:
     - service_unit.stat.exists
     - not (svc_running and svc_healthy)
+    - item not in kolla_service_one_shot
 
-- name: Wait for neutron_ovs_cleanup to finish
+- name: Wait for {{ item }} to finish
   become: true
   kolla_container_facts:
     action: get_containers_state
     container_engine: "{{ kolla_container_engine }}"
-    name: neutron_ovs_cleanup
-  register: cleanup_state
+    name: "{{ item }}"
+  register: one_shot_state
   retries: 12
   delay: 5
-  until: cleanup_state.states.neutron_ovs_cleanup != 'running'
+  until: one_shot_state.states[item] != 'running'
   when:
-    - item == 'neutron_ovs_cleanup'
+    - item in kolla_service_one_shot
     - service_unit.stat.exists
-    - not ovs_cleanup_marker.stat.exists | default(false)
+    - not one_shot_marker.stat.exists | default(false)
     - not (svc_running and svc_healthy)
