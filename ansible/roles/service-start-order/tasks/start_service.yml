@@ -11,15 +11,44 @@
     path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
   register: service_unit
 
+- name: Stop Podman-started {{ item }} container
+  become: true
+  command: "podman stop {{ item }}"
+  register: podman_stop
+  changed_when: podman_stop.rc == 0
+  failed_when: podman_stop.rc not in [0, 125]
+  when:
+    - kolla_container_engine == 'podman'
+    - item in kolla_changed_containers
+    - service_unit.stat.exists
+
 - name: Start {{ item }} service
   become: true
-  systemd:
-    name: "{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
-    state: started
-    enabled: true
-  when:
-    - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
-    - service_unit.stat.exists
+  block:
+    - name: Start {{ item }} via systemd
+      systemd:
+        name: "{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+        state: started
+        enabled: true
+      register: start_result
+      when:
+        - item != 'neutron_ovs_cleanup' or not ovs_cleanup_marker.stat.exists | default(false)
+        - service_unit.stat.exists
+  rescue:
+    - name: Show {{ item }} service status
+      command: "systemctl status {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+      register: start_status
+      ignore_errors: true
+    - name: Show {{ item }} service journal
+      command: "journalctl -u {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service -n 100"
+      register: start_journal
+      ignore_errors: true
+    - name: Fail starting {{ item }}
+      fail:
+        msg: "Failed to start {{ item }} service"
+        data:
+          status: "{{ start_status.stdout }}"
+          journal: "{{ start_journal.stdout }}"
 
 - name: Wait for neutron_ovs_cleanup to finish
   become: true
