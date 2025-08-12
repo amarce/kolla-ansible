@@ -1,0 +1,13 @@
+---
+features:
+  - |
+    Service start ordering now waits for dependency health checks and sets
+    ``TimeoutStartSec`` via ``kolla_service_start_timeout``. A fallback delay
+    ``kolla_service_no_healthcheck_wait`` controls waits for dependencies
+    without health checks.
+upgrade:
+  - |
+    Services managed by ``service-start-order`` now default to
+    ``TimeoutStartSec=0`` to avoid premature start failure while waiting for
+    dependencies to become healthy. Operators may adjust this with
+    ``kolla_service_start_timeout``.

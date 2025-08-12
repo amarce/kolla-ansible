@@ -16,6 +16,7 @@
         that:
           - "'After=container-c1.service' in content"
           - "'Requires=container-c1.service' in content"
+          - "'TimeoutStartSec=0' in content"
           - "'ExecStartPre=/bin/sh -c' in content"
           - "'systemctl is-active --quiet container-c1.service' in content"
           - "'podman healthcheck run c1' in content"
