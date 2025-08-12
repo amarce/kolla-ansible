@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Generate ``openvswitch_agent.ini`` only when the
+    ``neutron-openvswitch-agent`` is enabled. Previously the task checked
+    the metadata agent instead, which could skip creation of the
+    configuration file and break the ``neutron-ovs-cleanup`` container
+    deployment.
+
