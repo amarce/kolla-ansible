@@ -73,6 +73,9 @@ which Kolla uses throughout and which should be followed.
 * Syntax
 
   - All YAML data files should start with three dashes (``---``).
+  - Loops cannot be applied directly to ``block`` sections. Use ``include_tasks``
+    or restructure tasks when exception handling is required. See the Ansible
+    documentation on `looping over blocks <https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_loops.html#looping-over-blocks>`_.
 
 Other than the above, most service roles abide by the following pattern:
 
