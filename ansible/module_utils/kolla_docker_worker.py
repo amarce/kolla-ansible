@@ -379,28 +379,31 @@ class DockerWorker(ContainerWorker):
             self.remove_container()
             container = self.check_container()
 
-        start_requested = self.params.get("start", True)
         wait = self.params.get("wait")
+        start_requested = self.params.get("start", True) or wait
         if self.params.get("defer_start") and not wait:
             start_requested = False
 
         if not container:
             self.create_container()
             container = self.check_container()
-            if not start_requested and not wait:
-                return
 
-        if not start_requested and not wait:
-            return
-
-        if not container["Status"].startswith("Up "):
+        if start_requested and not container["Status"].startswith("Up "):
             self.changed = True
-            if self.params.get("restart_policy") == "oneshot":
-                self.dc.start(container=self.params.get("name"))
-            else:
-                self.systemd.create_unit_file()
-                if not self.systemd.start():
-                    self._fail_diagnostics("Container timed out")
+            try:
+                if self.params.get("restart_policy") == "oneshot":
+                    self.dc.start(container=self.params.get("name"))
+                else:
+                    self.systemd.create_unit_file()
+                    if not self.systemd.start():
+                        raise Exception("systemd start failed")
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 0
+            except Exception as e:
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 1
+                self.result["start_stderr"] = repr(e)
+                self._fail_diagnostics("Container timed out")
 
         if wait:
             self._wait_for_container()
@@ -444,16 +447,35 @@ class DockerWorker(ContainerWorker):
             health = state.get("Health", {})
             if status == "running" and health.get("Status", "healthy") == "healthy":
                 return
-            if status == "created":
-                self.dc.start(name)
+            if status == "created" and not self.params.get("defer_start"):
+                try:
+                    self.dc.start(name)
+                    self.result["start_attempted"] = True
+                    self.result.setdefault("start_rc", 0)
+                except Exception as e:
+                    self.result["start_attempted"] = True
+                    self.result["start_rc"] = 1
+                    self.result["start_stderr"] = repr(e)
             time.sleep(2)
+        info = self.get_container_info()
+        state = info.get("State", {}) if info else {}
+        if state.get("Status") == "created" and not self.params.get("defer_start"):
+            try:
+                self.dc.start(name)
+                self.result["start_attempted"] = True
+                self.result.setdefault("start_rc", 0)
+                return self._wait_for_container()
+            except Exception as e:
+                self.result["start_attempted"] = True
+                self.result["start_rc"] = 1
+                self.result["start_stderr"] = repr(e)
         self._fail_diagnostics("Container timed out")
 
     def _fail_diagnostics(self, msg):
         info = self.get_container_info()
         state = info.get("State") if info else {}
         try:
-            logs = self.dc.logs(self.params.get("name"), tail=20).decode()
+            logs = self.dc.logs(self.params.get("name"), tail=200).decode()
         except Exception:
             logs = ""
         action = self.module.params.get("action")
@@ -469,6 +491,10 @@ class DockerWorker(ContainerWorker):
             start=self.params.get("start", True),
             defer_start=self.params.get("defer_start"),
             wait=self.params.get("wait"),
+            start_attempted=self.result.get("start_attempted", False),
+            start_rc=self.result.get("start_rc"),
+            start_stdout=self.result.get("start_stdout", ""),
+            start_stderr=self.result.get("start_stderr", ""),
             state=state,
             logs=logs,
         )

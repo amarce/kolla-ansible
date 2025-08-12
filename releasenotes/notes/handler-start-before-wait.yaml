@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Ensure containers recreated by handlers are started before waiting
+    and attempt a final start if a container remains in ``created``
+    state. Failure diagnostics now report whether a start was attempted
+    and its result.

@@ -39,15 +39,16 @@ Handler auto-start
 
 Containers recreated from Ansible handlers now start immediately unless
 ``defer_start: true`` is specified. When ``wait: true`` is also passed the
-handler waits for the container to reach the running and healthy state
-before continuing.
+handler first ensures the container is started and then waits for it to
+reach the running and healthy state before continuing.
 
 Troubleshooting
 ---------------
 
 If a handler times out and the container remains in ``created`` state,
-the failure message includes ``podman inspect`` state information and the
-last log lines to aid debugging.
+the failure message reports whether a start was attempted, includes
+``podman inspect`` state information and shows the last log lines to
+aid debugging.
 
 One-shot cleanup containers
 ---------------------------
