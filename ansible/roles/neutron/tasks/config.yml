@@ -284,8 +284,8 @@
     dest: "{{ node_config_directory }}/{{ service_name }}/openvswitch_agent.ini"
     mode: "0660"
   when:
-    - neutron_services['neutron-metadata-agent']['enabled'] | bool
-    - inventory_hostname in groups['neutron-metadata-agent']
+    - neutron_services['neutron-openvswitch-agent']['enabled'] | bool
+    - inventory_hostname in groups['neutron-openvswitch-agent']
 
 
 - name: Ensure sriov agent config dir exists
