@@ -344,16 +344,42 @@ Compute node services are started in the order defined by the variable
 
 Services start sequentially when a compute host boots or during
 ``kolla-ansible deploy`` and ``reconfigure`` runs. Each service waits for
-the previous unit to report ``active`` and, where a container health check
-exists, for that check to pass before the next service is started. If a
-positive status cannot be determined a fixed delay of 30 seconds is
-applied before continuing. The ``neutron_openvswitch_agent`` service waits
-for ``neutron_ovs_cleanup`` to complete before starting.
-The cleanup container executes only once per host boot; when the marker
-file ``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
-``service-start-order`` role skips starting the container.
-The marker path may be customised via the variable
-``neutron_ovs_cleanup_marker_file``.
+the previous unit to report ``active`` and, when the container defines a
+``HEALTHCHECK``, for that check to report ``healthy`` before the next
+service is started. If a dependency has no ``HEALTHCHECK`` a fixed delay is
+applied before continuing. The delays are controlled by the variables
+``kolla_service_start_timeout`` (systemd ``TimeoutStartSec`` applied while
+waiting for dependency health; ``0`` disables the timeout) and
+``kolla_service_no_healthcheck_wait`` (seconds to pause when no health
+check exists).
+
+.. code-block:: yaml
+
+   kolla_service_start_timeout: 0
+   kolla_service_no_healthcheck_wait: 30
+
+For example ``nova_compute`` waits for ``nova_ssh`` to become healthy,
+``neutron_openvswitch_agent`` pauses for
+``neutron_ovs_cleanup`` which lacks a health check, and ``openvswitch_db``
+follows ``kolla_toolbox`` with the same delay. These defaults may be
+overridden in ``/etc/kolla/globals.yml``.
+
+The ``neutron_openvswitch_agent`` service waits for
+``neutron_ovs_cleanup`` to complete before starting. The cleanup
+container executes only once per host boot; when the marker file
+``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
+``service-start-order`` role skips starting the container. The marker path
+may be customised via the variable ``neutron_ovs_cleanup_marker_file``.
+
+Troubleshooting start ordering and health checks can be done with:
+
+.. code-block:: console
+
+   systemctl cat container-nova_compute.service
+   systemctl show container-nova_compute.service -p TimeoutStartUSec
+   podman inspect nova_ssh --format '{{.Config.Healthcheck}}'
+
+Service logs remain available through ``journalctl`` as normal.
 
 Migrate container engine
 ~~~~~~~~~~~~~~~~~~~~~~~~

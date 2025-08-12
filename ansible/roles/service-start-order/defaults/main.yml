@@ -15,6 +15,15 @@ kolla_service_start_priority:
   - collectd
 
 #####################
+# Service start wait behaviour
+#####################
+# Timeout applied to systemd services while waiting for dependency health.
+# Set to 0 to disable the timeout.
+kolla_service_start_timeout: 0
+# Delay applied when a dependency has no container healthcheck.
+kolla_service_no_healthcheck_wait: 30
+
+#####################
 # OVS cleanup
 #####################
 # Marker file used to ensure neutron_ovs_cleanup runs only once per boot

@@ -29,7 +29,17 @@
     dest: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item.1 }}{{ kolla_service_unit_suffix }}.service.d/start-order.conf"
     mode: "0644"
   loop: "{{ start_order_pairs }}"
+  register: start_order_override_result
   notify: Reload systemd
+
+- name: Restart services if start order changed
+  become: true
+  systemd:
+    name: "{{ kolla_service_unit_prefix }}{{ item.item.1 }}{{ kolla_service_unit_suffix }}.service"
+    state: restarted
+    daemon_reload: yes
+  loop: "{{ start_order_override_result.results | selectattr('changed') | list }}"
+  when: start_order_override_result is defined
 
 - name: Start compute services in order
   include_tasks: start_service.yml
