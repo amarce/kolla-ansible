@@ -24,4 +24,8 @@ ExecStartPre=/bin/sh -c '\
   else \
     sleep {{ kolla_service_no_healthcheck_wait }}; \
   fi; \
+  delay=${KOLLA_POST_HEALTHY_DELAY:-{{ kolla_post_healthy_delay }}}; \
+  if [ ! -f {{ kolla_post_healthy_delay_marker_file }} ] && [ "$delay" -gt 0 ]; then \
+    sleep $delay; \
+  fi; \
   exit 0'

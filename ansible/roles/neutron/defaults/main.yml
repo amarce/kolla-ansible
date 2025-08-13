@@ -34,6 +34,11 @@ neutron_services:
     privileged: True
     environment:
       KOLLA_LEGACY_IPTABLES: "{{ neutron_legacy_iptables | bool | lower }}"
+    podman_systemd_dependencies:
+      - "After=container-openvswitch_vswitchd.service"
+      - "Requires=container-openvswitch_vswitchd.service"
+      - "After=container-neutron_ovs_cleanup.service"
+      - "Requires=container-neutron_ovs_cleanup.service"
     host_in_groups: >-
       {{
       (inventory_hostname in groups['compute']
@@ -992,4 +997,4 @@ neutron_copy_certs: "{{ kolla_copy_ca_into_containers | bool or neutron_enable_t
 #####################
 # OVS cleanup
 #####################
-neutron_ovs_cleanup_marker_file: "/tmp/kolla/neutron_ovs_cleanup/done"
+neutron_ovs_cleanup_marker_file: "/run/kolla/neutron_ovs_cleanup/done"

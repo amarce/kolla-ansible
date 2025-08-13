@@ -1,4 +1,18 @@
 ---
+- name: Ensure post-healthy delay marker directory exists
+  become: true
+  file:
+    path: "{{ kolla_post_healthy_delay_marker_file | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Ensure post-healthy delay marker exists
+  become: true
+  file:
+    path: "{{ kolla_post_healthy_delay_marker_file }}"
+    state: touch
+    mode: "0644"
+
 - name: Detect services with systemd units
   become: true
   stat:

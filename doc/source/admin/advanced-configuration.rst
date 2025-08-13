@@ -378,6 +378,7 @@ to them as well.
    kolla_service_no_healthcheck_wait: 30
    kolla_service_healthcheck_retries: 60
    kolla_service_healthcheck_delay: 2
+   kolla_post_healthy_delay: 30
 
 For example ``nova_compute`` waits for ``nova_ssh`` to become healthy,
 ``neutron_openvswitch_agent`` pauses for
@@ -388,10 +389,13 @@ overridden in ``/etc/kolla/globals.yml``.
 The ``neutron_openvswitch_agent`` service waits for
 ``neutron_ovs_cleanup`` to complete before starting. The cleanup
 container executes only once per host boot; when the marker file
-``/tmp/kolla/neutron_ovs_cleanup/done`` is present, the
+``/run/kolla/neutron_ovs_cleanup/done`` is present, the
 ``service-start-order`` role skips starting the container and does not
 wait for it to reach a running state. The marker path may be customised
-via the variable ``neutron_ovs_cleanup_marker_file``.
+via the variable ``neutron_ovs_cleanup_marker_file``. After a dependency
+reports healthy during host boot, services pause for
+``kolla_post_healthy_delay`` seconds (default 30) before starting the next
+unit. This delay does not apply during initial deployment runs.
 
 Troubleshooting start ordering and health checks can be done with:
 

@@ -12,6 +12,10 @@
 
 - import_tasks: ovs-cleanup.yml
 
+- import_tasks: podman-systemd.yml
+  when:
+    - kolla_container_engine == 'podman'
+
 - import_tasks: check-containers.yml
 
 - include_tasks: config-neutron-fake.yml

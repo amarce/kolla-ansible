@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Adds a configurable ``KOLLA_POST_HEALTHY_DELAY`` (default 30 seconds)
+    applied only during host boot after dependencies become healthy.
+    This ensures systemd honours container start ordering. The
+    ``neutron_ovs_cleanup`` service now uses a marker in
+    ``/run/kolla/neutron_ovs_cleanup/done`` so it runs exactly once per
+    reboot before ``neutron_openvswitch_agent`` starts.

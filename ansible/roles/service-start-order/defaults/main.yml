@@ -30,12 +30,16 @@ kolla_service_no_healthcheck_wait: 30
 # Attempts and delay for verifying container health after restart/start
 kolla_service_healthcheck_retries: 60
 kolla_service_healthcheck_delay: 2
+# Additional delay after dependency is healthy during host boot
+kolla_post_healthy_delay: 30
+# Marker file whose presence disables the post-healthy delay
+kolla_post_healthy_delay_marker_file: "/run/kolla/ansible-start-order"
 
 #####################
 # OVS cleanup
 #####################
 # Marker file used to ensure neutron_ovs_cleanup runs only once per boot
-neutron_ovs_cleanup_marker_file: "/tmp/kolla/neutron_ovs_cleanup/done"
+neutron_ovs_cleanup_marker_file: "/run/kolla/neutron_ovs_cleanup/done"
 
 #####################
 # One-shot services
