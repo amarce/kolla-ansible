@@ -53,4 +53,4 @@
       assert:
         that:
           - c1_after.stdout != start_before.c1
-          - c2_after.stdout == start_before.c2
+          - c2_after.stdout != start_before.c2

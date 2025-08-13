@@ -59,7 +59,8 @@ consults this registry, stops any Podman-started containers once and then
 starts them under systemd using ``systemctl start
 container-<name>.service``. This transfers control to systemd so that
 start-order dependencies are honoured. Containers that were already
-managed by systemd are left running and are not restarted.
+managed by systemd are restarted only when listed in
+``kolla_changed_containers``; unchanged services are left running.
 
 Troubleshooting
 ---------------
