@@ -31,4 +31,7 @@ class ActionModule(ActionBase):
             if svc not in current:
                 current.append(svc)
             result.setdefault('ansible_facts', {})['kolla_changed_containers'] = current
+            # Mark fact cacheable so it persists across plays until
+            # service-start-order consumes it
+            result['ansible_facts_cacheable'] = True
         return result
