@@ -42,17 +42,16 @@
 
 - name: Add changed containers to restart list
   set_fact:
-    start_order_restart_services: >-
-      {{
-        (
-          start_order_restart_services | default([]) +
-          (
-            kolla_service_start_priority |
-            select('in', (kolla_changed_containers | default([]) | map('regex_replace', '-', '_') | list)) |
-            list
-          )
-        ) | unique
-      }}
+    changed_restart_services: "{{ kolla_service_start_priority |
+      select('in', (kolla_changed_containers | default([]) |
+      map('regex_replace', '-', '_') | list)) | list }}"
+    start_order_restart_services: "{{ (start_order_restart_services |
+      default([]) + changed_restart_services) | unique }}"
+
+- name: Show restart candidates
+  debug:
+    msg: "Services queued for restart: {{ start_order_restart_services }}"
+  when: (start_order_restart_services | default([])) | length > 0
 
 - name: Restart services if start order changed
   vars:

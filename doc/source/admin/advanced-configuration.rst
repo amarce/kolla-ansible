@@ -355,10 +355,15 @@ check exists). During deploy and reconfigure the role also verifies that
 each service reaches the ``running`` and ``healthy`` states before moving
 on to the next. Containers that are already healthy are left running unless
 they were recorded in ``kolla_changed_containers`` during the playbook run.
-Services listed there, such as those newly created or recreated, are
+An action plugin for ``kolla_container`` automatically appends any
+changed container's name, with hyphens converted to underscores, to this
+fact. Services listed there, such as those newly created or recreated, are
 restarted to apply updated images or configuration. The polling behaviour
 is controlled by ``kolla_service_healthcheck_retries`` and
 ``kolla_service_healthcheck_delay``.
+Operators starting or modifying containers without ``kolla_container``
+must append the normalised service name to ``kolla_changed_containers``
+manually so that the restart ordering applies to them as well.
 
 .. code-block:: yaml
 

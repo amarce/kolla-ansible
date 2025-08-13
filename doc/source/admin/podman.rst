@@ -51,16 +51,20 @@ invoking ``podman start`` directly unless ``defer_start: true`` is
 specified. These direct starts avoid any reliance on systemd inside the
 container. When ``wait: true`` is also passed the handler first ensures
 the container is started and then waits for it to reach the running and
-healthy state before continuing. Containers started in this way are still
-recorded in ``kolla_changed_containers`` for the final ordered restart
-phase, which uses systemd when available to sequence service
-dependencies. During the restart phase the ``service-start-order`` role
-consults this registry, stops any Podman-started containers once and then
-starts them under systemd using ``systemctl start
-container-<name>.service``. This transfers control to systemd so that
-start-order dependencies are honoured. Containers that were already
-managed by systemd are restarted only when listed in
+healthy state before continuing. A dedicated action plugin for
+``kolla_container`` tracks any container whose definition changes and
+records the container's name, normalised with underscores, in the
+``kolla_changed_containers`` fact. The final ordered restart phase uses
+systemd when available to sequence service dependencies. During this
+phase the ``service-start-order`` role consults the registry, stops any
+Podman-started containers once and then starts them under systemd using
+``systemctl start container-<name>.service``. This transfers control to
+systemd so that start-order dependencies are honoured. Containers that
+were already managed by systemd are restarted only when listed in
 ``kolla_changed_containers``; unchanged services are left running.
+If a container is started or modified without using the
+``kolla_container`` module, its normalised name must be added manually to
+``kolla_changed_containers`` so that it is restarted during this phase.
 
 Troubleshooting
 ---------------
