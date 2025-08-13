@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Fixed a regression where the ``neutron-ovs-cleanup`` marker directory
+    shared the same path as the cleanup script, causing the container to
+    exit with ``Is a directory``.  The marker file now defaults to
+    ``/tmp/kolla/neutron_ovs_cleanup_marker/done``, restoring execution of
+    the cleanup script.
