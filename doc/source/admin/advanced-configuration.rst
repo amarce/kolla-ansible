@@ -358,9 +358,11 @@ they were recorded in ``kolla_changed_containers`` during the playbook run.
 An action plugin for ``kolla_container`` automatically appends any
 changed container's name, with hyphens converted to underscores, to this
 fact. Services listed there, such as those newly created or recreated, are
-restarted to apply updated images or configuration. The polling behaviour
-is controlled by ``kolla_service_healthcheck_retries`` and
-``kolla_service_healthcheck_delay``.
+restarted to apply updated images or configuration. The service-start-order
+role merges these names with any services whose start-order overrides have
+changed to build the restart list, so entries must use underscores to match
+service identifiers. The polling behaviour is controlled by
+``kolla_service_healthcheck_retries`` and ``kolla_service_healthcheck_delay``.
 Operators starting or modifying containers without ``kolla_container``
 must append the normalised service name to ``kolla_changed_containers``
 manually so that the restart ordering applies to them as well.
