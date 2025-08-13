@@ -61,7 +61,10 @@ Podman-started containers once and then starts them under systemd using
 ``systemctl start container-<name>.service``. This transfers control to
 systemd so that start-order dependencies are honoured. Containers that
 were already managed by systemd are restarted only when listed in
-``kolla_changed_containers``; unchanged services are left running.
+``kolla_changed_containers``; unchanged services are left running. The
+role also merges this fact with any services whose start-order overrides
+changed to determine the final restart list, so entries must be
+underscore-normalised to match service names.
 If a container is started or modified without using the
 ``kolla_container`` module, its normalised name must be added manually to
 ``kolla_changed_containers`` so that it is restarted during this phase.

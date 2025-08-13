@@ -21,7 +21,7 @@
     - name: Restart {{ svc }} via systemd
       systemd:
         name: "{{ kolla_service_unit_prefix }}{{ svc }}{{ kolla_service_unit_suffix }}.service"
-        state: "{{ 'started' if svc in (kolla_changed_containers | default([]) | map('regex_replace', '-', '_') | list) else 'restarted' }}"
+        state: "{{ 'started' if svc in (kolla_changed_containers | default([])) else 'restarted' }}"
         daemon_reload: yes
       register: restart_result
   rescue:

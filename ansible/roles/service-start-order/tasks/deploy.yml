@@ -43,8 +43,10 @@
 - name: Add changed containers to restart list
   set_fact:
     changed_restart_services: "{{ kolla_service_start_priority |
-      select('in', (kolla_changed_containers | default([]) |
-      map('regex_replace', '-', '_') | list)) | list }}"
+      select('in', (kolla_changed_containers | default([]))) | list }}"
+
+- name: Merge restart candidates
+  set_fact:
     start_order_restart_services: "{{ (start_order_restart_services |
       default([]) + changed_restart_services) | unique }}"
 
