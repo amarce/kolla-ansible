@@ -1,3 +1,4 @@
 ---
 destroy_include_images: "{{ enable_destroy_images }}"
 destroy_include_dev: "no"
+destroy_containers_running_vms_fatal: true

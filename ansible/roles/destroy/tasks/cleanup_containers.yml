@@ -1,3 +1,5 @@
 ---
 - name: Destroying all Kolla containers and volumes
-  script: ../tools/cleanup-containers "{{ kolla_container_engine }}"
+  script: >
+    ../tools/cleanup-containers "{{ kolla_container_engine }}"
+    {{ '--force' if not destroy_containers_running_vms_fatal | bool else '' }}
