@@ -46,17 +46,16 @@ The timeout is governed by ``kolla_service_healthcheck_retries`` and
 Handler auto-start
 ------------------
 
-Containers recreated from Ansible handlers now start immediately by
-invoking ``podman start`` directly unless ``defer_start: true`` is
-specified. These direct starts avoid any reliance on systemd inside the
-container. When ``wait: true`` is also passed the handler first ensures
-the container is started and then waits for it to reach the running and
-healthy state before continuing. A dedicated action plugin for
-``kolla_container`` tracks any container whose definition changes and
-records the container's name, normalised with underscores, in the
-``kolla_changed_containers`` fact. The final ordered restart phase uses
-systemd when available to sequence service dependencies. During this
-phase the ``service-start-order`` role consults the registry, stops any
+Containers recreated from Ansible handlers now start immediately using
+the ``kolla_container`` action plugin unless ``defer_start: true`` is
+specified. This avoids any reliance on systemd inside the container and
+ensures that the ``kolla_container`` action plugin records the
+normalised container name in the ``kolla_changed_containers`` fact. When
+``wait: true`` is also passed the handler first ensures the container is
+started and then waits for it to reach the running and healthy state
+before continuing. The final ordered restart phase uses systemd when
+available to sequence service dependencies. During this phase the
+``service-start-order`` role consults the registry, stops any
 Podman-started containers once and then starts them under systemd using
 ``systemctl start container-<name>.service``. This transfers control to
 systemd so that start-order dependencies are honoured. Containers that
@@ -64,10 +63,12 @@ were already managed by systemd are restarted only when listed in
 ``kolla_changed_containers``; unchanged services are left running. The
 role also merges this fact with any services whose start-order overrides
 changed to determine the final restart list, so entries must be
-underscore-normalised to match service names.
-If a container is started or modified without using the
-``kolla_container`` module, its normalised name must be added manually to
-``kolla_changed_containers`` so that it is restarted during this phase.
+underscore-normalised to match service names. All container creation or
+start operations in roles must invoke the ``kolla_container`` module so
+the action plugin can update ``kolla_changed_containers``. If a container
+is started or modified without using ``kolla_container``, its
+normalised name must be added manually to ``kolla_changed_containers`` so
+that it is restarted during this phase.
 
 Troubleshooting
 ---------------
