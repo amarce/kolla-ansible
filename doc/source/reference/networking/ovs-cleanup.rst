@@ -13,7 +13,7 @@ Operation
 
 During deployment the container runs once per host boot. After completing the
 cleanup it exits and remains stopped for manual reuse. The container itself
-creates a marker file ``/tmp/kolla/neutron_ovs_cleanup/done`` to prevent
+creates a marker file ``/tmp/kolla/neutron_ovs_cleanup_marker/done`` to prevent
 further automatic executions until the host is rebooted. If the container
 configuration changes, the playbook recreates the container so the updated
 settings will be applied on the next run, but the container does not execute
@@ -51,4 +51,4 @@ To force automatic execution again remove the marker file:
 
 .. code-block:: console
 
-   sudo rm /tmp/kolla/neutron_ovs_cleanup/done
+   sudo rm /tmp/kolla/neutron_ovs_cleanup_marker/done

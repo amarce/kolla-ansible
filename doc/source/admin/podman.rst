@@ -84,7 +84,7 @@ One-shot cleanup containers
 
 Cleanup containers like ``neutron_ovs_cleanup`` are started as normal
 services.  They run at boot and create a marker file
-``/tmp/kolla/neutron_ovs_cleanup/done`` so subsequent starts skip the
+``/tmp/kolla/neutron_ovs_cleanup_marker/done`` so subsequent starts skip the
 container until the host reboots. Because ``/tmp`` is recreated on each
 boot, the container copies its cleanup script to ``/tmp/kolla`` every time
 it starts.
