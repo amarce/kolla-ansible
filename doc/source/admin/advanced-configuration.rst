@@ -353,9 +353,12 @@ waiting for dependency health; ``0`` disables the timeout) and
 ``kolla_service_no_healthcheck_wait`` (seconds to pause when no health
 check exists). During deploy and reconfigure the role also verifies that
 each service reaches the ``running`` and ``healthy`` states before moving
-on to the next. Containers that are already healthy are left running. The
-polling behaviour is controlled by ``kolla_service_healthcheck_retries``
-and ``kolla_service_healthcheck_delay``.
+on to the next. Containers that are already healthy are left running unless
+they were recorded in ``kolla_changed_containers`` during the playbook run.
+Services listed there, such as those newly created or recreated, are
+restarted to apply updated images or configuration. The polling behaviour
+is controlled by ``kolla_service_healthcheck_retries`` and
+``kolla_service_healthcheck_delay``.
 
 .. code-block:: yaml
 

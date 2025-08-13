@@ -40,6 +40,20 @@
     start_order_restart_services: "{{ start_order_override_result.results | selectattr('changed') | map(attribute='item.1') | list }}"
   when: start_order_override_result is defined
 
+- name: Add changed containers to restart list
+  set_fact:
+    start_order_restart_services: >-
+      {{
+        (
+          start_order_restart_services | default([]) +
+          (
+            kolla_service_start_priority |
+            select('in', (kolla_changed_containers | default([]) | map('regex_replace', '-', '_') | list)) |
+            list
+          )
+        ) | unique
+      }}
+
 - name: Restart services if start order changed
   vars:
     restart_services: "{{ start_order_restart_services | default([]) }}"
