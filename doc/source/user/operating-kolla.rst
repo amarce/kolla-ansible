@@ -293,6 +293,12 @@ remove all running Kolla containers from the selected container engine. It also
 removes the corresponding systemd units (``kolla-<name>-container.service`` for
 Docker and ``container-<name>.service`` for Podman) and the named volumes.
 
+By default the script will refuse to remove the ``nova_libvirt`` container if
+any QEMU processes are detected on the host. The safety check can be bypassed
+by passing ``--force`` to the script directly or by setting
+``destroy_containers_running_vms_fatal`` to ``false`` when running the
+``destroy`` playbook. Use this option with extreme care.
+
 ``tools/cleanup-host`` is used to remove remnants of network changes
 triggered on the host when the neutron-agents containers are launched.
 This can be useful when you want to do a new clean deployment, particularly one
