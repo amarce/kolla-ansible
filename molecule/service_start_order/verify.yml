@@ -20,12 +20,21 @@
           - "'After=container-c1.service' in contents[0]"
           - "'Requires=container-c1.service' in contents[0]"
           - "'TimeoutStartSec=0' in contents[0]"
-          - "'ExecStartPre=/bin/sh -c' in contents[0]"
-          - "'systemctl is-active --quiet container-c1.service' in contents[0]"
-          - "'podman healthcheck run c1' in contents[0]"
-          - "'sleep 30' in contents[0]"
-          - "'sleep 5' in contents[0]"
+          - "'/usr/local/lib/kolla/wait-unit-and-container-healthy.sh container-c1.service c1 5' in contents[0]"
           - contents[0] == contents[1]
+
+    - name: Verify drop-ins with systemd-analyze
+      become: true
+      command: systemd-analyze verify {{ item }}
+      loop:
+        - /etc/systemd/system/container-c2.service.d/start-order.conf
+        - /etc/systemd/system/kolla-c2-container.service.d/start-order.conf
+      changed_when: false
+
+    - name: Check helper script syntax
+      become: true
+      command: sh -n /usr/local/lib/kolla/wait-unit-and-container-healthy.sh
+      changed_when: false
 
     - name: Read recorded start times
       become: true
