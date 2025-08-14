@@ -27,6 +27,12 @@ The marker path can be changed by overriding the variable
 The container executes the cleanup script as root directly, avoiding
 any reliance on ``sudo`` or interactive prompts.
 
+The container reads its configuration from
+``/etc/kolla/neutron-ovs-cleanup/config.json`` before the cleanup
+script runs.  To ensure this is always accessible, Kolla Ansible creates
+the configuration directory with ``0755`` permissions and installs the
+``config.json`` file with mode ``0644``.
+
 The container forms part of the compute service start sequence. The
 ``service-start-order`` role configures systemd dependencies so that the
 ``neutron_openvswitch_agent`` unit waits for the cleanup to complete. When

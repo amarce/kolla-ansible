@@ -20,7 +20,7 @@
     state: "directory"
     owner: "{{ config_owner_user }}"
     group: "{{ config_owner_group }}"
-    mode: "0770"
+    mode: "0755"
   when:
     - neutron_services['neutron-openvswitch-agent']['enabled'] | bool
     - inventory_hostname in groups['neutron-openvswitch-agent']
@@ -678,7 +678,7 @@
     remote_src: true
     src: "{{ item }}"
     dest: "{{ cleanup_dir }}/{{ item | basename }}"
-    mode: "0660"
+    mode: "{{ '0644' if item | basename == 'config.json' else '0660' }}"
   loop:
     - "{{ ovs_agent_dir }}/config.json"
     - "{{ ovs_agent_dir }}/neutron.conf"
