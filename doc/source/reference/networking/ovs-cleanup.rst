@@ -24,6 +24,9 @@ each time it starts so that the non-root ``neutron`` user can write to it.
 The marker path can be changed by overriding the variable
 ``neutron_ovs_cleanup_marker_file``.
 
+The container executes the cleanup script as root directly, avoiding
+any reliance on ``sudo`` or interactive prompts.
+
 The container forms part of the compute service start sequence. The
 ``service-start-order`` role configures systemd dependencies so that the
 ``neutron_openvswitch_agent`` unit waits for the cleanup to complete. When
