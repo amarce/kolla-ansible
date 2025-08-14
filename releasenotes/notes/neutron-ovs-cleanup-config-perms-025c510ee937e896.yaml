@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fixed a regression that caused the ``neutron-ovs-cleanup`` container to
+    fail with a permission error when reading its configuration. The
+    configuration directory now uses ``0755`` permissions and ``config.json``
+    is installed with mode ``0644``.
