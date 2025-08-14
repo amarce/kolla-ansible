@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Ensure the ``service-start-order`` role creates ``/usr/local/lib/kolla``
+    before installing the wait helper script, preventing deployment failures
+    due to a missing destination directory.
+
