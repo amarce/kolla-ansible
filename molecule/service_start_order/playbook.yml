@@ -23,6 +23,8 @@
     kolla_service_start_priority:
       - c1
       - c2
+    kolla_post_healthy_delay: 0
+    c2_post_healthy_delay: 5
   tasks:
     - name: Ensure c1 container is running
       become: true
@@ -67,6 +69,20 @@
           Restart=always
           [Install]
           WantedBy=multi-user.target
+
+    - name: Create alias unit for c1
+      become: true
+      file:
+        src: /etc/systemd/system/container-c1.service
+        dest: /etc/systemd/system/kolla-c1-container.service
+        state: link
+
+    - name: Create alias unit for c2
+      become: true
+      file:
+        src: /etc/systemd/system/container-c2.service
+        dest: /etc/systemd/system/kolla-c2-container.service
+        state: link
 
     - name: Start c2 via systemd
       become: true

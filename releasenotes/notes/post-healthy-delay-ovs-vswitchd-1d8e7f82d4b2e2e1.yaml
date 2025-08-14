@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Added ``kolla_post_healthy_delay`` to delay service startup after a
+    dependency becomes healthy. ``openvswitch_vswitchd`` now waits 30
+    seconds after ``openvswitch_db`` reports healthy.

@@ -22,6 +22,15 @@
   loop: "{{ start_order_pairs }}"
   notify: Reload systemd
 
+- name: Ensure alias override directories exist
+  become: true
+  file:
+    path: "/etc/systemd/system/kolla-{{ item.1 }}-container.service.d"
+    state: directory
+  loop: "{{ start_order_pairs }}"
+  when: kolla_container_engine == 'podman'
+  notify: Reload systemd
+
 - name: Configure start order overrides
   become: true
   template:
@@ -31,6 +40,19 @@
   loop: "{{ start_order_pairs }}"
   register: start_order_override_result
   notify: Reload systemd
+
+- name: Configure alias start order overrides
+  become: true
+  template:
+    src: start-order.conf.j2
+    dest: "/etc/systemd/system/kolla-{{ item.1 }}-container.service.d/start-order.conf"
+    mode: "0644"
+  loop: "{{ start_order_pairs }}"
+  when: kolla_container_engine == 'podman'
+  notify: Reload systemd
+  vars:
+    kolla_service_unit_prefix: "kolla-"
+    kolla_service_unit_suffix: "-container"
 
 - name: Reload systemd after applying overrides
   meta: flush_handlers

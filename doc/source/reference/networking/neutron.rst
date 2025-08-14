@@ -180,6 +180,9 @@ applying any ``ovs-vsctl`` configuration, so running with
 ``--limit`` still configures the host correctly.  If ``ovs-vsctl`` reports
 ``Connection refused``, verify that the containers are running and that
 ``/run/openvswitch/db.sock`` exists.
+``openvswitch-vswitchd`` also delays for an additional 30 seconds after the
+database reports healthy to allow the process to settle. This grace period is
+controlled by ``openvswitch_vswitchd_post_healthy_delay``.
 
 Verification of the Open vSwitch containers only proceeds when the
 corresponding systemd unit or container is present.  If neither exists, the
