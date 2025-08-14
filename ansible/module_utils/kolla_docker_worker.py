@@ -314,6 +314,9 @@ class DockerWorker(ContainerWorker):
             "tty": self.params.get("tty"),
         }
 
+        if self.params.get("user") is not None:
+            options["user"] = self.params.get("user")
+
         healthcheck = self.parse_healthcheck(self.params.get("healthcheck"))
         if healthcheck:
             options.update(healthcheck)
