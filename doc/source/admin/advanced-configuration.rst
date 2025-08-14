@@ -347,13 +347,15 @@ Services start sequentially when a compute host boots or during
 the previous unit to report ``active`` and, when the container defines a
 ``HEALTHCHECK``, for that check to report ``healthy`` before the next
 service is started. If a dependency has no ``HEALTHCHECK`` a fixed delay is
-applied before continuing. A helper script,
-``/usr/local/lib/kolla/wait-unit-and-container-healthy.sh``, performs these
-checks to avoid brittle inline shell in the systemd drop-in. The delays are controlled by the variables
+applied before continuing. The role installs a helper script at
+``/usr/local/lib/kolla/wait-unit-and-container-healthy.sh`` to perform
+these checks and avoid brittle inline shell in the systemd drop-in. The
+delays are controlled by the variables
 ``kolla_service_start_timeout`` (systemd ``TimeoutStartSec`` applied while
 waiting for dependency health; ``0`` disables the timeout) and
 ``kolla_grace_no_healthcheck`` (seconds to pause when no health check exists).
-This delay applies even when a dependency reports healthy immediately and defaults to zero.
+This delay applies even when a dependency reports healthy immediately
+and defaults to zero.
 During deploy and reconfigure the role also verifies that
 each service reaches the ``running`` and ``healthy`` states before moving
 on to the next. Containers that are already healthy are left running unless
