@@ -12,22 +12,18 @@ ExecStartPre=/bin/sh -c '\
     rc=$?; \
     if [ $rc -eq 125 ]; then \
       sleep {{ kolla_service_no_healthcheck_wait }}; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
     elif [ $rc -ne 0 ]; then \
       until {{ kolla_container_engine }} healthcheck run {{ item.0 }} >/dev/null 2>&1; do sleep 1; done; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
-    else \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
     fi; \
+{% if post_delay|int > 0 %}    sleep {{ post_delay }}; \{% endif %}
   elif [ "{{ kolla_container_engine }}" = "docker" ]; then \
     has_hc=$({{ kolla_container_engine }} inspect --format={{"{{"}}json .Config.Healthcheck{{"}}"}} {{ item.0 }}); \
     if [ "$has_hc" = "null" ] || [ -z "$has_hc" ]; then \
       sleep {{ kolla_service_no_healthcheck_wait }}; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
     else \
       until [ "$({{ kolla_container_engine }} inspect --format={{"{{"}}.State.Health.Status{{"}}"}} {{ item.0 }})" = "healthy" ]; do sleep 1; done; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
     fi; \
+{% if post_delay|int > 0 %}    sleep {{ post_delay }}; \{% endif %}
   else \
     sleep {{ kolla_service_no_healthcheck_wait }}; \
 {% if post_delay|int > 0 %}    sleep {{ post_delay }}; \{% endif %}
