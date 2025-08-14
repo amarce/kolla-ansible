@@ -5,31 +5,4 @@ Requires={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix
 [Service]
 {% set post_delay = hostvars[inventory_hostname][item.1 ~ '_post_healthy_delay'] | default(kolla_post_healthy_delay) %}
 TimeoutStartSec={{ kolla_service_start_timeout }}
-ExecStartPre=/bin/sh -c '\
-  until systemctl is-active --quiet {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service; do sleep 1; done; \
-  if [ "{{ kolla_container_engine }}" = "podman" ]; then \
-    {{ kolla_container_engine }} healthcheck run {{ item.0 }} >/dev/null 2>&1; rc=$?; \
-    if [ $rc -eq 125 ]; then \
-      # no healthcheck \
-      sleep {{ kolla_service_no_healthcheck_wait }}; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
-    elif [ $rc -ne 0 ]; then \
-      until {{ kolla_container_engine }} healthcheck run {{ item.0 }} >/dev/null 2>&1; do sleep 1; done; \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% endif %}
-    else \
-      # already healthy \
-{% if post_delay|int > 0 %}      sleep {{ post_delay }}; \{% else %}      :; \{% endif %}
-    fi; \
-  elif [ "{{ kolla_container_engine }}" = "docker" ]; then \
-    has_hc=$({{ kolla_container_engine }} inspect --format={{"{{"}}json .Config.Healthcheck{{"}}"}} {{ item.0 }}); \
-    if [ "$has_hc" = "null" ] || [ -z "$has_hc" ]; then \
-      sleep {{ kolla_service_no_healthcheck_wait }}; \
-    else \
-      until [ "$({{ kolla_container_engine }} inspect --format={{"{{"}}.State.Health.Status{{"}}"}} {{ item.0 }})" = "healthy" ]; do sleep 1; done; \
-    fi; \
-{% if post_delay|int > 0 %}    sleep {{ post_delay }}; \{% endif %}
-  else \
-    sleep {{ kolla_service_no_healthcheck_wait }}; \
-{% if post_delay|int > 0 %}    sleep {{ post_delay }}; \{% endif %}
-  fi; \
-  exit 0'
+ExecStartPre=/usr/local/lib/kolla/wait-unit-and-container-healthy.sh {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service {{ item.0 }} {{ post_delay }}

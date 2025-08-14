@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    The ``service-start-order`` role now uses a helper script,
+    ``wait-unit-and-container-healthy.sh``, to wait for dependency units and
+    container health checks instead of inlining fragile shell in systemd
+    drop-ins. This resolves startup failures, honours post-healthy delays
+    even when a dependency is already healthy, and removes systemd escape
+    warnings.
