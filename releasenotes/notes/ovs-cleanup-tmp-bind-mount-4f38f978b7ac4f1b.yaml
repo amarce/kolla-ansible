@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Ensure the ``neutron_ovs_cleanup`` container bind mounts ``/tmp`` from
+    the host so that ``/tmp/kolla`` persists between runs and create the
+    directory when missing.

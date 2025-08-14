@@ -92,7 +92,7 @@ One-shot cleanup containers
 Cleanup containers like ``neutron_ovs_cleanup`` are started as normal
 services.  They run at boot and create a marker file
 ``/tmp/kolla/neutron_ovs_cleanup_marker/done`` so subsequent starts skip the
-container until the host reboots. Because ``/tmp`` is recreated on each
-boot, the container creates ``/tmp/kolla`` with ``1777`` permissions and
-copies its cleanup script to ``/tmp/kolla/neutron_ovs_cleanup`` every time
-it starts.
+container until the host reboots. The container bind mounts the host
+``/tmp`` directory; because ``/tmp`` is recreated on each boot, the container
+creates ``/tmp/kolla`` with ``1777`` permissions and copies its cleanup
+script to ``/tmp/kolla/neutron_ovs_cleanup`` every time it starts.
