@@ -110,6 +110,11 @@ options:
       - The environment to set for the container
     required: False
     type: dict
+  user:
+    description:
+      - User to run the container as
+    required: False
+    type: str
   image:
     description:
       - Name of the docker image
@@ -314,6 +319,7 @@ def generate_module():
         labels=dict(required=False, type='dict', default=dict()),
         name=dict(required=False, type='str'),
         environment=dict(required=False, type='dict'),
+        user=dict(required=False, type='str'),
         healthcheck=dict(required=False, type='dict'),
         start=dict(required=False, type='bool', default=True),
         defer_start=dict(required=False, type='bool', default=False),

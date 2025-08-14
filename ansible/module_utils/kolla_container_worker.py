@@ -492,6 +492,10 @@ class ContainerWorker(ABC):
             self._debug("command differs")
             self._diff_keys.append("command")
             differs = True
+        if self.compare_user(container_info):
+            self._debug("user differs")
+            self._diff_keys.append("user")
+            differs = True
         if self.compare_healthcheck(container_info):
             self._debug("healthcheck differs")
             self._diff_keys.append("healthcheck")
@@ -851,6 +855,14 @@ class ContainerWorker(ABC):
                 if " ".join(new_cmd) == " ".join(current_cmd):
                     return False
                 return True
+
+    def compare_user(self, container_info):
+        new_user = self.params.get("user")
+        current_user = container_info.get("Config", {}).get("User")
+        if not current_user:
+            current_user = None
+        if new_user != current_user:
+            return True
 
     def compare_healthcheck(self, container_info):
         new_healthcheck = self.parse_healthcheck(self.params.get("healthcheck"))

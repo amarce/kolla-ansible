@@ -25,7 +25,9 @@ The marker path can be changed by overriding the variable
 ``neutron_ovs_cleanup_marker_file``.
 
 The container executes the cleanup script as root directly, avoiding
-any reliance on ``sudo`` or interactive prompts.
+any reliance on ``sudo`` or interactive prompts.  It now explicitly
+runs as the root user so that ``kolla_set_configs`` can create and
+populate ``/etc/kolla/defaults`` before the cleanup script runs.
 
 The container reads its configuration from
 ``/etc/kolla/neutron-ovs-cleanup/config.json`` before the cleanup

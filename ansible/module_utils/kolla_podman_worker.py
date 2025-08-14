@@ -57,6 +57,7 @@ CONTAINER_PARAMS = [
     "detach",  # bool
     "entrypoint",  # string
     "environment",  # dict docker - environment - dictionary
+    "user",  # string
     "healthcheck",  # same schema as docker -- healthcheck
     "image",  # string
     "ipc_mode",  # string only option is host
