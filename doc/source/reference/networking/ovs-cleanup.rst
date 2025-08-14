@@ -35,6 +35,11 @@ script runs.  To ensure this is always accessible, Kolla Ansible creates
 the configuration directory with ``0755`` permissions and installs the
 ``config.json`` file with mode ``0644``.
 
+The cleanup script writes its log file to
+``/var/log/kolla/neutron/neutron_ovs_cleanup.log``. Kolla Ansible
+creates the ``/var/log/kolla/neutron`` directory with the appropriate
+ownership before the container runs so that logging succeeds.
+
 The container forms part of the compute service start sequence. The
 ``service-start-order`` role configures systemd dependencies so that the
 ``neutron_openvswitch_agent`` unit waits for the cleanup to complete. When

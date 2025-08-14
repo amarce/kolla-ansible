@@ -16,6 +16,15 @@
     neutron_uid: "{{ neutron_uid_result.stdout }}"
     neutron_gid: "{{ neutron_gid_result.stdout }}"
 
+- name: Ensure neutron log directory exists
+  become: true
+  file:
+    path: "/var/log/kolla/neutron"
+    state: directory
+    owner: "{{ neutron_uid }}"
+    group: "{{ neutron_gid }}"
+    mode: "0755"
+
 - name: Ensure /tmp/kolla exists with correct permissions
   become: true
   file:
