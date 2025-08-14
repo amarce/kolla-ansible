@@ -78,6 +78,7 @@ openvswitch_vswitchd_healthcheck:
   start_period: "{{ openvswitch_vswitchd_healthcheck_start_period }}"
   test: "{% if openvswitch_vswitchd_enable_healthchecks | bool %}{{ openvswitch_vswitchd_healthcheck_test }}{% else %}NONE{% endif %}"
   timeout: "{{ openvswitch_vswitchd_healthcheck_timeout }}"
+openvswitch_vswitchd_post_healthy_delay: 30
 
 openvswitch_db_default_volumes:
   - "{{ node_config_directory }}/openvswitch-db-server/:{{ container_config_directory }}/:ro"

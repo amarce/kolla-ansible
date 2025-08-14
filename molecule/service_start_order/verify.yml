@@ -3,24 +3,29 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Read start order drop-in
+    - name: Read start order drop-ins
       become: true
       slurp:
-        path: /etc/systemd/system/container-c2.service.d/start-order.conf
-      register: dropin
+        path: "{{ item }}"
+      loop:
+        - /etc/systemd/system/container-c2.service.d/start-order.conf
+        - /etc/systemd/system/kolla-c2-container.service.d/start-order.conf
+      register: dropins
 
-    - name: Assert drop-in contains wait logic
+    - name: Assert drop-ins contain wait logic
       vars:
-        content: "{{ dropin.content | b64decode }}"
+        contents: "{{ dropins.results | map(attribute='content') | map('b64decode') | list }}"
       assert:
         that:
-          - "'After=container-c1.service' in content"
-          - "'Requires=container-c1.service' in content"
-          - "'TimeoutStartSec=0' in content"
-          - "'ExecStartPre=/bin/sh -c' in content"
-          - "'systemctl is-active --quiet container-c1.service' in content"
-          - "'podman healthcheck run c1' in content"
-          - "'sleep 30' in content"
+          - "'After=container-c1.service' in contents[0]"
+          - "'Requires=container-c1.service' in contents[0]"
+          - "'TimeoutStartSec=0' in contents[0]"
+          - "'ExecStartPre=/bin/sh -c' in contents[0]"
+          - "'systemctl is-active --quiet container-c1.service' in contents[0]"
+          - "'podman healthcheck run c1' in contents[0]"
+          - "'sleep 30' in contents[0]"
+          - "'sleep 5' in contents[0]"
+          - contents[0] == contents[1]
 
     - name: Read recorded start times
       become: true
