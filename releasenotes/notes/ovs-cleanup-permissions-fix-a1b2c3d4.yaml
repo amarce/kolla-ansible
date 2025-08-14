@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fixed a regression where the ``neutron-ovs-cleanup`` container could
+    fail with ``Permission denied`` when copying its cleanup script. The
+    container now creates ``/tmp/kolla`` with permissive permissions and
+    installs the script as the ``neutron`` user.

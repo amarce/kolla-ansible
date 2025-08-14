@@ -18,8 +18,9 @@ further automatic executions until the host is rebooted. If the container
 configuration changes, the playbook recreates the container so the updated
 settings will be applied on the next run, but the container does not execute
 again while the marker file exists. Because ``/tmp`` is an ephemeral
-filesystem, the container recreates ``/tmp/kolla`` and copies the cleanup
-script to ``/tmp/kolla/neutron_ovs_cleanup`` each time it starts.
+filesystem, the container recreates ``/tmp/kolla`` with mode ``1777``
+and copies the cleanup script to ``/tmp/kolla/neutron_ovs_cleanup``
+each time it starts so that the non-root ``neutron`` user can write to it.
 The marker path can be changed by overriding the variable
 ``neutron_ovs_cleanup_marker_file``.
 
