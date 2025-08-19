@@ -389,13 +389,14 @@ to them as well.
    kolla_service_healthcheck_retries: 60
    kolla_service_healthcheck_delay: 2
 
-For example ``nova_compute`` waits for ``nova_ssh`` to become healthy,
-``neutron_openvswitch_agent`` pauses for
+For example ``nova_compute`` waits for ``nova_ssh`` to become healthy and
+then delays an additional 30 seconds, controlled by
+``nova_compute_post_healthy_delay``. ``neutron_openvswitch_agent`` pauses for
 ``neutron_ovs_cleanup`` which lacks a health check, ``openvswitch_db``
 follows ``kolla_toolbox`` with the same delay, and ``openvswitch_vswitchd``
 waits for ``openvswitch_db`` to report healthy before delaying a further
-30 seconds. These defaults may be overridden in
-``/etc/kolla/globals.yml``.
+30 seconds via ``openvswitch_vswitchd_post_healthy_delay``. These defaults
+may be overridden in ``/etc/kolla/globals.yml``.
 
 The ``neutron_openvswitch_agent`` service waits for
 ``neutron_ovs_cleanup`` to complete before starting. The cleanup
