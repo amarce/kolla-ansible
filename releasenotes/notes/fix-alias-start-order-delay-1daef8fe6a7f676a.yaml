@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    When using Podman, systemd alias units (``kolla-<name>-container.service``)
+    now receive the same start-order drop-in as their corresponding
+    ``container-<name>.service`` units.  The drop-in ensures dependency
+    containers are healthy and honours any configured post-healthy delay during
+    boot, preventing services from starting simultaneously.
+...

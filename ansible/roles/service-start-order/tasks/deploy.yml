@@ -68,9 +68,6 @@
   loop: "{{ start_order_pairs }}"
   when: kolla_container_engine == 'podman'
   notify: Reload systemd
-  vars:
-    kolla_service_unit_prefix: "kolla-"
-    kolla_service_unit_suffix: "-container"
 
 - name: Reload systemd after applying overrides
   meta: flush_handlers
