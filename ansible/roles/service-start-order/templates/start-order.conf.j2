@@ -3,6 +3,6 @@ After={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}
 Requires={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
 
 [Service]
-{% set post_delay = hostvars[inventory_hostname][item.1 ~ '_post_healthy_delay'] | default(kolla_post_healthy_delay) %}
+{% set post_delay = vars.get(item.1 ~ '_post_healthy_delay', kolla_post_healthy_delay) %}
 TimeoutStartSec={{ kolla_service_start_timeout }}
 ExecStartPre=/usr/local/lib/kolla/wait-unit-and-container-healthy.sh {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service {{ item.0 }} {{ post_delay }}

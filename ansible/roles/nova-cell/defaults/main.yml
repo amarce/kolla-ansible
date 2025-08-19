@@ -394,6 +394,7 @@ nova_compute_healthcheck:
   start_period: "{{ nova_compute_healthcheck_start_period }}"
   test: "{% if nova_compute_enable_healthchecks | bool %}{{ nova_compute_healthcheck_test }}{% else %}NONE{% endif %}"
   timeout: "{{ nova_compute_healthcheck_timeout }}"
+nova_compute_post_healthy_delay: 30
 
 nova_compute_ironic_enable_healthchecks: "{{ enable_container_healthchecks }}"
 nova_compute_ironic_healthcheck_interval: "{{ default_container_healthcheck_interval }}"

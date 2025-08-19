@@ -36,9 +36,10 @@ for that check to succeed. The role installs a helper script at
 these checks. When no health indicator exists the delay is controlled by
 ``kolla_grace_no_healthcheck`` (default 30 seconds). An additional
 post-healthy delay may be configured via ``kolla_post_healthy_delay`` or
-per-service variables suffixed with ``_post_healthy_delay``. This delay
-applies even when a dependency reports healthy immediately and defaults to
-zero.
+per-service variables suffixed with ``_post_healthy_delay`` (for example,
+``openvswitch_vswitchd_post_healthy_delay`` or
+``nova_compute_post_healthy_delay``). This delay applies even when a
+dependency reports healthy immediately and defaults to zero.
 The role reloads systemd after writing any drop-in files so that new
 dependencies are applied immediately. It also stops containers that were
 previously launched directly via Podman and restarts them under systemd.
