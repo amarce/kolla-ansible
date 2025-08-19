@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Correctly build start-order dependencies when some services exist only as
+    ``kolla-<name>-container.service`` alias units. This ensures intra-project
+    services such as ``openvswitch_vswitchd`` wait for ``openvswitch_db`` to
+    report healthy and honour the configured post-healthy delay during host
+    boot.
+...
