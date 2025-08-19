@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    The default ``kolla_post_healthy_delay`` has been increased from ``0`` to
+    ``30`` seconds, causing services to wait an additional 30 seconds after
+    dependencies report healthy before starting.

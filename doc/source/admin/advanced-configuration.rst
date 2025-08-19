@@ -352,10 +352,11 @@ applied before continuing. The role installs a helper script at
 these checks and avoid brittle inline shell in the systemd drop-in. The
 delays are controlled by the variables
 ``kolla_service_start_timeout`` (systemd ``TimeoutStartSec`` applied while
-waiting for dependency health; ``0`` disables the timeout) and
-``kolla_grace_no_healthcheck`` (seconds to pause when no health check exists).
-This delay applies even when a dependency reports healthy immediately
-and defaults to zero.
+waiting for dependency health; ``0`` disables the timeout),
+``kolla_grace_no_healthcheck`` (seconds to pause when no health check exists),
+and ``kolla_post_healthy_delay`` (seconds to pause after a dependency reports
+healthy). This delay applies even when a dependency reports healthy immediately
+and defaults to 30 seconds.
 When using Podman, the role inspects both ``container-<name>.service`` units
 and their ``kolla-<name>-container.service`` aliases, updating each with the
 necessary drop-ins so intra-project dependencies honour the configured
@@ -385,7 +386,7 @@ to them as well.
 
    kolla_service_start_timeout: 0
    kolla_grace_no_healthcheck: 30
-   kolla_post_healthy_delay: 0
+   kolla_post_healthy_delay: 30
    kolla_service_healthcheck_retries: 60
    kolla_service_healthcheck_delay: 2
 
