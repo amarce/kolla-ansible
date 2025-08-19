@@ -356,6 +356,10 @@ waiting for dependency health; ``0`` disables the timeout) and
 ``kolla_grace_no_healthcheck`` (seconds to pause when no health check exists).
 This delay applies even when a dependency reports healthy immediately
 and defaults to zero.
+When using Podman, the role inspects both ``container-<name>.service`` units
+and their ``kolla-<name>-container.service`` aliases, updating each with the
+necessary drop-ins so intra-project dependencies honour the configured
+post-healthy delay regardless of which unit is enabled.
 During deploy and reconfigure the role also verifies that
 each service reaches the ``running`` and ``healthy`` states before moving
 on to the next. Containers that are already healthy are left running unless

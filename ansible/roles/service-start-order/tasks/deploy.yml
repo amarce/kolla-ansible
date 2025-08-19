@@ -6,9 +6,20 @@
   loop: "{{ kolla_service_start_priority }}"
   register: service_units
 
+# Alias units (kolla-<name>-container.service) may be enabled instead of the
+# container-<name>.service units. Detect these so that start-order pairs are
+# built even when only alias units exist.
+- name: Detect services with alias systemd units
+  become: true
+  stat:
+    path: "/etc/systemd/system/kolla-{{ item }}-container.service"
+  loop: "{{ kolla_service_start_priority }}"
+  when: kolla_container_engine == 'podman'
+  register: alias_service_units
+
 - name: Build list of services with systemd units
   set_fact:
-    start_order_services: "{{ service_units.results | json_query('[?stat.exists].item') }}"
+    start_order_services: "{{ (service_units.results + (alias_service_units.results | default([]))) | json_query('[?stat.exists].item') | unique }}"
 
 - name: Build start order pairs
   set_fact:
@@ -65,6 +76,11 @@
     src: start-order.conf.j2
     dest: "/etc/systemd/system/kolla-{{ item.1 }}-container.service.d/start-order.conf"
     mode: "0644"
+  vars:
+    # Alias units use the traditional kolla-<name>-container.service naming for
+    # dependencies so override the prefix/suffix accordingly.
+    kolla_service_unit_prefix: "kolla-"
+    kolla_service_unit_suffix: "-container"
   loop: "{{ start_order_pairs }}"
   when: kolla_container_engine == 'podman'
   notify: Reload systemd

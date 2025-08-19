@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    When using Podman only the ``kolla-<name>-container.service`` alias units
+    might exist for some services. The ``service-start-order`` role now detects
+    these aliases and applies start-order drop-ins using the alias unit names,
+    ensuring that intra-project dependencies honour the configured post-healthy
+    delay during host boot.
+...
