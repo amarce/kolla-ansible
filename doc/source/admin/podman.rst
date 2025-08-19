@@ -39,7 +39,7 @@ post-healthy delay may be configured via ``kolla_post_healthy_delay`` or
 per-service variables suffixed with ``_post_healthy_delay`` (for example,
 ``openvswitch_vswitchd_post_healthy_delay`` or
 ``nova_compute_post_healthy_delay``). This delay applies even when a
-dependency reports healthy immediately and defaults to zero.
+dependency reports healthy immediately and defaults to 30 seconds.
 The role reloads systemd after writing any drop-in files so that new
 dependencies are applied immediately. It also stops containers that were
 previously launched directly via Podman and restarts them under systemd.

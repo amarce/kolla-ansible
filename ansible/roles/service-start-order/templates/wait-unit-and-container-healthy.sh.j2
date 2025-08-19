@@ -1,7 +1,7 @@
 #!/bin/sh
 unit="$1"
 container="$2"
-post_delay="${3:-0}"
+post_delay="${3:-{{ kolla_post_healthy_delay }}}"
 
 until systemctl is-active --quiet "$unit"; do
     sleep 1

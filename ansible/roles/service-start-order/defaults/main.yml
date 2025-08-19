@@ -28,7 +28,7 @@ kolla_service_start_timeout: 0
 # Delay applied when a dependency has no container healthcheck.
 kolla_grace_no_healthcheck: 30
 # Delay applied after a dependency becomes healthy.
-kolla_post_healthy_delay: 0
+kolla_post_healthy_delay: 30
 # Attempts and delay for verifying container health after restart/start
 kolla_service_healthcheck_retries: 60
 kolla_service_healthcheck_delay: 2
