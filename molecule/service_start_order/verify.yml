@@ -18,9 +18,10 @@
       assert:
         that:
           - "'After=container-c1.service' in contents[0]"
-          - "'Requires=container-c1.service' in contents[0]"
+          - "'Wants=container-c1.service' in contents[0]"
           - "'TimeoutStartSec=0' in contents[0]"
           - "'/usr/local/lib/kolla/wait-unit-and-container-healthy.sh container-c1.service c1 5' in contents[0]"
+          - "'ExecStartPre=' not in contents[0]"
           - contents[0] == contents[1]
 
     - name: Verify drop-ins with systemd-analyze
@@ -52,10 +53,10 @@
       register: c1_after
       changed_when: false
 
-    - name: Get c2 start time after
+    - name: Get c3 start time after
       command: >-
-        podman inspect c2 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
-      register: c2_after
+        podman inspect c3 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c3_after
       changed_when: false
 
     - name: Ensure c1 now managed by systemd
@@ -63,8 +64,13 @@
       register: c1_active
       failed_when: c1_active.rc != 0
 
+    - name: Ensure c3 now managed by systemd
+      command: systemctl is-active --quiet container-c3.service
+      register: c3_active
+      failed_when: c3_active.rc != 0
+
     - name: Assert start times
       assert:
         that:
           - c1_after.stdout != start_before.c1
-          - c2_after.stdout != start_before.c2
+          - c3_after.stdout != start_before.c3

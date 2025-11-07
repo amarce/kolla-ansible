@@ -1,0 +1,23 @@
+{% set oneshots = (kolla_service_one_shot | default({})).keys() | list %}
+{% set ns = namespace(pairs=[], last_non_one_shot=None) %}
+{% for svc in start_order_services %}
+  {% if loop.first %}
+    {% if svc not in oneshots %}
+      {% set ns.last_non_one_shot = svc %}
+    {% endif %}
+  {% else %}
+    {% set predecessor = start_order_services[loop.index0 - 1] %}
+    {% if predecessor in oneshots %}
+      {% set predecessor = ns.last_non_one_shot %}
+    {% endif %}
+    {% if predecessor is none %}
+      {% set predecessor = start_order_services[loop.index0 - 1] %}
+    {% endif %}
+    {% set ns.pairs = ns.pairs + [[predecessor, svc]] %}
+    {% if svc not in oneshots %}
+      {% set ns.last_non_one_shot = svc %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+{{ ns.pairs | to_json }}
+

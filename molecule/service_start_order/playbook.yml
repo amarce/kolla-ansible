@@ -8,6 +8,11 @@
         - localhost
     project_name: testsowait
     testsowait_services:
+      c0:
+        container_name: c0
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
       c1:
         container_name: c1
         group: control
@@ -18,14 +23,34 @@
         group: control
         enabled: true
         image: docker.io/library/busybox:latest
+      c3:
+        container_name: c3
+        group: control
+        enabled: true
+        image: docker.io/library/busybox:latest
     kolla_container_engine: podman
     docker_common_options: {}
     kolla_service_start_priority:
+      - c0
       - c1
       - c2
+      - c3
+    kolla_service_one_shot:
+      c0:
+        marker: /tmp/c0_marker
+      c2:
+        marker: /tmp/c2_marker
     kolla_post_healthy_delay: 0
-    c2_post_healthy_delay: 5
+    c3_post_healthy_delay: 5
   tasks:
+    - name: Ensure c0 container is running
+      become: true
+      command: >-
+        podman run -d --name c0 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+      register: c0_run
+      changed_when: c0_run.rc == 0
+      failed_when: c0_run.rc not in [0,125]
+
     - name: Ensure c1 container is running
       become: true
       command: >-
@@ -34,13 +59,35 @@
       changed_when: c1_run.rc == 0
       failed_when: c1_run.rc not in [0,125]
 
-    - name: Ensure c2 container exists
+    - name: Ensure c2 container is running
       become: true
       command: >-
-        podman create --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
-      register: c2_create
-      changed_when: c2_create.rc == 0
-      failed_when: c2_create.rc not in [0,125]
+        podman run -d --name c2 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+      register: c2_run
+      changed_when: c2_run.rc == 0
+      failed_when: c2_run.rc not in [0,125]
+
+    - name: Ensure c3 container exists
+      become: true
+      command: >-
+        podman create --name c3 --health-cmd 'true' --health-interval 1s docker.io/library/busybox:latest tail -f /dev/null
+      register: c3_create
+      changed_when: c3_create.rc == 0
+      failed_when: c3_create.rc not in [0,125]
+
+    - name: Create systemd unit for c0
+      become: true
+      copy:
+        dest: /etc/systemd/system/container-c0.service
+        content: |
+          [Unit]
+          Description=c0
+          [Service]
+          ExecStart=/usr/bin/podman start -a c0
+          ExecStop=/usr/bin/podman stop -t 10 c0
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
 
     - name: Create systemd unit for c1
       become: true
@@ -70,6 +117,27 @@
           [Install]
           WantedBy=multi-user.target
 
+    - name: Create systemd unit for c3
+      become: true
+      copy:
+        dest: /etc/systemd/system/container-c3.service
+        content: |
+          [Unit]
+          Description=c3
+          [Service]
+          ExecStart=/usr/bin/podman start -a c3
+          ExecStop=/usr/bin/podman stop -t 10 c3
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Create alias unit for c0
+      become: true
+      file:
+        src: /etc/systemd/system/container-c0.service
+        dest: /etc/systemd/system/kolla-c0-container.service
+        state: link
+
     - name: Create alias unit for c1
       become: true
       file:
@@ -83,6 +151,20 @@
         src: /etc/systemd/system/container-c2.service
         dest: /etc/systemd/system/kolla-c2-container.service
         state: link
+
+    - name: Create alias unit for c3
+      become: true
+      file:
+        src: /etc/systemd/system/container-c3.service
+        dest: /etc/systemd/system/kolla-c3-container.service
+        state: link
+
+    - name: Start c3 via systemd
+      become: true
+      command: systemctl start container-c3.service
+      register: c3_systemd_start
+      changed_when: c3_systemd_start.rc == 0
+      failed_when: c3_systemd_start.rc != 0
 
     - name: Start c2 via systemd
       become: true
@@ -98,18 +180,30 @@
       register: c1_start
       changed_when: false
 
-    - name: Record c2 start time
+    - name: Record c3 start time
       become: true
       command: >-
-        podman inspect c2 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
-      register: c2_start
+        podman inspect c3 --format '{% raw %}{{.State.StartedAt}}{% endraw %}'
+      register: c3_start
       changed_when: false
 
     - name: Write start times file
       become: true
       copy:
         dest: /tmp/start_times.json
-        content: "{{ {'c1': c1_start.stdout, 'c2': c2_start.stdout} | to_nice_json }}"
+        content: "{{ {'c1': c1_start.stdout, 'c3': c3_start.stdout} | to_nice_json }}"
+
+    - name: Create c0 one-shot marker
+      become: true
+      file:
+        path: /tmp/c0_marker
+        state: touch
+
+    - name: Create c2 one-shot marker
+      become: true
+      file:
+        path: /tmp/c2_marker
+        state: touch
 
     - name: Run service-start-order role
       include_role:
@@ -117,4 +211,4 @@
       vars:
         kolla_changed_containers:
           - c1
-          - c2
+          - c3

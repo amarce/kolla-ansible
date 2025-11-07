@@ -10,7 +10,7 @@ nova_cell_services:
     pid_mode: "host"
     cgroupns_mode: "host"
     privileged: True
-    volumes: "{{ nova_libvirt_default_volumes + nova_libvirt_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine) }}"
+    volumes: "{{ (nova_libvirt_default_volumes + nova_libvirt_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine)) | reject('equalto','') | list }}"
     dimensions: "{{ nova_libvirt_dimensions }}"
     healthcheck: "{{ nova_libvirt_healthcheck }}"
   nova-ssh:
@@ -18,7 +18,7 @@ nova_cell_services:
     group: "{{ nova_cell_compute_group }}"
     image: "{{ nova_ssh_image_full }}"
     enabled: "{{ enable_nova_ssh | bool }}"
-    volumes: "{{ nova_ssh_default_volumes + nova_ssh_extra_volumes }}"
+    volumes: "{{ (nova_ssh_default_volumes + nova_ssh_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_ssh_dimensions }}"
     healthcheck: "{{ nova_ssh_healthcheck }}"
   nova-novncproxy:
@@ -26,7 +26,7 @@ nova_cell_services:
     group: "{{ nova_cell_novncproxy_group }}"
     image: "{{ nova_novncproxy_image_full }}"
     enabled: "{{ nova_console == 'novnc' }}"
-    volumes: "{{ nova_novncproxy_default_volumes + nova_novncproxy_extra_volumes }}"
+    volumes: "{{ (nova_novncproxy_default_volumes + nova_novncproxy_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_novncproxy_dimensions }}"
     healthcheck: "{{ nova_novncproxy_healthcheck }}"
   nova-spicehtml5proxy:
@@ -34,7 +34,7 @@ nova_cell_services:
     group: "{{ nova_cell_spicehtml5proxy_group }}"
     image: "{{ nova_spicehtml5proxy_image_full }}"
     enabled: "{{ nova_console == 'spice' }}"
-    volumes: "{{ nova_spicehtml5proxy_default_volumes + nova_spicehtml5proxy_extra_volumes }}"
+    volumes: "{{ (nova_spicehtml5proxy_default_volumes + nova_spicehtml5proxy_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_spicehtml5proxy_dimensions }}"
     healthcheck: "{{ nova_spicehtml5proxy_healthcheck }}"
   nova-serialproxy:
@@ -42,14 +42,14 @@ nova_cell_services:
     group: "{{ nova_cell_serialproxy_group }}"
     image: "{{ nova_serialproxy_image_full }}"
     enabled: "{{ enable_nova_serialconsole_proxy | bool }}"
-    volumes: "{{ nova_serialproxy_default_volumes + nova_serialproxy_extra_volumes }}"
+    volumes: "{{ (nova_serialproxy_default_volumes + nova_serialproxy_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_serialproxy_dimensions }}"
   nova-conductor:
     container_name: "nova_conductor"
     group: "{{ nova_cell_conductor_group }}"
     enabled: True
     image: "{{ nova_conductor_image_full }}"
-    volumes: "{{ nova_conductor_default_volumes + nova_conductor_extra_volumes }}"
+    volumes: "{{ (nova_conductor_default_volumes + nova_conductor_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_conductor_dimensions }}"
     healthcheck: "{{ nova_conductor_healthcheck }}"
   nova-compute:
@@ -61,7 +61,7 @@ nova_cell_services:
     privileged: True
     enabled: "{{ not enable_nova_fake | bool }}"
     ipc_mode: "host"
-    volumes: "{{ nova_compute_default_volumes + nova_compute_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine) }}"
+    volumes: "{{ (nova_compute_default_volumes + nova_compute_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine)) | reject('equalto','') | list }}"
     dimensions: "{{ nova_compute_dimensions }}"
     healthcheck: "{{ nova_compute_healthcheck }}"
   nova-compute-ironic:
@@ -69,7 +69,7 @@ nova_cell_services:
     group: "{{ nova_cell_compute_ironic_group }}"
     image: "{{ nova_compute_ironic_image_full }}"
     enabled: "{{ enable_ironic | bool and nova_cell_name == nova_cell_ironic_cell_name }}"
-    volumes: "{{ nova_compute_ironic_default_volumes + nova_compute_ironic_extra_volumes }}"
+    volumes: "{{ (nova_compute_ironic_default_volumes + nova_compute_ironic_extra_volumes) | reject('equalto','') | list }}"
     dimensions: "{{ nova_compute_ironic_dimensions }}"
     healthcheck: "{{ nova_compute_ironic_healthcheck }}"
 

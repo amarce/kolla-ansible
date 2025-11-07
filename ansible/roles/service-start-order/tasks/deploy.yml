@@ -25,7 +25,7 @@
 
 - name: Build start order pairs
   set_fact:
-    start_order_pairs: "{{ start_order_services[:-1] | zip(start_order_services[1:]) | list }}"
+    start_order_pairs: "{{ lookup('template', 'start-order-pairs.json.j2') | from_json }}"
 
 - name: Ensure helper script directory exists
   become: true
