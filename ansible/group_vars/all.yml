@@ -977,6 +977,11 @@ enable_destroy_images: "no"
 #   - container2
 skip_stop_containers: []
 
+# List of service keys to skip Podman systemd unit generation.
+# skip_podman_systemd_for_services:
+#   - openvswitch-db-server
+skip_podman_systemd_for_services: []
+
 ####################
 # Logging options
 ####################

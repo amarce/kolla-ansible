@@ -24,6 +24,16 @@ generate and enable systemd unit files for services. Unit files are
 installed as ``/etc/systemd/system/container-<name>.service`` and allow
 systemd to start containers during host boot.
 
+Kolla Ansible verifies that each container exists before attempting to
+generate a unit file. When the container is missing the play reports that
+generation is skipped instead of failing the deployment. This makes it safe
+to run ``kolla-ansible check`` or reconfigure hosts where some services will
+be created later in a phased migration. Unit generation can also be disabled
+per service by listing the service keys in
+``skip_podman_systemd_for_services``. This option is useful for partial
+takeovers or when testing alternative Podman integrations such as Quadlets
+without changing the default behaviour for other services.
+
 Sequential container start
 --------------------------
 
