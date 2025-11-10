@@ -1,6 +1,7 @@
 ---
 openvswitch_manage_db_container: true
 openvswitch_manage_vswitchd_container: true
+openvswitch_force_create_db_container: false
 openvswitch_db_socket: "/run/openvswitch/db.sock"
 
 openvswitch_services:

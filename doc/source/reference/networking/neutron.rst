@@ -180,6 +180,12 @@ applying any ``ovs-vsctl`` configuration, so running with
 ``--limit`` still configures the host correctly.  If ``ovs-vsctl`` reports
 ``Connection refused``, verify that the containers are running and that
 ``/run/openvswitch/db.sock`` exists.
+The role now always ensures the ``openvswitch-db-server`` container is created
+before generating systemd units or executing post-configuration tasks so
+subsequent steps cannot fail due to a missing container even when the image is
+already present.  Operators can set ``openvswitch_force_create_db_container`` to
+``yes`` to force the container to be recreated on the next run when additional
+troubleshooting is required.
 ``openvswitch-vswitchd`` also delays for an additional 30 seconds after the
 database reports healthy to allow the process to settle. This grace period is
 controlled by ``openvswitch_vswitchd_post_healthy_delay``.

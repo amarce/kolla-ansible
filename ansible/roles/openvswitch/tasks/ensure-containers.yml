@@ -1,0 +1,16 @@
+---
+- name: Ensure openvswitch_db container exists before systemd and post-config
+  vars:
+    service: "{{ openvswitch_services['openvswitch-db-server'] }}"
+    container_action: "{{ 'recreate_container' if openvswitch_force_create_db_container | bool else 'recreate_or_restart_container' }}"
+  become: true
+  kolla_container:
+    action: "{{ container_action }}"
+    common_options: "{{ docker_common_options }}"
+    name: "{{ service.container_name }}"
+    image: "{{ service.image }}"
+    volumes: "{{ service.volumes | default([]) | reject('equalto', '') | list }}"
+    dimensions: "{{ service.dimensions | default(omit) }}"
+    healthcheck: "{{ service.healthcheck | default(omit) }}"
+  when:
+    - service | service_enabled_and_mapped_to_host
