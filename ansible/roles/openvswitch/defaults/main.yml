@@ -1,9 +1,13 @@
 ---
+openvswitch_manage_db_container: true
+openvswitch_manage_vswitchd_container: true
+openvswitch_db_socket: "/run/openvswitch/db.sock"
+
 openvswitch_services:
   openvswitch-db-server:
     container_name: "openvswitch_db"
     image: "{{ openvswitch_db_image_full }}"
-    enabled: "{{ enable_openvswitch }}"
+    enabled: "{{ enable_openvswitch and openvswitch_manage_db_container | bool }}"
     group: openvswitch
     host_in_groups: >-
       {{
@@ -19,7 +23,7 @@ openvswitch_services:
   openvswitch-vswitchd:
     container_name: "openvswitch_vswitchd"
     image: "{{ openvswitch_vswitchd_image_full }}"
-    enabled: "{{ enable_openvswitch }}"
+    enabled: "{{ enable_openvswitch and openvswitch_manage_vswitchd_container | bool }}"
     group: openvswitch
     host_in_groups: >-
       {{
@@ -33,9 +37,7 @@ openvswitch_services:
     volumes: "{{ openvswitch_vswitchd_default_volumes + openvswitch_vswitchd_extra_volumes }}"
     dimensions: "{{ openvswitch_vswitchd_dimensions }}"
     healthcheck: "{{ openvswitch_vswitchd_healthcheck }}"
-    podman_systemd_dependencies:
-      - "After=container-openvswitch_db.service"
-      - "Wants=container-openvswitch_db.service"
+    podman_systemd_dependencies: "{{ openvswitch_vswitchd_podman_systemd_dependencies }}"
 
 ####################
 # Docker
@@ -79,6 +81,11 @@ openvswitch_vswitchd_healthcheck:
   test: "{% if openvswitch_vswitchd_enable_healthchecks | bool %}{{ openvswitch_vswitchd_healthcheck_test }}{% else %}NONE{% endif %}"
   timeout: "{{ openvswitch_vswitchd_healthcheck_timeout }}"
 openvswitch_vswitchd_post_healthy_delay: 30
+
+openvswitch_vswitchd_podman_systemd_dependencies: "{{
+  ['After=container-openvswitch_db.service', 'Wants=container-openvswitch_db.service']
+  if openvswitch_manage_db_container | bool else []
+}}"
 
 openvswitch_db_default_volumes:
   - "{{ node_config_directory }}/openvswitch-db-server/:{{ container_config_directory }}/:ro"

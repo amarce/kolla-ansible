@@ -22,6 +22,11 @@ be running as-is.
    ``kolla_toolbox`` are running without a systemd unit, both during service
    checks and while applying start-order sequencing.
 
+Operators can further suppress actions for specific containers by setting
+``service_check_exclude_services`` to a list of container names. Any container
+listed there is ignored by the ``service-check-containers`` role even if the
+unit file is missing or the container is stopped.
+
 
 Reconfigure behaviour
 ---------------------

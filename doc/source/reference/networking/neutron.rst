@@ -184,6 +184,33 @@ applying any ``ovs-vsctl`` configuration, so running with
 database reports healthy to allow the process to settle. This grace period is
 controlled by ``openvswitch_vswitchd_post_healthy_delay``.
 
+External Open vSwitch deployments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Operators that run the Open vSwitch database and vswitchd daemons directly on
+the host can prevent Kolla Ansible from managing the corresponding containers
+by setting the following options in ``/etc/kolla/globals.yml``:
+
+.. code-block:: yaml
+
+   openvswitch_manage_db_container: "no"
+   openvswitch_manage_vswitchd_container: "no"
+
+When these values are ``no``, the service map marks the containers as disabled
+so the ``service-check-containers`` role will not attempt to create or start
+them.  Kolla Ansible probes the database socket defined by
+``openvswitch_db_socket`` (``/run/openvswitch/db.sock`` by default) before
+applying any database updates. Database mutations such as setting the
+``system-id`` only run when the socket is reachable, and a log message is
+emitted when the database cannot be contacted. Override
+``openvswitch_db_socket`` if the host-side database listens on a different
+path.
+
+To temporarily skip individual containers during migrations, define
+``service_check_exclude_services`` with a list of container names. For
+example, ``service_check_exclude_services: ['openvswitch_db']`` suppresses any
+service-check actions for the Open vSwitch database.
+
 ``kolla-ansible`` keeps provider bridges present without restarting Open
 vSwitch when their configuration has not changed. The
 ``ovs_provider_fail_mode`` variable defaults to ``standalone`` and controls the

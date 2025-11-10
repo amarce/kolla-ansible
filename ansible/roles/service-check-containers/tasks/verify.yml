@@ -149,3 +149,4 @@
     - service_enabled | bool
       or unit_file.stat.exists
       or not container_missing | bool
+    - container_name not in service_check_exclude_services
