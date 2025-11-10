@@ -1,4 +1,17 @@
----
+- name: Refresh handler unit file state
+  become: true
+  stat:
+    path: "/etc/systemd/system/{{ unit_name }}"
+  register: handler_unit_file
+  changed_when: false
+  failed_when: false
+  when: unit_name is defined
+
+- name: Propagate handler unit file state
+  set_fact:
+    service: "{{ (service | default({})) | combine({'unit_file_exists': handler_unit_file.stat.exists | default(service.unit_file_exists | default(false))}, recursive=True) }}"
+  when: unit_name is defined
+
 - name: Recreate container
   import_tasks: recreate.yml
 
@@ -23,7 +36,7 @@
   when:
     - unit_enabled
     - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+    - kolla_container_engine == 'docker'
 
 - name: Recreate container when missing or drifted
   listen: Restart container
@@ -49,19 +62,7 @@
   ignore_errors: true
   when:
     - not container_needs_recreate | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
-
-- name: Restart unit via systemd when available
-  listen: Restart container
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    state: restarted
-  when:
-    - not container_needs_recreate | bool
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.unit_file_exists | default(false) | bool
+    - not container_missing | bool
 
 - name: Ensure unit enabled
   listen: Restart container
@@ -73,8 +74,7 @@
     - not container_needs_recreate | bool
     - runtime_restart is failed
     - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
+    - kolla_container_engine == 'docker'
 
 - name: Restart unit as fallback
   listen: Restart container
@@ -86,6 +86,5 @@
     - not container_needs_recreate | bool
     - runtime_restart is failed
     - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
+    - kolla_container_engine == 'docker'
 

@@ -8,7 +8,7 @@
   set_fact:
     container_name: "{{ service_def.container_name }}"
     unit_name: "{{ _unit_name }}"
-    service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+    service: "{{ service_def }}"
     container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
     container_missing: "{{ container_missing | default(false) }}"
   listen: Restart openvswitch-db-server container
@@ -34,7 +34,7 @@
   set_fact:
     container_name: "{{ service_def.container_name }}"
     unit_name: "{{ _unit_name }}"
-    service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+    service: "{{ service_def }}"
     container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
     container_missing: "{{ container_missing | default(false) }}"
   listen: Restart openvswitch-vswitchd container

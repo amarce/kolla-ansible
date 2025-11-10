@@ -17,6 +17,10 @@
   set_fact:
     desired_healthcheck_test: "{{ container_spec.healthcheck.test | default([]) }}"
 
+- name: Set service enabled fact
+  set_fact:
+    service_enabled: "{{ container_spec.enabled | default(True) | bool }}"
+
 - name: Check container presence
   become: true
   command: >-
@@ -97,7 +101,9 @@
       debug:
         msg: "Scheduling container recreation"
       changed_when: true
-      when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
+      when:
+        - container_missing | bool or container_needs_recreate | bool
+        - service.enabled | default(True) | bool
       notify: Recreate container
 
     - name: Notify restart when needed
@@ -105,7 +111,9 @@
         msg: Notifying restart handler
       changed_when: needs_start | bool and not container_needs_recreate | bool
       notify: "Restart container"
-      when: not container_needs_recreate | bool
+      when:
+        - not container_needs_recreate | bool
+        - not container_missing | bool
 
     - name: Flush restart handler
       meta: flush_handlers
@@ -119,6 +127,9 @@
       when:
         - not container_missing
         - unit_file.stat.exists
-        - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+        - kolla_container_engine == 'docker'
         - (unit_active.rc | default(0)) != 0
-  when: not (container_missing | bool and not unit_file.stat.exists)
+  when:
+    - service_enabled | bool
+      or unit_file.stat.exists
+      or not container_missing | bool

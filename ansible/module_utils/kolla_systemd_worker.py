@@ -40,6 +40,16 @@ WantedBy=multi-user.target
 '''
 
 
+def _to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', 'yes', 'on', '1')
+    if value is None:
+        return False
+    return bool(value)
+
+
 class SystemdWorker(object):
     def __init__(self, params):
         name = params.get('name', None)
@@ -49,6 +59,10 @@ class SystemdWorker(object):
             return None
 
         container_engine = params.get('container_engine')
+        podman_use_systemd = _to_bool(params.get('podman_use_systemd'))
+        self.manage_unit_file = not (
+            container_engine == 'podman' and podman_use_systemd
+        )
         if container_engine == 'docker':
             dependencies = 'docker.service'
             unit_prefix = 'kolla-'
@@ -157,6 +171,8 @@ class SystemdWorker(object):
         )
 
     def check_unit_change(self, new_content=''):
+        if not self.manage_unit_file:
+            return False
         if not new_content:
             new_content = self.generate_unit_file()
 
@@ -172,9 +188,13 @@ class SystemdWorker(object):
         return True
 
     def generate_unit_file(self):
+        if not self.manage_unit_file:
+            return ''
         return self.template.substitute(self.container_dict)
 
     def create_unit_file(self):
+        if not self.manage_unit_file:
+            return False
         file_content = self.generate_unit_file()
 
         if self.check_unit_change(file_content):
