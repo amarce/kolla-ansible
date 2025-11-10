@@ -3,10 +3,13 @@ Podman Compatibility
 
 Kolla Ansible supports deployments with Podman.  Podman 4.9 renamed
 some fields returned by ``podman inspect``.  ``PidMode`` became
-``PidNS`` and ``CgroupnsMode`` became ``CgroupNS``.  Kolla Ansible now
-accepts either name when comparing containers and passes the correct
-``--pid`` and ``--cgroupns`` options to ``podman`` when creating
-containers.
+``PidNS`` and ``CgroupnsMode`` became ``CgroupNS``.  Podman 5 running
+with a cgroups v1 kernel may omit the cgroup namespace field entirely.
+Kolla Ansible now accepts either name, tolerates the absent
+``CgroupnsMode`` key and always passes the correct ``--pid`` and
+``--cgroupns`` options to ``podman`` when creating containers so that
+services such as ``nova_libvirt`` start in the requested host
+namespaces.
 
 When using ``*_extra_volumes`` options, Kolla Ansible will automatically
 create any missing host directories referenced by bind mounts with

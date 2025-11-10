@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Fixes repeated ``pid_mode differs`` drift reports on Podman by
+    passing ``--pid`` to ``podman create`` and forcing container
+    recreation when immutable namespace options change.  Deployments on
+    Podman 5 with cgroups v1 no longer mis-detect missing
+    ``CgroupnsMode`` fields during container comparison.

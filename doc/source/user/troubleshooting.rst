@@ -108,6 +108,21 @@ order by systemd, if available. Should systemd fail to start a unit, Kolla
 Ansible falls back to ``podman start`` and reports both the systemd error
 and container logs in the task output.
 
+Repeated ``pid_mode differs`` reports
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``service-check-containers`` compares the running container against the
+service definition.  On Podman 5 the nova_libvirt container must be
+created with ``pid_mode: host`` so that libvirt shares the host PID
+namespace.  Earlier releases of the Podman backend relied on
+``pid_mode`` being mutable and attempted to fix drift by restarting the
+container, leaving the namespace unchanged.  Current releases recreate
+the container when immutable fields such as ``pid_mode`` differ and pass
+``--pid=host`` to ``podman create`` so that the new container inherits
+the correct namespace.  If a deployment still reports this warning
+verify that nova_libvirt was recreated successfully and re-run the
+playbook once the new container is active.
+
 Task debugging
 --------------
 
