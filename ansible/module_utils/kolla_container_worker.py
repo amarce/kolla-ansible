@@ -344,6 +344,23 @@ def _normalise_container_info(container_info, params):
     return info
 
 
+IMMUTABLE_CONFIG_KEYS = frozenset(
+    {
+        "pid_mode",
+        "ipc_mode",
+        "cgroupns_mode",
+        "privileged",
+        "cap_add",
+        "security_opt",
+        "volumes",
+        "volumes_from",
+        "tmpfs",
+        "command",
+        "user",
+    }
+)
+
+
 def _empty_dimensions(d):
     """Return ``True`` if dict is empty or all numeric values are 0/None."""
     if not d:
@@ -550,6 +567,15 @@ class ContainerWorker(ABC):
         debug_enabled = getattr(self.module, "_verbosity", 0) >= 3 or os.environ.get(
             "KOLLA_ACTION_DEBUG", ""
         ).lower() in ("1", "true", "yes")
+
+        immutable_reasons = []
+        if differs:
+            immutable_reasons = sorted(
+                set(self._diff_keys).intersection(IMMUTABLE_CONFIG_KEYS)
+            )
+            if immutable_reasons:
+                self.result["container_needs_recreate"] = True
+                self.result["container_recreate_reasons"] = immutable_reasons
 
         if not differs:
             self._debug("no differences found")

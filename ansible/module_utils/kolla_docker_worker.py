@@ -343,9 +343,11 @@ class DockerWorker(ContainerWorker):
         if not container:
             self.start_container()
             return
+        differs = self.check_container_differs()
+        needs_recreate = bool(self.result.get("container_needs_recreate"))
         # If config_strategy is COPY_ONCE or container's parameters are
         # changed, try to start a new one.
-        if config_strategy == "COPY_ONCE" or self.check_container_differs():
+        if config_strategy == "COPY_ONCE" or differs or needs_recreate:
             # NOTE(mgoddard): Pull the image if necessary before stopping the
             # container, otherwise a failure to pull the image will leave the
             # container stopped.
