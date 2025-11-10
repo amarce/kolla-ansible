@@ -1,4 +1,17 @@
----
+- name: Refresh handler unit file state
+  become: true
+  stat:
+    path: "/etc/systemd/system/{{ unit_name }}"
+  register: handler_unit_file
+  changed_when: false
+  failed_when: false
+  when: unit_name is defined
+
+- name: Propagate handler unit file state
+  set_fact:
+    service: "{{ (service | default({})) | combine({'unit_file_exists': handler_unit_file.stat.exists | default(service.unit_file_exists | default(false))}, recursive=True) }}"
+  when: unit_name is defined
+
 - name: Recreate container
   import_tasks: recreate.yml
 
@@ -49,7 +62,11 @@
   ignore_errors: true
   when:
     - not container_needs_recreate | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
+    - not (
+        kolla_container_engine == 'podman' and
+        kolla_podman_use_systemd | bool and
+        service.unit_file_exists | default(false)
+      )
 
 - name: Restart unit via systemd when available
   listen: Restart container
