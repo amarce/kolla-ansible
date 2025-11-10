@@ -17,6 +17,10 @@
   set_fact:
     desired_healthcheck_test: "{{ container_spec.healthcheck.test | default([]) }}"
 
+- name: Set service enabled fact
+  set_fact:
+    service_enabled: "{{ container_spec.enabled | default(True) | bool }}"
+
 - name: Check container presence
   become: true
   command: >-
@@ -128,4 +132,7 @@
         - unit_file.stat.exists
         - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
         - (unit_active.rc | default(0)) != 0
-  when: not (container_missing | bool and not unit_file.stat.exists)
+  when:
+    - service_enabled | bool
+      or unit_file.stat.exists
+      or not container_missing | bool
