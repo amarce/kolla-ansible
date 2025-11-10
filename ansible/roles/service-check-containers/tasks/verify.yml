@@ -97,7 +97,10 @@
       debug:
         msg: "Scheduling container recreation"
       changed_when: true
-      when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
+      when:
+        - container_missing | bool or container_needs_recreate | bool
+        - service.enabled | default(True) | bool
+        - unit_enabled | bool or not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
       notify: Recreate container
 
     - name: Notify restart when needed
