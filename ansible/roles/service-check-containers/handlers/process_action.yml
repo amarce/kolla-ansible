@@ -1,0 +1,95 @@
+---
+- name: Prepare handler context for {{ handler_context.container_name }}
+  set_fact:
+    container_name: "{{ handler_context.container_name }}"
+    unit_name: "{{ handler_context.unit_name }}"
+    service: "{{ handler_context.service }}"
+    container_inspect: "{{ handler_context.container_inspect | default({}) }}"
+    container_missing: "{{ handler_context.container_missing | bool }}"
+    container_needs_recreate: "{{ handler_context.container_needs_recreate | bool }}"
+    unit_enabled: "{{ handler_context.unit_enabled | bool }}"
+    needs_start: "{{ handler_context.needs_start | bool }}"
+
+- name: Refresh handler unit file state
+  become: true
+  stat:
+    path: "/etc/systemd/system/{{ unit_name }}"
+  register: handler_unit_file
+  changed_when: false
+  failed_when: false
+  when: unit_name is defined
+
+- name: Propagate handler unit file state
+  set_fact:
+    service: "{{ (service | default({})) | combine({'unit_file_exists': handler_unit_file.stat.exists | default(service.unit_file_exists | default(false))}, recursive=True) }}"
+  when: unit_name is defined
+
+- block:
+    - name: Recreate container when missing or drifted
+      include_tasks: "{{ role_path }}/tasks/recreate.yml"
+
+    - name: Start container immediately after (re)create
+      become: true
+      vars:
+        _service_check_common_options: >-
+          {{ docker_common_options if kolla_container_engine != 'podman'
+             else (docker_common_options | dict2items
+                   | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+                   | list | items2dict) }}
+      kolla_container:
+        action: start_container
+        common_options: "{{ _service_check_common_options }}"
+        name: "{{ container_name }}"
+
+    - name: Ensure unit reflects new state
+      become: true
+      systemd:
+        name: "{{ unit_name }}"
+        state: restarted
+      when:
+        - unit_name is defined
+        - unit_enabled | bool
+        - service.unit_file_exists | default(false) | bool
+        - kolla_container_engine == 'docker'
+  when: container_missing | bool or container_needs_recreate | bool
+
+- block:
+    - name: Attempt runtime restart first
+      become: true
+      vars:
+        _service_check_common_options: >-
+          {{ docker_common_options if kolla_container_engine != 'podman'
+             else (docker_common_options | dict2items
+                   | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+                   | list | items2dict) }}
+      kolla_container:
+        action: restart_container
+        common_options: "{{ _service_check_common_options }}"
+        name: "{{ container_name }}"
+      register: runtime_restart
+      ignore_errors: true
+
+    - name: Ensure unit enabled
+      become: true
+      systemd:
+        name: "{{ unit_name }}"
+        enabled: true
+      when:
+        - unit_name is defined
+        - service.unit_file_exists | default(false) | bool
+        - runtime_restart is failed
+        - kolla_container_engine == 'docker'
+
+    - name: Restart unit as fallback
+      become: true
+      systemd:
+        name: "{{ unit_name }}"
+        state: restarted
+      when:
+        - unit_name is defined
+        - service.unit_file_exists | default(false) | bool
+        - runtime_restart is failed
+        - kolla_container_engine == 'docker'
+  when:
+    - not (container_missing | bool or container_needs_recreate | bool)
+    - needs_start | bool

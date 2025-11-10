@@ -1,91 +1,17 @@
 ---
-- name: Recreate container
-  import_tasks: recreate.yml
-
-- name: Start container immediately after (re)create
-  become: true
+- name: Process queued service-check action for {{ action.container_name }}
+  listen: Process service-check actions
   vars:
-    _service_check_common_options: >-
-      {{ docker_common_options if kolla_container_engine != 'podman'
-         else (docker_common_options | dict2items
-               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
-               | list | items2dict) }}
-  kolla_container:
-    action: start_container
-    common_options: "{{ _service_check_common_options }}"
-    name: "{{ container_name }}"
+    pending_actions: "{{ service_check_pending_actions | default([]) }}"
+    handler_context: "{{ action }}"
+  when: pending_actions | length > 0
+  include_tasks: process_action.yml
+  loop: "{{ pending_actions }}"
+  loop_control:
+    loop_var: action
 
-- name: Ensure unit reflects new state
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    state: restarted
-  when:
-    - unit_enabled
-    - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-
-- name: Recreate container when missing or drifted
-  listen: Restart container
-  when:
-    - container_missing | bool or container_needs_recreate | bool
-  import_tasks: recreate.yml
-  notify: Restart unit as fallback
-
-- name: Attempt runtime restart first
-  listen: Restart container
-  become: true
-  vars:
-    _service_check_common_options: >-
-      {{ docker_common_options if kolla_container_engine != 'podman'
-         else (docker_common_options | dict2items
-               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
-               | list | items2dict) }}
-  kolla_container:
-    action: restart_container
-    common_options: "{{ _service_check_common_options }}"
-    name: "{{ container_name }}"
-  register: runtime_restart
-  ignore_errors: true
-  when:
-    - not container_needs_recreate | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
-
-- name: Restart unit via systemd when available
-  listen: Restart container
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    state: restarted
-  when:
-    - not container_needs_recreate | bool
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.unit_file_exists | default(false) | bool
-
-- name: Ensure unit enabled
-  listen: Restart container
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    enabled: true
-  when:
-    - not container_needs_recreate | bool
-    - runtime_restart is failed
-    - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
-
-- name: Restart unit as fallback
-  listen: Restart container
-  become: true
-  systemd:
-    name: "{{ unit_name }}"
-    state: restarted
-  when:
-    - not container_needs_recreate | bool
-    - runtime_restart is failed
-    - service.unit_file_exists | default(false) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
-
+- name: Clear processed service-check actions
+  listen: Process service-check actions
+  when: (service_check_pending_actions | default([])) | length > 0
+  set_fact:
+    service_check_pending_actions: []

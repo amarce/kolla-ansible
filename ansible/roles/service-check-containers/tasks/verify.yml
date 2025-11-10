@@ -17,6 +17,10 @@
   set_fact:
     desired_healthcheck_test: "{{ container_spec.healthcheck.test | default([]) }}"
 
+- name: Set service enabled fact
+  set_fact:
+    service_enabled: "{{ container_spec.enabled | default(True) | bool }}"
+
 - name: Check container presence
   become: true
   command: >-
@@ -86,6 +90,11 @@
         - (container_inspect.Config.Healthcheck.Test | default([]) | to_json)
           != (desired_healthcheck_test | to_json)
 
+    - name: Detect configuration drift from compare_container
+      set_fact:
+        container_needs_recreate: true
+      when: service_check_compare_results[item.key] | default(false)
+
     - name: Init service fact for handlers
       set_fact:
         service: "{{ container_spec | combine({'unit_file_exists': unit_file.stat.exists}) }}"
@@ -93,21 +102,36 @@
     - name: Clear host error state
       meta: clear_host_errors
 
-    - name: Notify recreate handler when needed
-      debug:
-        msg: "Scheduling container recreation"
-      changed_when: true
-      when: (container_missing | bool or container_needs_recreate | bool) and unit_enabled | bool
-      notify: Recreate container
+    - name: Ensure missing containers trigger recreation
+      set_fact:
+        container_needs_recreate: true
+      when: container_missing | bool
 
-    - name: Notify restart when needed
-      debug:
-        msg: Notifying restart handler
-      changed_when: needs_start | bool and not container_needs_recreate | bool
-      notify: "Restart container"
-      when: not container_needs_recreate | bool
+    - name: Queue service-check action when needed
+      set_fact:
+        service_check_pending_actions: "{{ (
+            service_check_pending_actions | default([])
+          )
+          | rejectattr('container_name', 'equalto', container_name)
+          | list
+          + [
+              {
+                'container_name': container_name,
+                'unit_name': unit_name,
+                'service': service,
+                'container_inspect': container_inspect,
+                'container_missing': container_missing | bool,
+                'container_needs_recreate': container_needs_recreate | bool,
+                'unit_enabled': unit_enabled | bool,
+                'needs_start': needs_start | bool
+              }
+            ] }}"
+      when:
+        - service.enabled | default(True) | bool
+        - container_missing | bool or container_needs_recreate | bool or needs_start | bool
+      notify: Process service-check actions
 
-    - name: Flush restart handler
+    - name: Flush queued service-check actions
       meta: flush_handlers
 
     - name: Ensure unit running when container exists
@@ -119,6 +143,9 @@
       when:
         - not container_missing
         - unit_file.stat.exists
-        - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+        - kolla_container_engine == 'docker'
         - (unit_active.rc | default(0)) != 0
-  when: not (container_missing | bool and not unit_file.stat.exists)
+  when:
+    - service_enabled | bool
+      or unit_file.stat.exists
+      or not container_missing | bool
