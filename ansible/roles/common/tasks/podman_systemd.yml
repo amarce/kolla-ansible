@@ -3,8 +3,9 @@
 - name: Generate systemd unit for {{ service.container_name }}
   become: true
   command: >-
-    podman generate systemd --name --files --restart-policy=always --output /etc/systemd/system {{ service.container_name }}
+    podman generate systemd --name --files --restart-policy=always {{ service.container_name }}
   args:
+    chdir: /etc/systemd/system
     creates: "/etc/systemd/system/container-{{ service.container_name }}.service"
   when:
     - kolla_container_engine == 'podman'
