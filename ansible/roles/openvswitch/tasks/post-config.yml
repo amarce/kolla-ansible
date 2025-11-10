@@ -1,5 +1,11 @@
 ---
 # NOTE(mnasiadka): external_ids:system-id uniquely identifies a physical system, used by OVN and other controllers
+- name: Initialise OVSDB reachability state
+  set_fact:
+    ovsdb_reachable: false
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+
 - name: Wait for openvswitch_db container
   become: true
   kolla_container_facts:
@@ -15,6 +21,7 @@
   until: ovsdb_container.containers.openvswitch_db is defined
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - openvswitch_manage_db_container | bool
 
 - name: Wait for Open vSwitch database socket
   become: true
@@ -27,6 +34,39 @@
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
     - ovsdb_container.containers.openvswitch_db is defined
+    - openvswitch_manage_db_container | bool
+
+- name: Mark managed OVSDB as reachable
+  set_fact:
+    ovsdb_reachable: "{{ ovsdb_wait.rc == 0 }}"
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - openvswitch_manage_db_container | bool
+
+- name: Probe external Open vSwitch database reachability
+  become: true
+  command: >-
+    {{ kolla_container_engine }} exec kolla_toolbox ovsdb-client list-dbs unix:{{ openvswitch_db_socket }}
+  register: external_ovsdb_probe
+  changed_when: false
+  failed_when: false
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - not openvswitch_manage_db_container | bool
+
+- name: Record external OVSDB reachability
+  set_fact:
+    ovsdb_reachable: "{{ external_ovsdb_probe.rc == 0 }}"
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - not openvswitch_manage_db_container | bool
+
+- name: Log OVSDB reachability status
+  debug:
+    msg: "Skipping OVSDB changes because the database is not reachable or not managed by kolla-ansible"
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - not ovsdb_reachable | bool
 
 - name: Set system-id, hostname and hw-offload
   become: true
@@ -47,6 +87,7 @@
     - { col: "other_config", name: "hw-offload", value: true, state: "{{ 'present' if openvswitch_hw_offload | bool else 'absent' }}" }
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - ovsdb_reachable | bool
   notify:
     - "Restart openvswitch-vswitchd container"
 
