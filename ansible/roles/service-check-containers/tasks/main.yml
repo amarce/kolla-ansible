@@ -5,9 +5,14 @@
   become: true
   vars:
     service: "{{ item.value }}"
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
   kolla_container:
     action: "compare_container"
-    common_options: "{{ docker_common_options }}"
+    common_options: "{{ _service_check_common_options }}"
     name: "{{ service.container_name }}"
     image: "{{ service.image | default(omit) }}"
     volumes: "{{ service.volumes | default(omit) }}"

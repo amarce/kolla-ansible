@@ -21,3 +21,19 @@ be running as-is.
    This behaviour ensures deployments succeed even when containers such as
    ``kolla_toolbox`` are running without a systemd unit, both during service
    checks and while applying start-order sequencing.
+
+
+Reconfigure behaviour
+---------------------
+
+When Podman containers are managed through systemd units
+(``kolla_podman_use_systemd: true``), ``kolla-ansible reconfigure`` no longer
+interprets differences in Podman's implicit restart policy as container drift.
+The ``service-check-containers`` role now ignores the ``RestartPolicy`` settings
+reported by Podman and compares only the container image, configuration,
+healthcheck, and other explicit runtime options.
+
+Operators should ensure ``kolla_podman_use_systemd`` is set to ``true`` in
+``/etc/kolla/globals.yml`` when systemd units are used to supervise Podman
+containers. With this setting enabled, reconfigure operations leave containers
+running unless a configuration, image, or healthcheck change is detected.

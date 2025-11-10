@@ -1,0 +1,14 @@
+---
+features:
+  - |
+    Improved Podman container comparison during ``kolla-ansible reconfigure`` by
+    normalising defaults injected by the runtime. Podman-managed containers no
+    longer appear changed when only ``unmask=all`` security options, reordered
+    bind mounts, or empty user fields differ from the rendered specification.
+upgrade:
+  - |
+    When ``kolla_podman_use_systemd`` is enabled, restart policy differences are
+    ignored during service checks and restarts are delegated to the systemd
+    units. Ensure the variable is set to ``true`` on deployments that rely on
+    systemd to supervise Podman containers to benefit from the reduced
+    restarts during reconfigure.

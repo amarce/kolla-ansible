@@ -2,17 +2,20 @@
 - name: Restart openvswitch-db-server container
   vars:
     service_name: "openvswitch-db-server"
-    service: "{{ openvswitch_services[service_name] }}"
-  become: true
-  kolla_container:
-    action: "recreate_or_restart_container"
-    common_options: "{{ docker_common_options }}"
-    name: "{{ service.container_name }}"
-    image: "{{ service.image }}"
-    volumes: "{{ service.volumes | select('truthy') | list }}"
-    dimensions: "{{ service.dimensions }}"
-    healthcheck: "{{ service.healthcheck }}"
+    service_def: "{{ openvswitch_services[service_name] }}"
+    _unit_name: >-
+      {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
+  block:
+    - name: Prepare restart context for openvswitch-db-server
+      set_fact:
+        container_name: "{{ service_def.container_name }}"
+        unit_name: "{{ _unit_name }}"
+        service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+        container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
+        container_missing: "{{ container_missing | default(false) }}"
+  listen: Restart openvswitch-db-server container
   notify:
+    - Restart container
     - Waiting for openvswitch_db service to be ready
 
 - name: Waiting for openvswitch_db service to be ready
@@ -27,14 +30,17 @@
 - name: Restart openvswitch-vswitchd container
   vars:
     service_name: "openvswitch-vswitchd"
-    service: "{{ openvswitch_services[service_name] }}"
-  become: true
-  kolla_container:
-    action: "recreate_or_restart_container"
-    common_options: "{{ docker_common_options }}"
-    name: "{{ service.container_name }}"
-    image: "{{ service.image }}"
-    volumes: "{{ service.volumes | select('truthy') | list }}"
-    privileged: "{{ service.privileged | default(False) }}"
-    dimensions: "{{ service.dimensions }}"
-    healthcheck: "{{ service.healthcheck }}"
+    service_def: "{{ openvswitch_services[service_name] }}"
+    _unit_name: >-
+      {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
+  block:
+    - name: Prepare restart context for openvswitch-vswitchd
+      set_fact:
+        container_name: "{{ service_def.container_name }}"
+        unit_name: "{{ _unit_name }}"
+        service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+        container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
+        container_missing: "{{ container_missing | default(false) }}"
+  listen: Restart openvswitch-vswitchd container
+  notify:
+    - Restart container

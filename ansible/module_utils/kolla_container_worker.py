@@ -10,6 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import json
 import logging
 import os
@@ -300,6 +301,49 @@ def _compare_ulimits(spec, running) -> bool:
     return False
 
 
+def _normalise_env(env):
+    ordered = {}
+    for item in env or []:
+        if not item or "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        ordered[key] = value
+    return [f"{k}={ordered[k]}" for k in sorted(ordered)]
+
+
+def _normalise_container_info(container_info, params):
+    if not container_info:
+        return container_info
+
+    info = copy.deepcopy(container_info)
+    engine = params.get("container_engine")
+
+    config = info.setdefault("Config", {}) or {}
+    host_cfg = info.setdefault("HostConfig", {}) or {}
+
+    if engine == "podman":
+        if not _as_list(params.get("security_opt")):
+            sec_opt = host_cfg.get("SecurityOpt") or []
+            host_cfg["SecurityOpt"] = [
+                opt for opt in sec_opt if str(opt).lower() != "unmask=all"
+            ]
+
+        binds = host_cfg.get("Binds")
+        if binds:
+            host_cfg["Binds"] = sorted(binds, key=_normalise_bind)
+
+    if config.get("Env"):
+        config["Env"] = _normalise_env(config["Env"])
+
+    if config.get("User") == "":
+        config["User"] = None
+
+    if not config.get("Volumes"):
+        config["Volumes"] = {}
+
+    return info
+
+
 def _empty_dimensions(d):
     """Return ``True`` if dict is empty or all numeric values are 0/None."""
     if not d:
@@ -423,6 +467,8 @@ class ContainerWorker(ABC):
         if not container_info:
             self._debug("container does not exist")
             return True
+
+        container_info = _normalise_container_info(container_info, self.params)
 
         differs = False
         self._diff_keys = []
@@ -558,6 +604,14 @@ class ContainerWorker(ABC):
             current_sec_opt = _as_list(container_info["HostConfig"].get("SecurityOpt"))
         except (KeyError, TypeError):
             current_sec_opt = []
+
+        if (
+            self.params.get("container_engine") == "podman"
+            and not new_sec_opt
+        ):
+            current_sec_opt = [
+                opt for opt in current_sec_opt if str(opt).lower() != "unmask=all"
+            ]
 
         if sorted(new_sec_opt) != sorted(current_sec_opt):
             return True
@@ -797,6 +851,8 @@ class ContainerWorker(ABC):
 
     def compare_restart_policy(self, container_info):
         if self.params.get("container_engine") != "podman":
+            return False
+        if self.params.get("podman_use_systemd"):
             return False
         desired = self.params.get("restart_policy")
         current = (
