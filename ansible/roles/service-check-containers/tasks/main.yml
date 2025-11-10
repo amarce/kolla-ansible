@@ -42,8 +42,16 @@
   debug:
     msg: Notifying handlers
   changed_when: container_check is changed
-  when: not (service.iterate | default(False)) | bool
+  when:
+    - not (service.iterate | default(False)) | bool
+    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
   notify: "{{ container_check.results | select('changed') | map(attribute='item.key') | map('regex_replace', '^(.*)$', 'Restart \\1 container') | list }}"
+
+- name: Cache compare-container drift results
+  set_fact:
+    service_check_compare_results: "{{ (service_check_compare_results | default({})) | combine({ item.item.key: item.changed }) }}"
+  loop: "{{ container_check.results | default([]) }}"
+  when: container_check is defined
 
 - name: Include tasks
   vars:
