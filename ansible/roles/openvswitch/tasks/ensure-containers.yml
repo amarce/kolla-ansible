@@ -1,18 +1,15 @@
 ---
 - name: Ensure Open vSwitch containers exist before systemd and post-config
+  include_tasks: roles/common/tasks/_ensure_service_container.yml
   vars:
-    service_spec: "{{ item.value }}"
-    ensure_action: >-
+    service_name: "{{ item.key }}"
+    service: "{{ item.value }}"
+    ensure_container_action: >-
       {{ 'recreate_container'
          if item.key == 'openvswitch-db-server' and openvswitch_force_create_db_container | bool
          else 'recreate_or_restart_container' }}
-  import_tasks: roles/common/tasks/_ensure_service_container.yml
-  vars:
-    service_name: "{{ item.key }}"
-    service: "{{ service_spec }}"
-    ensure_container_action: "{{ ensure_action }}"
   loop: "{{ openvswitch_services | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
   when:
-    - service_spec | service_enabled_and_mapped_to_host
+    - item.value | service_enabled_and_mapped_to_host
