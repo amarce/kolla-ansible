@@ -52,7 +52,7 @@
 
 - name: Ensure provider bridge {{ item }} exists with desired fail_mode
   become: true
-  community.general.openvswitch_bridge:
+  community.network.openvswitch_bridge:
     bridge: "{{ item }}"
     state: present
     fail_mode: "{{ ovs_provider_fail_mode }}"
