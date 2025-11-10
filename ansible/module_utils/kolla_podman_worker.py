@@ -65,7 +65,7 @@ CONTAINER_PARAMS = [
     "netns",  # dict
     "network_options",  # string - none,bridge,host,container:id,
     # missing in docker but needs to be host
-    "pid_mode",  # "string"  host, private or ''
+    "pid",  # "string"  host, private or ''
     "privileged",  # bool
     "restart_policy",  # set to none, handled by systemd
     "remove",  # bool
@@ -136,7 +136,7 @@ class PodmanWorker(ContainerWorker):
         convert_keys = dict(
             graceful_timeout="stop_timeout",
             cgroupns_mode="cgroupns",
-            pid_mode="pid_mode",
+            pid_mode="pid",
         )
 
         # remap differing args
@@ -146,6 +146,10 @@ class PodmanWorker(ContainerWorker):
 
                 if value is not None:
                     args[key_new] = value
+                if key_orig == "pid_mode":
+                    # keep desired pid namespace for later comparisons
+                    # while ensuring Podman receives the expected "pid" arg
+                    continue
 
         # record remaining args
         for key, value in self.params.items():
@@ -329,7 +333,7 @@ class PodmanWorker(ContainerWorker):
         )
 
         if not current_pid_mode:
-            current_pid_mode = None
+            current_pid_mode = "private"
 
         # podman default pid_mode
         if new_pid_mode is None and current_pid_mode == "private":
@@ -510,7 +514,10 @@ class PodmanWorker(ContainerWorker):
             self.start_container()
             return
 
-        if strategy == "COPY_ONCE" or self.check_container_differs():
+        differs = self.check_container_differs()
+        needs_recreate = bool(self.result.get("container_needs_recreate"))
+
+        if strategy == "COPY_ONCE" or differs or needs_recreate:
             self.ensure_image()
 
             self.stop_container()

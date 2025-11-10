@@ -218,7 +218,7 @@ class TestContainer(base.BaseTestCase):
         params.update({'pid_mode': 'host', 'cgroupns_mode': 'host'})
         self.pw = get_PodmanWorker(params)
         args = self.pw.prepare_container_args()
-        self.assertEqual('host', args.get('pid_mode'))
+        self.assertEqual('host', args.get('pid'))
         self.assertEqual('host', args.get('cgroupns'))
 
     def test_create_container_with_dimensions(self):
@@ -661,6 +661,23 @@ class TestContainer(base.BaseTestCase):
         self.pw.start_container = mock.Mock()
         self.pw.remove_container = mock.Mock()
         self.pw.check_container_differs = mock.Mock(return_value=True)
+
+        self.pw.recreate_or_restart_container()
+
+        self.pw.ensure_image.assert_called_once_with()
+        self.pw.remove_container.assert_called_once_with()
+        self.pw.start_container.assert_called_once_with()
+
+    def test_recreate_or_restart_container_container_copy_always_needs_recreate(self):
+        self.pw = get_PodmanWorker({
+            'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
+        self.pw.check_container = mock.Mock(
+            return_value=construct_container(self.fake_data['containers'][0]))
+        self.pw.ensure_image = mock.Mock()
+        self.pw.start_container = mock.Mock()
+        self.pw.remove_container = mock.Mock()
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.result['container_needs_recreate'] = True
 
         self.pw.recreate_or_restart_container()
 
@@ -1172,6 +1189,52 @@ class TestAttrComp(base.BaseTestCase):
         container_info = {'HostConfig': dict(PidNS='host1')}
         self.pw = get_PodmanWorker({'pid_mode': 'host2'})
         self.assertTrue(self.pw.compare_pid_mode(container_info))
+
+    def test_check_container_differs_marks_pid_mode(self):
+        params = self.fake_data['params'].copy()
+        params.update({'pid_mode': 'host'})
+        self.pw = get_PodmanWorker(params)
+        container_info = {
+            'HostConfig': {
+                'PidMode': 'private',
+                'Privileged': False,
+            },
+            'Config': {
+                'Env': [],
+                'Labels': {},
+                'Volumes': {},
+            },
+            'State': {'Status': 'running'},
+            'Image': 'image-id',
+        }
+        self.pw.get_container_info = mock.Mock(return_value=container_info)
+        # Ensure unrelated comparisons do not interfere with the test
+        for method in [
+            'compare_cap_add',
+            'compare_security_opt',
+            'compare_image',
+            'compare_ipc_mode',
+            'compare_labels',
+            'compare_privileged',
+            'compare_cgroupns_mode',
+            'compare_tmpfs',
+            'compare_volumes',
+            'compare_volumes_from',
+            'compare_environment',
+            'compare_restart_policy',
+            'compare_container_state',
+            'compare_dimensions',
+            'compare_command',
+            'compare_user',
+            'compare_healthcheck',
+        ]:
+            setattr(self.pw, method, mock.Mock(return_value=False))
+
+        differs = self.pw.check_container_differs()
+
+        self.assertTrue(differs)
+        self.assertTrue(self.pw.result.get('container_needs_recreate'))
+        self.assertIn('pid_mode', self.pw.result.get('container_recreate_reasons', []))
 
     def test_compare_cgroupns_mode_neg(self):
         container_info = {'HostConfig': dict(CgroupMode='host')}
