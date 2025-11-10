@@ -52,15 +52,11 @@
 
 - name: Ensure provider bridge {{ item }} exists with desired fail_mode
   become: true
-  kolla_toolbox:
-    container_engine: "{{ kolla_container_engine }}"
-    user: root
-    module_name: openvswitch_bridge
-    module_args:
-      bridge: "{{ item }}"
-      state: present
-      fail_mode: "{{ ovs_provider_fail_mode }}"
-      timeout: 5
+  community.network.openvswitch_bridge:
+    bridge: "{{ item }}"
+    state: present
+    fail_mode: "{{ ovs_provider_fail_mode }}"
+    timeout: 5
   loop: "{{ neutron_bridge_name.split(',') }}"
   when:
     - inventory_hostname in groups["network"]
