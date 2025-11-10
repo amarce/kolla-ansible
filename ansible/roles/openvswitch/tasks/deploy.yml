@@ -8,6 +8,8 @@
 - name: Flush Handlers
   meta: flush_handlers
 
+- import_tasks: ensure-containers.yml
+
 - import_tasks: podman-systemd.yml
   when:
     - kolla_container_engine == 'podman'
