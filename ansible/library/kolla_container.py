@@ -474,7 +474,13 @@ def main():
                 cw.result.setdefault('debug', ['no differences found'])
             module.exit_json(changed=changed, result=result, **cw.result)
         else:
-            module.exit_json(changed=cw.changed, result=result, **cw.result)
+            changed = cw.changed
+            if action == 'recreate_or_restart_container':
+                if not result:
+                    changed = False
+                elif cw.result.get('debug') and 'no differences found' in str(cw.result['debug']):
+                    changed = False
+            module.exit_json(changed=changed, result=result, **cw.result)
     except Exception:
         module.fail_json(changed=True, msg=repr(traceback.format_exc()),
                          **getattr(cw, 'result', {}))

@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    ``kolla-ansible deploy`` and ``kolla-ansible reconfigure`` no longer restart
+    Open vSwitch containers when the ``kolla_container`` module reports that the
+    existing container configuration matches the desired state. Provider bridge
+    management also honours the new ``ovs_provider_fail_mode`` variable, which
+    defaults to ``standalone`` and can be set to ``secure`` when required.

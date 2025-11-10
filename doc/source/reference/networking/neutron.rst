@@ -184,6 +184,14 @@ applying any ``ovs-vsctl`` configuration, so running with
 database reports healthy to allow the process to settle. This grace period is
 controlled by ``openvswitch_vswitchd_post_healthy_delay``.
 
+``kolla-ansible`` keeps provider bridges present without restarting Open
+vSwitch when their configuration has not changed. The
+``ovs_provider_fail_mode`` variable defaults to ``standalone`` and controls the
+fail mode applied to provider bridges such as ``br-ex``. Override this value if
+your environment requires ``secure`` behaviour. Both ``deploy`` and
+``reconfigure`` respect the container module's no-op result, so Open vSwitch is
+not restarted when the container definition is unchanged.
+
 Verification of the Open vSwitch containers only proceeds when the
 corresponding systemd unit or container is present.  If neither exists, the
 check is skipped entirely, avoiding spurious failures on hosts where the role
