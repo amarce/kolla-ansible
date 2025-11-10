@@ -4,7 +4,8 @@
     name: common
     tasks_from: podman_systemd
   vars:
-    service: "{{ item.value }}"
+    service: "{{ ovs_service_item.value }}"
   loop: "{{ openvswitch_services | select_services_enabled_and_mapped_to_host | dict2items }}"
   loop_control:
-    label: "{{ item.key }}"
+    loop_var: ovs_service_item
+    label: "{{ ovs_service_item.key }}"
