@@ -1,18 +1,16 @@
 ---
-- name: Restart openvswitch-db-server container
+- name: Prepare restart context for openvswitch-db-server
   vars:
     service_name: "openvswitch-db-server"
     service_def: "{{ openvswitch_services[service_name] }}"
     _unit_name: >-
       {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
-  block:
-    - name: Prepare restart context for openvswitch-db-server
-      set_fact:
-        container_name: "{{ service_def.container_name }}"
-        unit_name: "{{ _unit_name }}"
-        service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
-        container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
-        container_missing: "{{ container_missing | default(false) }}"
+  set_fact:
+    container_name: "{{ service_def.container_name }}"
+    unit_name: "{{ _unit_name }}"
+    service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+    container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
+    container_missing: "{{ container_missing | default(false) }}"
   listen: Restart openvswitch-db-server container
   notify:
     - Restart container
@@ -27,20 +25,18 @@
   retries: 30
   delay: 2
 
-- name: Restart openvswitch-vswitchd container
+- name: Prepare restart context for openvswitch-vswitchd
   vars:
     service_name: "openvswitch-vswitchd"
     service_def: "{{ openvswitch_services[service_name] }}"
     _unit_name: >-
       {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
-  block:
-    - name: Prepare restart context for openvswitch-vswitchd
-      set_fact:
-        container_name: "{{ service_def.container_name }}"
-        unit_name: "{{ _unit_name }}"
-        service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
-        container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
-        container_missing: "{{ container_missing | default(false) }}"
+  set_fact:
+    container_name: "{{ service_def.container_name }}"
+    unit_name: "{{ _unit_name }}"
+    service: "{{ service_def | combine({'unit_file_exists': True}, recursive=True) }}"
+    container_needs_recreate: "{{ container_needs_recreate | default(false) }}"
+    container_missing: "{{ container_missing | default(false) }}"
   listen: Restart openvswitch-vswitchd container
   notify:
     - Restart container
