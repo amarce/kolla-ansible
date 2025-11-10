@@ -30,9 +30,15 @@
 
 - name: Recreate container
   become: true
+  vars:
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
   kolla_container:
     action: recreate_container
-    common_options: "{{ docker_common_options }}"
+    common_options: "{{ _service_check_common_options }}"
     name: "{{ container_name }}"
     image: "{{ container_spec.image | default(omit) }}"
     volumes: "{{ service.volumes | default(omit) }}"

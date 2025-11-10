@@ -4,9 +4,15 @@
 
 - name: Start container immediately after (re)create
   become: true
+  vars:
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
   kolla_container:
     action: start_container
-    common_options: "{{ docker_common_options }}"
+    common_options: "{{ _service_check_common_options }}"
     name: "{{ container_name }}"
 
 - name: Ensure unit reflects new state
@@ -29,13 +35,33 @@
 - name: Attempt runtime restart first
   listen: Restart container
   become: true
+  vars:
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
   kolla_container:
     action: restart_container
-    common_options: "{{ docker_common_options }}"
+    common_options: "{{ _service_check_common_options }}"
     name: "{{ container_name }}"
   register: runtime_restart
   ignore_errors: true
-  when: not container_needs_recreate | bool
+  when:
+    - not container_needs_recreate | bool
+    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
+
+- name: Restart unit via systemd when available
+  listen: Restart container
+  become: true
+  systemd:
+    name: "{{ unit_name }}"
+    state: restarted
+  when:
+    - not container_needs_recreate | bool
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+    - service.unit_file_exists | default(false) | bool
 
 - name: Ensure unit enabled
   listen: Restart container
@@ -48,6 +74,7 @@
     - runtime_restart is failed
     - service.unit_file_exists | default(false) | bool
     - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
 
 - name: Restart unit as fallback
   listen: Restart container
@@ -60,4 +87,5 @@
     - runtime_restart is failed
     - service.unit_file_exists | default(false) | bool
     - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
+    - not (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
 

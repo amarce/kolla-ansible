@@ -161,6 +161,7 @@ docker_common_options:
   environment:
     KOLLA_CONFIG_STRATEGY: "{{ config_strategy }}"
     KOLLA_ACTION_DEBUG: "{{ 'true' if kolla_action_debug | bool else 'false' }}"
+  podman_use_systemd: {{ kolla_podman_use_systemd | bool }}
   restart_policy: "{{ docker_restart_policy }}"
   restart_retries: "{{ docker_restart_policy_retry }}"
   graceful_timeout: "{{ docker_graceful_timeout }}"
