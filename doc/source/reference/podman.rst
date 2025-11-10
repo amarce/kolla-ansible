@@ -28,6 +28,18 @@ listed there is ignored by the ``service-check-containers`` role even if the
 unit file is missing or the container is stopped.
 
 
+Container creation ordering
+---------------------------
+
+Each role now invokes the shared ``_ensure_service_container`` helper before
+generating Podman systemd units or running post-configuration tasks. This
+guarantees that containers are created as soon as their images are available,
+preventing later tasks from waiting indefinitely for units that were never
+spawned. The ensure step also ignores the historical ``service.iterate`` gate,
+so first-time container creation is not skipped when a service definition
+declares iteration metadata.
+
+
 Reconfigure behaviour
 ---------------------
 

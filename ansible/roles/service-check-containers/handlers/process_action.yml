@@ -25,10 +25,44 @@
   when: unit_name is defined
 
 - block:
-    - name: Recreate container when missing or drifted
-      include_tasks: "{{ role_path }}/tasks/recreate.yml"
+    - name: Ensure {{ container_name }} container exists when missing
+      vars:
+        service_spec: "{{ service }}"
+      import_tasks: roles/common/tasks/_ensure_service_container.yml
+      vars:
+        service_name: "{{ handler_context.service_name | default(container_name) }}"
+        service: "{{ service_spec }}"
+        ensure_container_common_options: "{{ _service_check_common_options }}"
+    - name: Refresh handler container facts
+      become: true
+      kolla_container_facts:
+        action: get_containers
+        container_engine: "{{ kolla_container_engine }}"
+        name:
+          - "{{ container_name }}"
+      register: handler_container_refresh
+      changed_when: false
+      failed_when: false
+    - name: Update handler container inspect data
+      set_fact:
+        container_inspect: "{{ (handler_container_refresh.containers | default({})).get(container_name, {}) }}"
+  when: container_missing | bool
+  vars:
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
 
-    - name: Start container immediately after (re)create
+- block:
+    - name: Recreate container when drifted
+      include_tasks: "{{ role_path }}/tasks/recreate.yml"
+  when:
+    - container_needs_recreate | bool
+    - not container_missing | bool
+
+- block:
+    - name: Start container immediately after ensure or recreate
       become: true
       vars:
         _service_check_common_options: >-
@@ -51,7 +85,8 @@
         - unit_enabled | bool
         - service.unit_file_exists | default(false) | bool
         - kolla_container_engine == 'docker'
-  when: container_missing | bool or container_needs_recreate | bool
+  when:
+    - container_missing | bool or container_needs_recreate | bool
 
 - block:
     - name: Attempt runtime restart first
