@@ -19,10 +19,10 @@
     ensure_container_dimensions: "{{ service.dimensions }}"
     ensure_container_privileged: "{{ service.privileged | default(False) }}"
   include_tasks: "{{ role_path }}/../common/tasks/_ensure_service_container.yml"
-  notify:
-    - Initializing toolbox container using normal user
+  listen: Restart kolla-toolbox container
 
 - name: Initializing toolbox container using normal user
+  listen: Restart kolla-toolbox container
   become: true
   command: "{{ kolla_container_engine }} exec -t {{ common_services['kolla-toolbox']['container_name'] }} ansible --version"
   changed_when: false
