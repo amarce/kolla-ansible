@@ -42,6 +42,7 @@
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
     - openvswitch_manage_db_container | bool
+    - ovsdb_wait is defined
 
 - name: Probe external Open vSwitch database reachability
   become: true

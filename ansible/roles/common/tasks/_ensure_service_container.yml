@@ -2,7 +2,7 @@
 - name: Ensure {{ service_name }} container is configured
   become: true
   kolla_container:
-    action: recreate_or_restart_container
+    action: "{{ ensure_container_action | default('recreate_or_restart_container') }}"
     common_options: "{{ ensure_container_common_options | default(docker_common_options) }}"
     name: "{{ ensure_container_name | default(service.container_name) }}"
     image: "{{ ensure_container_image | default(service.image | default(omit)) }}"
