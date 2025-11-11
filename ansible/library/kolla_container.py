@@ -397,10 +397,20 @@ def generate_module():
         except Exception:  # pragma: no cover - keep module resilient
             raw_args = {}
         if isinstance(raw_args, dict):
-            specified_options.update(raw_args.keys())
-            common_opts = raw_args.get('common_options')
-            if isinstance(common_opts, dict):
-                specified_options.update(common_opts.keys())
+            module_args = raw_args
+            while isinstance(module_args, dict):
+                if isinstance(module_args.get('ANSIBLE_MODULE_ARGS'), dict):
+                    module_args = module_args['ANSIBLE_MODULE_ARGS']
+                    continue
+                if isinstance(module_args.get('module_args'), dict):
+                    module_args = module_args['module_args']
+                    continue
+                break
+            if isinstance(module_args, dict):
+                specified_options.update(module_args.keys())
+                common_opts = module_args.get('common_options')
+                if isinstance(common_opts, dict):
+                    specified_options.update(common_opts.keys())
 
     common_options_defaults = {
         'auth_email': None,
