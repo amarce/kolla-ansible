@@ -346,6 +346,7 @@ def _collect_specified_options(raw_args):
             for key in common_opts.keys():
                 if not isinstance(key, str):
                     continue
+                specified.add(key)
                 specified.add(f"common_options.{key}")
 
     return specified
