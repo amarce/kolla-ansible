@@ -120,7 +120,14 @@ class APIErrorStub(Exception):
 
 def get_PodmanWorker(mod_param):
     module = mock.MagicMock()
-    module.params = mod_param
+    params = copy.deepcopy(mod_param)
+    specified = set(params.keys())
+    common_opts = params.get('common_options')
+    if isinstance(common_opts, dict):
+        specified.update(common_opts.keys())
+    if specified:
+        params['_kolla_specified_options'] = list(specified)
+    module.params = params
     pw = pwm.PodmanWorker(module)
     pw.systemd = mock.MagicMock()
     pw.pc = mock.MagicMock()
@@ -1226,12 +1233,12 @@ class TestAttrComp(base.BaseTestCase):
         self.assertTrue(self.pw.compare_pid_mode(container_info))
 
     def test_compare_pid_mode_pidns_neg(self):
-        container_info = {'HostConfig': dict(PidNS='host')}
+        container_info = {'HostConfig': dict(PidNS={'nsmode': 'host'})}
         self.pw = get_PodmanWorker({'pid_mode': 'host'})
         self.assertFalse(self.pw.compare_pid_mode(container_info))
 
     def test_compare_pid_mode_pidns_pos(self):
-        container_info = {'HostConfig': dict(PidNS='host1')}
+        container_info = {'HostConfig': dict(PidNS={'nsmode': 'host1'})}
         self.pw = get_PodmanWorker({'pid_mode': 'host2'})
         self.assertTrue(self.pw.compare_pid_mode(container_info))
 
@@ -1241,11 +1248,11 @@ class TestAttrComp(base.BaseTestCase):
         self.pw = get_PodmanWorker(params)
         self.assertFalse(self.pw.compare_pid_mode(container_info))
 
-    def test_compare_pid_mode_default_detects_host(self):
+    def test_compare_pid_mode_default_ignores_host(self):
         container_info = {'HostConfig': dict(PidMode='host')}
         params = self.fake_data['params'].copy()
         self.pw = get_PodmanWorker(params)
-        self.assertTrue(self.pw.compare_pid_mode(container_info))
+        self.assertFalse(self.pw.compare_pid_mode(container_info))
 
     def test_check_container_differs_marks_pid_mode(self):
         params = self.fake_data['params'].copy()

@@ -1,11 +1,10 @@
 ---
 # Verify that container and systemd unit exist and are active
-- name: Init status vars when undefined
+- name: Reset verification facts
   set_fact:
     container_missing: false
     unit_missing_or_disabled: false
     container_needs_recreate: false
-  when: container_missing is not defined or unit_missing_or_disabled is not defined
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
@@ -21,18 +20,13 @@
   set_fact:
     service_enabled: "{{ container_spec.enabled | default(True) | bool }}"
 
-- name: Initialize container presence probe result
-  set_fact:
-    container_result:
-      rc: 1
-
 - name: Check container presence
   become: true
   command: >-
     {{ kolla_container_engine }}
     {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
        else 'container inspect ' + container_name }}
-  register: container_result
+  register: container_probe_initial
   changed_when: false
   failed_when: false
 
@@ -50,18 +44,18 @@
         {{ kolla_container_engine }}
         {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
            else 'container inspect ' + container_name }}
-      register: container_result
+      register: container_probe_after_ensure
       changed_when: false
       failed_when: false
   when:
     - service_enabled | bool
-    - (container_result.rc | default(1)) != 0
+    - (container_probe_initial.rc | default(1)) != 0
   vars:
     _service_check_common_options: >-
       {{ docker_common_options if kolla_container_engine != 'podman'
          else (docker_common_options | dict2items
                | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
-               | list | items2dict) }}
+                | list | items2dict) }}
 
 - name: Refresh container presence after ensure
   become: true
@@ -69,7 +63,7 @@
     {{ kolla_container_engine }}
     {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
        else 'container inspect ' + container_name }}
-  register: container_result
+  register: container_probe
   changed_when: false
   failed_when: false
 
@@ -82,8 +76,8 @@
       - "{{ container_name }}"
   register: inspect_result
   when:
-    - container_result is defined
-    - container_result.rc | default(1) == 0
+    - container_probe is defined
+    - container_probe.rc | default(1) == 0
 
 - name: Set container_inspect fact
   set_fact:
@@ -120,10 +114,10 @@
 
 - name: Record container and unit status
   set_fact:
-    container_missing: "{{ (container_result.rc | default(1)) != 0 }}"
+    container_missing: "{{ (container_probe.rc | default(1)) != 0 }}"
     unit_missing_or_disabled: "{{ not unit_enabled }}"
     needs_start: >-
-      {{ (container_result.rc | default(1)) != 0 or (unit_file.stat.exists and (not unit_enabled or unit_active.rc | default(3) != 0)) }}
+      {{ (container_probe.rc | default(1)) != 0 or (unit_file.stat.exists and (not unit_enabled or unit_active.rc | default(3) != 0)) }}
 
 - block:
     - name: Detect health-check drift

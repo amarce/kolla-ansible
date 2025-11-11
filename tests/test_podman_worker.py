@@ -10,8 +10,15 @@ from ansible.module_utils.kolla_podman_worker import PodmanWorker
 
 class DummyModule:
     def __init__(self, **params):
-        self.params = {'name': 'test'}
-        self.params.update(params)
+        base = {'name': 'test'}
+        base.update(params)
+        specified = set(params.keys())
+        common_opts = params.get('common_options')
+        if isinstance(common_opts, dict):
+            specified.update(common_opts.keys())
+        if specified:
+            base['_kolla_specified_options'] = list(specified)
+        self.params = base
 
     def debug(self, msg):
         pass

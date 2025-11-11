@@ -30,6 +30,12 @@ class DummyModule:
             'detach': True,
         }
         base.update(params)
+        specified = set(params.keys())
+        common_opts = params.get('common_options')
+        if isinstance(common_opts, dict):
+            specified.update(common_opts.keys())
+        if specified:
+            base['_kolla_specified_options'] = list(specified)
         self.params = base
 
     def debug(self, msg):
@@ -50,6 +56,29 @@ def test_compare_container_podman_no_change():
             'RestartPolicy': {'Name': ''},
         },
         'Config': {'Env': [], 'User': 'root'},
+        'State': {'Status': 'running'},
+        'Image': 'imageid',
+    }
+    pw.check_container = mock.MagicMock(return_value=True)
+    pw.get_container_info = mock.MagicMock(return_value=info)
+    pw.compare_config = mock.MagicMock(return_value=False)
+    pw.systemd.check_unit_change = mock.MagicMock(return_value=False)
+
+    assert pw.compare_container() is False
+    assert pw.changed is False
+
+
+def test_compare_container_podman_root_variants_no_change():
+    pw = PodmanWorker(DummyModule())
+    info = {
+        'HostConfig': {
+            'Binds': ['devpts:/dev/pts', '/data:/data'],
+            'Ulimits': [
+                {'Name': 'RLIMIT_NPROC', 'Soft': 4194304, 'Hard': 4194304},
+            ],
+            'RestartPolicy': {'Name': ''},
+        },
+        'Config': {'Env': [], 'User': '0:0'},
         'State': {'Status': 'running'},
         'Image': 'imageid',
     }
