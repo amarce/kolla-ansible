@@ -31,13 +31,21 @@ unit file is missing or the container is stopped.
 Container creation ordering
 ---------------------------
 
-Each role now invokes the shared ``_ensure_service_container`` helper before
-generating Podman systemd units or running post-configuration tasks. This
-guarantees that containers are created as soon as their images are available,
-preventing later tasks from waiting indefinitely for units that were never
-spawned. The ensure step also ignores the historical ``service.iterate`` gate,
-so first-time container creation is not skipped when a service definition
-declares iteration metadata.
+Each role now guarantees container creation before any systemd or
+post-configuration steps run. The ``service-check-containers`` role invokes the
+shared ``_ensure_service_container`` helper whenever a container is missing and
+immediately re-checks for its presence. As a result, Podman systemd unit
+generation and subsequent post-configuration logic always see the container in
+place. The ensure step also ignores the historical ``service.iterate`` gate, so
+first-time container creation is not skipped when a service definition declares
+iteration metadata.
+
+When a container drifts or disappears between executions, the
+``service-check-containers`` handler path recreates it using the same helper
+before attempting restarts. This behaviour is consistent for all services,
+including those with custom restart handlers such as Open vSwitch, ensuring that
+queued service-check actions always result in a running container before unit or
+post-config tasks resume.
 
 
 Reconfigure behaviour
