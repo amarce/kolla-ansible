@@ -1,38 +1,61 @@
 ---
 - name: Ensure {{ service_name }} container is configured
   become: true
+  vars:
+    ensure_service_container_module_args: &ensure_service_container_module_args
+      common_options: "{{ ensure_container_common_options | default(docker_common_options) }}"
+      name: "{{ ensure_container_name | default(service.container_name) }}"
+      image: "{{ ensure_container_image | default(service.image | default(omit)) }}"
+      command: "{{ ensure_container_command | default(service.command | default(omit)) }}"
+      cgroupns_mode: "{{ ensure_container_cgroupns_mode | default(service.cgroupns_mode | default(omit)) }}"
+      dimensions: "{{ ensure_container_dimensions | default(service.dimensions | default(omit)) }}"
+      environment: "{{ ensure_container_environment | default(service.environment | default(omit)) }}"
+      environment_file: "{{ ensure_container_environment_file | default(service.environment_file | default(omit)) }}"
+      healthcheck: "{{ ensure_container_healthcheck | default(service.healthcheck | default(omit)) }}"
+      hostname: "{{ ensure_container_hostname | default(service.hostname | default(omit)) }}"
+      ipc_mode: "{{ ensure_container_ipc_mode | default(service.ipc_mode | default(omit)) }}"
+      labels: "{{ ensure_container_labels | default(service.labels | default(omit)) }}"
+      network_mode: "{{ ensure_container_network_mode | default(service.network_mode | default(omit)) }}"
+      pid_mode: "{{ ensure_container_pid_mode | default(service.pid_mode | default(omit)) }}"
+      privileged: "{{ ensure_container_privileged | default(service.privileged | default(omit)) }}"
+      restart_policy: "{{ ensure_container_restart_policy | default(service.restart_policy | default(omit)) }}"
+      security_opt: "{{ ensure_container_security_opt | default(service.security_opt | default(omit)) }}"
+      state: "{{ ensure_container_state | default(service.state | default(omit)) }}"
+      tmpfs: "{{ ensure_container_tmpfs | default(service.tmpfs | default(omit)) }}"
+      tty: "{{ ensure_container_tty | default(service.tty | default(omit)) }}"
+      user: "{{ ensure_container_user | default(service.user | default(omit)) }}"
+      volumes: "{{ ensure_container_volumes | default(service.volumes | default(omit)) }}"
+      volumes_from: "{{ ensure_container_volumes_from | default(service.volumes_from | default(omit)) }}"
+      cap_add: "{{ ensure_container_cap_add | default(service.cap_add | default(omit)) }}"
+      remove_on_exit: "{{ ensure_container_remove_on_exit | default(service.remove_on_exit | default(omit)) }}"
+      privileged_with_zfs: "{{ ensure_container_privileged_with_zfs | default(service.privileged_with_zfs | default(omit)) }}"
+      device_requests: "{{ ensure_container_device_requests | default(service.device_requests | default(omit)) }}"
   kolla_container:
     action: "{{ ensure_container_action | default('recreate_or_restart_container') }}"
-    common_options: "{{ ensure_container_common_options | default(docker_common_options) }}"
-    name: "{{ ensure_container_name | default(service.container_name) }}"
-    image: "{{ ensure_container_image | default(service.image | default(omit)) }}"
-    command: "{{ ensure_container_command | default(service.command | default(omit)) }}"
-    cgroupns_mode: "{{ ensure_container_cgroupns_mode | default(service.cgroupns_mode | default(omit)) }}"
-    dimensions: "{{ ensure_container_dimensions | default(service.dimensions | default(omit)) }}"
-    environment: "{{ ensure_container_environment | default(service.environment | default(omit)) }}"
-    environment_file: "{{ ensure_container_environment_file | default(service.environment_file | default(omit)) }}"
-    healthcheck: "{{ ensure_container_healthcheck | default(service.healthcheck | default(omit)) }}"
-    hostname: "{{ ensure_container_hostname | default(service.hostname | default(omit)) }}"
-    ipc_mode: "{{ ensure_container_ipc_mode | default(service.ipc_mode | default(omit)) }}"
-    labels: "{{ ensure_container_labels | default(service.labels | default(omit)) }}"
-    network_mode: "{{ ensure_container_network_mode | default(service.network_mode | default(omit)) }}"
-    pid_mode: "{{ ensure_container_pid_mode | default(service.pid_mode | default(omit)) }}"
-    privileged: "{{ ensure_container_privileged | default(service.privileged | default(omit)) }}"
-    restart_policy: "{{ ensure_container_restart_policy | default(service.restart_policy | default(omit)) }}"
-    security_opt: "{{ ensure_container_security_opt | default(service.security_opt | default(omit)) }}"
-    state: "{{ ensure_container_state | default(service.state | default(omit)) }}"
-    tmpfs: "{{ ensure_container_tmpfs | default(service.tmpfs | default(omit)) }}"
-    tty: "{{ ensure_container_tty | default(service.tty | default(omit)) }}"
-    user: "{{ ensure_container_user | default(service.user | default(omit)) }}"
-    volumes: "{{ ensure_container_volumes | default(service.volumes | default(omit)) }}"
-    volumes_from: "{{ ensure_container_volumes_from | default(service.volumes_from | default(omit)) }}"
-    cap_add: "{{ ensure_container_cap_add | default(service.cap_add | default(omit)) }}"
-    remove_on_exit: "{{ ensure_container_remove_on_exit | default(service.remove_on_exit | default(omit)) }}"
-    privileged_with_zfs: "{{ ensure_container_privileged_with_zfs | default(service.privileged_with_zfs | default(omit)) }}"
-    device_requests: "{{ ensure_container_device_requests | default(service.device_requests | default(omit)) }}"
+    <<: *ensure_service_container_module_args
   register: _ctr
   vars:
     _ctr_noop: >-
       {{ (((_ctr | default({})).result is defined) and (not ((_ctr | default({})).result)))
          or (((_ctr | default({})).debug is defined) and ('no differences found' in (((_ctr | default({})).debug | string)))) }}
   changed_when: not _ctr_noop
+
+- name: Verify {{ service_name }} container remains in sync (idempotency check)
+  become: true
+  when:
+    - ensure_container_action | default('recreate_or_restart_container') == 'recreate_or_restart_container'
+    - kolla_container_idempotency_check | default(false)
+  kolla_container:
+    action: compare_container
+    <<: *ensure_service_container_module_args
+  register: _ctr_compare
+
+- name: Assert {{ service_name }} container spec is unchanged
+  when:
+    - ensure_container_action | default('recreate_or_restart_container') == 'recreate_or_restart_container'
+    - kolla_container_idempotency_check | default(false)
+  ansible.builtin.assert:
+    that:
+      - (_ctr_compare.result | default(false)) | bool
+      - not (_ctr_compare.changed | default(true))
+    quiet: true

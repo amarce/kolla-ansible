@@ -303,7 +303,17 @@ def _unwrap_module_args(raw_args):
             module_args = nested
             continue
 
+        nested = module_args.get("_ansible_kwargs")
+        if isinstance(nested, dict):
+            module_args = nested
+            continue
+
         nested = module_args.get("module_args")
+        if isinstance(nested, dict):
+            module_args = nested
+            continue
+
+        nested = module_args.get("params")
         if isinstance(nested, dict):
             module_args = nested
             continue

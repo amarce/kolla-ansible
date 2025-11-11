@@ -584,6 +584,15 @@ class PodmanWorker(ContainerWorker):
         differs = self.check_container_differs()
         needs_recreate = bool(self.result.get("container_needs_recreate"))
 
+        state = (container.get("State") or {}).get("Status")
+        desired_state = self.params.get("state", "running")
+        expect_running = desired_state in ("running", "started")
+        needs_start = expect_running and state != "running"
+
+        config_differs = False
+        if strategy == "COPY_ALWAYS" and not differs and not needs_recreate:
+            config_differs = self.compare_config()
+
         if strategy == "COPY_ONCE" or differs or needs_recreate:
             self.ensure_image()
 
@@ -592,6 +601,11 @@ class PodmanWorker(ContainerWorker):
             self.start_container()
 
         elif strategy == "COPY_ALWAYS":
+            if config_differs or needs_start:
+                self.restart_container()
+            else:
+                self._debug("no differences found")
+        elif needs_start:
             self.restart_container()
 
     def recreate_container(self):

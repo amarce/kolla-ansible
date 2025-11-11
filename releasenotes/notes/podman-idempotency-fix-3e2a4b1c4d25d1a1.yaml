@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Prevent spurious Podman container restarts when the running container
+    matches the requested specification. The ``kolla_container`` module now
+    inspects the full specification diff, honours explicitly provided
+    parameters under newer Ansible releases, and only restarts Podman
+    containers when a real change is detected or the container is not
+    running. An optional idempotency assertion is available via
+    ``kolla_container_idempotency_check`` to help integration tests verify
+    container stability.
