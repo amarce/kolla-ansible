@@ -179,8 +179,13 @@
         filtered_reasons: "{{ (reasons | reject('equalto', 'user') | list)
           + (['user'] if ('user' in reasons and service_explicit_user | bool) else []) }}"
         needs_recreate: >-
-          {{ (compare_detail.container_needs_recreate | default(false))
-             or (filtered_reasons | length > 0) }}
+          {{
+            (filtered_reasons | length > 0)
+            or (
+              (compare_detail.container_needs_recreate | default(false))
+              and (compare_detail.container_recreate_reasons is not defined)
+            )
+          }}
       set_fact:
         container_needs_recreate: >-
           {{ (container_needs_recreate | bool) or (needs_recreate | bool) }}
