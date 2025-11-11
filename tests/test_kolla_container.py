@@ -134,6 +134,53 @@ class ModuleArgsTest(base.BaseTestCase):
         )
 
 
+class SpecifiedOptionsTest(base.BaseTestCase):
+
+    def test_collect_specified_options_with_common_options(self):
+        raw_args = {
+            'ANSIBLE_MODULE_ARGS': {
+                'module_args': {
+                    'name': 'kolla_toolbox',
+                    'image': 'registry.example/centos:latest',
+                    'user': 'root',
+                    'pid_mode': 'host',
+                    'common_options': {
+                        'restart_policy': 'unless-stopped',
+                    },
+                    '_ansible_check_mode': False,
+                }
+            }
+        }
+
+        specified = kc._collect_specified_options(raw_args)
+
+        self.assertSetEqual(
+            {
+                'name',
+                'image',
+                'user',
+                'pid_mode',
+                'common_options.restart_policy',
+            },
+            specified,
+        )
+
+    def test_collect_specified_options_missing_optional_keys(self):
+        raw_args = {
+            'module_args': {
+                'name': 'kolla_toolbox',
+                'image': 'registry.example/centos:latest',
+            }
+        }
+
+        specified = kc._collect_specified_options(raw_args)
+
+        self.assertIn('name', specified)
+        self.assertIn('image', specified)
+        self.assertNotIn('user', specified)
+        self.assertNotIn('pid_mode', specified)
+
+
 def test_compare_volumes_ignores_empty_and_devpts():
     spec = ["a:/a", "", "devpts:/dev/pts"]
     running = ["a:/a"]

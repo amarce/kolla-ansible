@@ -1,6 +1,10 @@
 ---
 # NOTE(r-krcek): List of arguments should follow argument_spec in
 # kolla_container module
+- name: Reset service-check pending summary
+  set_fact:
+    service_check_pending_summary: []
+
 - name: "{{ kolla_role_name | default(project_name) }} | Check containers"
   become: true
   vars:
@@ -33,28 +37,6 @@
   when: not (service.iterate | default(False)) | bool
   register: container_check
 
-# NOTE(yoctozepto): Must be a separate task because one cannot see the whole
-# result in the previous task and Ansible has a quirk regarding notifiers.
-# For details see https://github.com/ansible/ansible/issues/22579
-- name: "{{ kolla_role_name | default(project_name) }} | Notify handlers to restart containers"
-  vars:
-    service: "{{ item.value }}"
-    restart_targets: >-
-      {{ container_check.results | default([])
-         | selectattr('container_needs_recreate', 'truthy')
-         | map(attribute='item.key')
-         | map('regex_replace', '^(.*)$', 'Restart \\1 container')
-         | list }}
-  debug:
-    msg: Notifying handlers
-  changed_when: restart_targets | length > 0
-  when:
-    - not (service.iterate | default(False)) | bool
-    - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-    - container_check is defined
-    - restart_targets | length > 0
-  notify: "{{ restart_targets }}"
-
 - name: Cache compare-container drift results
   set_fact:
     service_check_compare_results: "{{ (service_check_compare_results | default({})) | combine({ item.item.key: item.changed }) }}"
@@ -79,3 +61,20 @@
     label: "{{ item.key }}"
   tags:
     - container-verify
+
+- name: "{{ kolla_role_name | default(project_name) }} | Notify service handlers for queued actions"
+  vars:
+    restart_targets: >-
+      {{ service_check_pending_summary | default([])
+         | selectattr('container_needs_recreate', 'truthy')
+         | rejectattr('container_missing', 'truthy')
+         | map(attribute='service_name')
+         | map('regex_replace', '^(.*)$', 'Restart \\1 container')
+         | list | unique }}
+  debug:
+    msg: Notifying handlers
+  changed_when: restart_targets | length > 0
+  when:
+    - restart_targets | length > 0
+    - kolla_container_engine == 'docker' or (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
+  notify: "{{ restart_targets }}"

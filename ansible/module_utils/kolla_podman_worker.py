@@ -134,6 +134,12 @@ class PodmanWorker(ContainerWorker):
         if not self.params.get("privileged", False):
             args["cap_add"] = self.params.pop("cap_add", []) + ["AUDIT_WRITE"]
 
+        desired_pid_mode = self.params.get("pid_mode")
+        if desired_pid_mode in (None, ""):
+            desired_pid_mode = self.params.get("pid")
+        if desired_pid_mode not in (None, ""):
+            args["pid_mode"] = desired_pid_mode
+
         # maybe can be done straight away,
         # at first it was around 6 keys that's why it is this way
         convert_keys = dict(
@@ -152,6 +158,8 @@ class PodmanWorker(ContainerWorker):
         # record remaining args
         for key, value in self.params.items():
             if key in CONTAINER_PARAMS and value is not None:
+                if key == "pid":
+                    continue
                 args[key] = value
 
         args.pop("restart_policy", None)  # handled by systemd
@@ -331,13 +339,11 @@ class PodmanWorker(ContainerWorker):
             return False
 
         desired = self.params.get("pid_mode")
-        if desired is None:
+        if desired in (None, ""):
             desired = self.params.get("pid")
 
-        current = (
-            container_info["HostConfig"].get("PidMode") or
-            container_info["HostConfig"].get("PidNS")
-        )
+        host_config = container_info.get("HostConfig", {})
+        current = host_config.get("PidMode") or host_config.get("PidNS")
 
         def _normalise(value):
             if isinstance(value, dict):

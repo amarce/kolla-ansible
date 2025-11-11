@@ -167,6 +167,26 @@
       when:
         - service.enabled | default(True) | bool
         - container_missing | bool or container_needs_recreate | bool or needs_start | bool
+    - name: Record queued service-check summary
+      set_fact:
+        service_check_pending_summary: "{{ (
+            service_check_pending_summary | default([])
+          )
+          | rejectattr('container_name', 'equalto', container_name)
+          | list
+          + [
+              {
+                'service_name': item.key,
+                'container_name': container_name,
+                'unit_name': unit_name,
+                'container_missing': container_missing | bool,
+                'container_needs_recreate': container_needs_recreate | bool,
+                'needs_start': needs_start | bool,
+              }
+            ] }}"
+      when:
+        - service.enabled | default(True) | bool
+        - container_missing | bool or container_needs_recreate | bool or needs_start | bool
       notify: Process service-check actions
 
     - name: Flush queued service-check actions

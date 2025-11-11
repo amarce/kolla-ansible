@@ -692,6 +692,22 @@ class TestContainer(base.BaseTestCase):
             self.pw.pc.containers.create.call_args.kwargs.get('pid_mode')
         )
 
+    def test_prepare_container_args_sets_pid_mode(self):
+        params = self.fake_data['params'].copy()
+        params.update({'pid_mode': 'host'})
+        worker = get_PodmanWorker(params)
+
+        args = worker.prepare_container_args()
+
+        self.assertEqual('host', args.get('pid_mode'))
+        self.assertNotIn('pid', args)
+
+    def test_compare_pid_mode_matches_host(self):
+        worker = get_PodmanWorker({'pid_mode': 'host'})
+        container_info = {'HostConfig': {'PidMode': 'host'}}
+
+        self.assertFalse(worker.compare_pid_mode(container_info))
+
     def test_recreate_or_restart_container_container_copy_always(self):
         self.pw = get_PodmanWorker({
             'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
