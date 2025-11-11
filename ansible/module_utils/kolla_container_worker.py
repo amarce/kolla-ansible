@@ -939,11 +939,24 @@ class ContainerWorker(ABC):
                 return True
 
     def compare_user(self, container_info):
+        # ``user`` is optional – when it is unset we do not enforce the runtime
+        # user.  This mirrors the container engines where the absence of a user
+        # means "use the image default" (typically ``root``).
+        if "user" not in self.params:
+            return False
+
         new_user = self.params.get("user")
+        if new_user in (None, ""):
+            return False
+
         current_user = container_info.get("Config", {}).get("User")
-        if not current_user:
-            current_user = None
-        if new_user != current_user:
+
+        def _normalise_user(value):
+            if value in (None, "", "0", 0, "root"):
+                return "0"
+            return str(value)
+
+        if _normalise_user(new_user) != _normalise_user(current_user):
             return True
 
     def compare_healthcheck(self, container_info):

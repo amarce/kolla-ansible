@@ -1235,6 +1235,18 @@ class TestAttrComp(base.BaseTestCase):
         self.pw = get_PodmanWorker({'pid_mode': 'host2'})
         self.assertTrue(self.pw.compare_pid_mode(container_info))
 
+    def test_compare_pid_mode_defaults_private(self):
+        container_info = {'HostConfig': {}}
+        params = self.fake_data['params'].copy()
+        self.pw = get_PodmanWorker(params)
+        self.assertFalse(self.pw.compare_pid_mode(container_info))
+
+    def test_compare_pid_mode_default_detects_host(self):
+        container_info = {'HostConfig': dict(PidMode='host')}
+        params = self.fake_data['params'].copy()
+        self.pw = get_PodmanWorker(params)
+        self.assertTrue(self.pw.compare_pid_mode(container_info))
+
     def test_check_container_differs_marks_pid_mode(self):
         params = self.fake_data['params'].copy()
         params.update({'pid_mode': 'host'})
@@ -1280,6 +1292,26 @@ class TestAttrComp(base.BaseTestCase):
         self.assertTrue(differs)
         self.assertTrue(self.pw.result.get('container_needs_recreate'))
         self.assertIn('pid_mode', self.pw.result.get('container_recreate_reasons', []))
+
+    def test_compare_user_ignored_when_unset(self):
+        container_info = {'Config': dict(User='nova')}
+        params = self.fake_data['params'].copy()
+        self.pw = get_PodmanWorker(params)
+        self.assertFalse(self.pw.compare_user(container_info))
+
+    def test_compare_user_normalises_root_variants(self):
+        container_info = {'Config': dict(User='')}
+        params = self.fake_data['params'].copy()
+        params['user'] = 'root'
+        self.pw = get_PodmanWorker(params)
+        self.assertFalse(self.pw.compare_user(container_info))
+
+    def test_compare_user_detects_mismatch(self):
+        container_info = {'Config': dict(User='root')}
+        params = self.fake_data['params'].copy()
+        params['user'] = 'nova'
+        self.pw = get_PodmanWorker(params)
+        self.assertTrue(self.pw.compare_user(container_info))
 
     def test_compare_cgroupns_mode_neg(self):
         container_info = {'HostConfig': dict(CgroupMode='host')}

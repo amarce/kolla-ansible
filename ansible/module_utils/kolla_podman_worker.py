@@ -324,21 +324,29 @@ class PodmanWorker(ContainerWorker):
         return self.changed
 
     def compare_pid_mode(self, container_info):
-        new_pid_mode = self.params.get("pid_mode") or self.params.get("pid")
-        current_pid_mode = (
+        desired = self.params.get("pid_mode")
+        if desired is None:
+            desired = self.params.get("pid")
+
+        current = (
             container_info["HostConfig"].get("PidMode") or
             container_info["HostConfig"].get("PidNS")
         )
 
-        if not current_pid_mode:
-            current_pid_mode = "private"
+        def _normalise(value):
+            if value in (None, "", "private"):
+                return "private"
+            if value == "host":
+                return "host"
+            return value
 
-        # podman default pid_mode
-        if new_pid_mode is None and current_pid_mode == "private":
+        desired_norm = _normalise(desired)
+        current_norm = _normalise(current)
+
+        if desired is None and desired_norm == "private" and current_norm == "private":
             return False
 
-        if new_pid_mode != current_pid_mode:
-            return True
+        return desired_norm != current_norm
 
     def compare_image(self, container_info=None):
         def parse_tag(tag):
