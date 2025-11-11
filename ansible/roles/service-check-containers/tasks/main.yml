@@ -40,6 +40,15 @@
 - name: Cache compare-container drift results
   set_fact:
     service_check_compare_results: "{{ (service_check_compare_results | default({})) | combine({ item.item.key: item.changed }) }}"
+    service_check_compare_details: "{{ (
+        service_check_compare_details | default({})
+      )
+      | combine({
+          item.item.key: {
+            'container_needs_recreate': item.container_needs_recreate | default(false),
+            'container_recreate_reasons': item.container_recreate_reasons | default([]),
+          }
+        }) }}"
   loop: "{{ container_check.results | default([]) }}"
   when: container_check is defined
 

@@ -23,6 +23,11 @@ Podman's default ``private`` namespace. Explicit values such as
 ``pid_mode: host`` are forwarded to the Podman client so that
 ``podman inspect`` reports ``HostConfig.PidMode=host`` on subsequent runs.
 
+``cgroupns_mode`` overrides supplied through service definitions or
+``common_options`` are also honoured. Unsupported options provided through
+``common_options`` are stripped before reaching the Podman API so that the
+client receives only arguments it understands.
+
 When using ``*_extra_volumes`` options, Kolla Ansible will automatically
 create any missing host directories referenced by bind mounts with
 permissions ``0755`` before starting containers.
