@@ -405,6 +405,29 @@ class ContainerWorker(ABC):
             "ulimits": "Ulimits",
         }
 
+    def option_specified(self, *names: str) -> bool:
+        """Return ``True`` if any of ``names`` were explicitly provided.
+
+        ``_collect_specified_options`` records arguments passed through
+        ``common_options`` using dotted notation (``common_options.user``).
+        Consumers typically look for the bare parameter names, so recognise
+        both forms to ensure overrides delivered via ``common_options`` are
+        honoured.
+        """
+
+        for name in names:
+            if name in self.specified_options:
+                return True
+            if "." in name:
+                bare = name.split(".", 1)[1]
+                if bare in self.specified_options:
+                    return True
+            else:
+                namespaced = f"common_options.{name}"
+                if namespaced in self.specified_options:
+                    return True
+        return False
+
     # ------------------------------------------------------------------
     # Helper: emit debug lines only when Ansible is run with -vvv (or more)
     # ------------------------------------------------------------------
@@ -946,7 +969,7 @@ class ContainerWorker(ABC):
         # ``user`` is optional – when it is unset we do not enforce the runtime
         # user.  This mirrors the container engines where the absence of a user
         # means "use the image default" (typically ``root``).
-        if "user" not in self.specified_options:
+        if not self.option_specified("user"):
             return False
 
         new_user = self.params.get("user")

@@ -332,10 +332,7 @@ class PodmanWorker(ContainerWorker):
         return self.changed
 
     def compare_pid_mode(self, container_info):
-        if (
-            "pid_mode" not in self.specified_options
-            and "pid" not in self.specified_options
-        ):
+        if not self.option_specified("pid_mode", "pid"):
             return False
 
         desired = self.params.get("pid_mode")

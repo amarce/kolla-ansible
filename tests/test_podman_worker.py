@@ -12,10 +12,13 @@ class DummyModule:
     def __init__(self, **params):
         base = {'name': 'test'}
         base.update(params)
-        specified = set(params.keys())
-        common_opts = params.get('common_options')
+        common_opts = base.pop('common_options', None)
+        specified = {k for k in params.keys() if k != 'common_options'}
         if isinstance(common_opts, dict):
+            for key, value in common_opts.items():
+                base.setdefault(key, value)
             specified.update(common_opts.keys())
+            specified.update(f"common_options.{key}" for key in common_opts)
         if specified:
             base['_kolla_specified_options'] = list(specified)
         self.params = base

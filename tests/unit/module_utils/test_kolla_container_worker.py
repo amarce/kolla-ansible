@@ -168,6 +168,14 @@ def test_compare_user_detects_drift_when_specified(cw):
     assert cw.compare_user(container) is True
 
 
+def test_compare_user_detects_drift_when_specified_via_common_options(cw):
+    cw.params['user'] = 'nova'
+    cw.specified_options = {'common_options.user'}
+    container = {'Config': {'User': 'root'}}
+
+    assert cw.compare_user(container) is True
+
+
 def test_normalise_container_info_strips_security_opt_default():
     params = {'container_engine': 'podman', 'security_opt': []}
     info = {'HostConfig': {'SecurityOpt': ['unmask=all', 'label=disable']}}
