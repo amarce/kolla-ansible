@@ -11,6 +11,14 @@ Kolla Ansible now accepts either name, tolerates the absent
 services such as ``nova_libvirt`` start in the requested host
 namespaces.
 
+Kolla Ansible requires Podman 4.9 or newer together with ``podman-py``
+5.0 or newer. These versions accept the ``pid_mode`` option used by the
+Podman worker to configure the container PID namespace. Earlier
+``podman-py`` releases rejected the Docker-style ``pid`` keyword. The
+worker now validates the create payload and aborts before calling the
+Podman client when unsupported options are detected, providing a clear
+failure message during container creation.
+
 When using ``*_extra_volumes`` options, Kolla Ansible will automatically
 create any missing host directories referenced by bind mounts with
 permissions ``0755`` before starting containers.
