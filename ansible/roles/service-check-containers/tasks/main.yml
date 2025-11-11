@@ -39,13 +39,21 @@
 - name: "{{ kolla_role_name | default(project_name) }} | Notify handlers to restart containers"
   vars:
     service: "{{ item.value }}"
+    restart_targets: >-
+      {{ container_check.results | default([])
+         | selectattr('container_needs_recreate', 'truthy')
+         | map(attribute='item.key')
+         | map('regex_replace', '^(.*)$', 'Restart \\1 container')
+         | list }}
   debug:
     msg: Notifying handlers
-  changed_when: container_check is changed
+  changed_when: restart_targets | length > 0
   when:
     - not (service.iterate | default(False)) | bool
     - kolla_container_engine == 'docker' or kolla_podman_use_systemd | bool
-  notify: "{{ container_check.results | select('changed') | map(attribute='item.key') | map('regex_replace', '^(.*)$', 'Restart \\1 container') | list }}"
+    - container_check is defined
+    - restart_targets | length > 0
+  notify: "{{ restart_targets }}"
 
 - name: Cache compare-container drift results
   set_fact:

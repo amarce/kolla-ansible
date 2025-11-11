@@ -287,6 +287,11 @@ EXAMPLES = '''
 
 
 def generate_module():
+    try:
+        from ansible.module_utils.basic import _load_params as _ansible_load_params
+    except ImportError:  # pragma: no cover - defensive fallback
+        _ansible_load_params = None
+
     # NOTE(jeffrey4l): add empty string '' to choices let us use
     # pid_mode: "{{ service.pid_mode | default ('') }}" in yaml
     # NOTE(r-krcek): arguments_spec should also be reflected in the list of
@@ -385,6 +390,18 @@ def generate_module():
         bypass_checks=False
     )
 
+    specified_options = set()
+    if _ansible_load_params is not None:
+        try:
+            raw_args = _ansible_load_params() or {}
+        except Exception:  # pragma: no cover - keep module resilient
+            raw_args = {}
+        if isinstance(raw_args, dict):
+            specified_options.update(raw_args.keys())
+            common_opts = raw_args.get('common_options')
+            if isinstance(common_opts, dict):
+                specified_options.update(common_opts.keys())
+
     common_options_defaults = {
         'auth_email': None,
         'auth_password': None,
@@ -432,6 +449,8 @@ def generate_module():
         new_args.pop('ipc_mode', None)
 
     module.params = new_args
+    if specified_options:
+        module.params['_kolla_specified_options'] = tuple(sorted(specified_options))
     return module
 
 

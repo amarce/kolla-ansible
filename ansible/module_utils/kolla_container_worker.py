@@ -377,6 +377,8 @@ class ContainerWorker(ABC):
     def __init__(self, module):
         self.module = module
         self.params = self.module.params
+        specified = self.params.pop('_kolla_specified_options', [])
+        self.specified_options = set(specified)
         self.changed = False
         # Use this to store arguments to pass to exit_json().
         self.result = {}
@@ -486,6 +488,8 @@ class ContainerWorker(ABC):
             return True
 
         container_info = _normalise_container_info(container_info, self.params)
+        self.result.pop("container_needs_recreate", None)
+        self.result.pop("container_recreate_reasons", None)
 
         differs = False
         self._diff_keys = []
@@ -942,7 +946,7 @@ class ContainerWorker(ABC):
         # ``user`` is optional – when it is unset we do not enforce the runtime
         # user.  This mirrors the container engines where the absence of a user
         # means "use the image default" (typically ``root``).
-        if "user" not in self.params:
+        if "user" not in self.specified_options:
             return False
 
         new_user = self.params.get("user")
@@ -952,9 +956,34 @@ class ContainerWorker(ABC):
         current_user = container_info.get("Config", {}).get("User")
 
         def _normalise_user(value):
-            if value in (None, "", "0", 0, "root"):
-                return "0"
-            return str(value)
+            if value in (None, ""):
+                return ("0", "0")
+
+            text = str(value)
+            parts = text.split(":", 1)
+            user_part = parts[0]
+            group_part = parts[1] if len(parts) > 1 else None
+
+            def _normalise_part(part):
+                if part in (None, ""):
+                    return None
+                lowered = str(part).lower()
+                if lowered == "root":
+                    return "0"
+                if lowered == "0":
+                    return "0"
+                return str(part)
+
+            user_norm = _normalise_part(user_part)
+            group_norm = _normalise_part(group_part)
+
+            if user_norm is None:
+                user_norm = "0"
+
+            if group_norm is None:
+                group_norm = "0" if user_norm == "0" else user_norm
+
+            return (user_norm, group_norm)
 
         if _normalise_user(new_user) != _normalise_user(current_user):
             return True

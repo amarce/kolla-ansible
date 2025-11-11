@@ -324,6 +324,12 @@ class PodmanWorker(ContainerWorker):
         return self.changed
 
     def compare_pid_mode(self, container_info):
+        if (
+            "pid_mode" not in self.specified_options
+            and "pid" not in self.specified_options
+        ):
+            return False
+
         desired = self.params.get("pid_mode")
         if desired is None:
             desired = self.params.get("pid")
@@ -334,11 +340,18 @@ class PodmanWorker(ContainerWorker):
         )
 
         def _normalise(value):
+            if isinstance(value, dict):
+                value = (
+                    value.get("nsmode")
+                    or value.get("mode")
+                    or value.get("value")
+                )
             if value in (None, "", "private"):
                 return "private"
-            if value == "host":
+            value_str = str(value)
+            if value_str == "host":
                 return "host"
-            return value
+            return value_str
 
         desired_norm = _normalise(desired)
         current_norm = _normalise(current)
