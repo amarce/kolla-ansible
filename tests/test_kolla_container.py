@@ -181,6 +181,29 @@ class SpecifiedOptionsTest(base.BaseTestCase):
         self.assertNotIn('user', specified)
         self.assertNotIn('pid_mode', specified)
 
+    def test_collect_specified_options_ansible_kwargs_wrapper(self):
+        raw_args = {
+            '_ansible_kwargs': {
+                'name': 'kolla_toolbox',
+                'image': 'registry.example/centos:latest',
+                'common_options': {
+                    'restart_policy': 'unless-stopped',
+                },
+            }
+        }
+
+        specified = kc._collect_specified_options(raw_args)
+
+        self.assertSetEqual(
+            {
+                'name',
+                'image',
+                'restart_policy',
+                'common_options.restart_policy',
+            },
+            specified,
+        )
+
 
 def test_compare_volumes_ignores_empty_and_devpts():
     spec = ["a:/a", "", "devpts:/dev/pts"]
@@ -314,3 +337,85 @@ def test_compare_container_no_change_returns_ok(mock_generate_module):
         diff={},
         debug=["no differences found"],
     )
+
+
+@mock.patch("kolla_container.generate_module")
+def test_recreate_or_restart_docker_no_change(mock_generate_module):
+    module_mock = mock.MagicMock()
+    module_mock.params = {
+        "name": "test",
+        "action": "recreate_or_restart_container",
+        "container_engine": "docker",
+    }
+    mock_generate_module.return_value = module_mock
+
+    with mock.patch(
+        "ansible.module_utils.kolla_docker_worker.DockerWorker"
+    ) as mock_dw:
+        worker = mock_dw.return_value
+        worker.recreate_or_restart_container.return_value = None
+        worker.changed = False
+        worker.result = {}
+
+        kc.main()
+
+        mock_dw.assert_called_once_with(module_mock)
+        worker.recreate_or_restart_container.assert_called_once_with()
+
+    module_mock.exit_json.assert_called_once_with(changed=False, result=False)
+
+
+@mock.patch("kolla_container.generate_module")
+def test_recreate_or_restart_podman_no_change(mock_generate_module):
+    module_mock = mock.MagicMock()
+    module_mock.params = {
+        "name": "test",
+        "action": "recreate_or_restart_container",
+        "container_engine": "podman",
+    }
+    mock_generate_module.return_value = module_mock
+
+    with mock.patch(
+        "ansible.module_utils.kolla_podman_worker.PodmanWorker"
+    ) as mock_pw:
+        worker = mock_pw.return_value
+        worker.recreate_or_restart_container.return_value = None
+        worker.changed = False
+        worker.result = {"debug": ["no differences found"]}
+
+        kc.main()
+
+        mock_pw.assert_called_once_with(module_mock)
+        worker.recreate_or_restart_container.assert_called_once_with()
+
+    module_mock.exit_json.assert_called_once_with(
+        changed=False,
+        result=False,
+        debug=["no differences found"],
+    )
+
+
+@mock.patch("kolla_container.generate_module")
+def test_recreate_or_restart_podman_changed(mock_generate_module):
+    module_mock = mock.MagicMock()
+    module_mock.params = {
+        "name": "test",
+        "action": "recreate_or_restart_container",
+        "container_engine": "podman",
+    }
+    mock_generate_module.return_value = module_mock
+
+    with mock.patch(
+        "ansible.module_utils.kolla_podman_worker.PodmanWorker"
+    ) as mock_pw:
+        worker = mock_pw.return_value
+        worker.recreate_or_restart_container.return_value = True
+        worker.changed = True
+        worker.result = {}
+
+        kc.main()
+
+        mock_pw.assert_called_once_with(module_mock)
+        worker.recreate_or_restart_container.assert_called_once_with()
+
+    module_mock.exit_json.assert_called_once_with(changed=True, result=True)

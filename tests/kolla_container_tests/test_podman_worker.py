@@ -733,40 +733,45 @@ class TestContainer(base.BaseTestCase):
     def test_recreate_or_restart_container_container_copy_always(self):
         self.pw = get_PodmanWorker({
             'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
-        self.pw.check_container = mock.Mock(
-            return_value=construct_container(self.fake_data['containers'][0]))
-        self.pw.restart_container = mock.Mock()
+        running = construct_container(self.fake_data['containers'][0])
+        self.pw.get_container_info = mock.Mock(return_value=running.attrs)
         self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=False)
+        self.pw.restart_container = mock.Mock()
 
         self.pw.recreate_or_restart_container()
 
-        self.pw.restart_container.assert_called_once_with()
+        self.pw.compare_config.assert_called_once_with()
+        self.pw.restart_container.assert_not_called()
 
     def test_recreate_or_restart_container_container_copy_always_differs(self):
         self.pw = get_PodmanWorker({
             'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
-        self.pw.check_container = mock.Mock(
-            return_value=construct_container(self.fake_data['containers'][0]))
+        running = construct_container(self.fake_data['containers'][0])
+        self.pw.get_container_info = mock.Mock(return_value=running.attrs)
         self.pw.ensure_image = mock.Mock()
         self.pw.start_container = mock.Mock()
         self.pw.remove_container = mock.Mock()
         self.pw.check_container_differs = mock.Mock(return_value=True)
+        self.pw.compare_config = mock.Mock(return_value=False)
 
         self.pw.recreate_or_restart_container()
 
         self.pw.ensure_image.assert_called_once_with()
         self.pw.remove_container.assert_called_once_with()
         self.pw.start_container.assert_called_once_with()
+        self.pw.compare_config.assert_not_called()
 
     def test_recreate_or_restart_container_container_copy_always_needs_recreate(self):
         self.pw = get_PodmanWorker({
             'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
-        self.pw.check_container = mock.Mock(
-            return_value=construct_container(self.fake_data['containers'][0]))
+        running = construct_container(self.fake_data['containers'][0])
+        self.pw.get_container_info = mock.Mock(return_value=running.attrs)
         self.pw.ensure_image = mock.Mock()
         self.pw.start_container = mock.Mock()
         self.pw.remove_container = mock.Mock()
         self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=False)
         self.pw.result['container_needs_recreate'] = True
 
         self.pw.recreate_or_restart_container()
@@ -774,6 +779,33 @@ class TestContainer(base.BaseTestCase):
         self.pw.ensure_image.assert_called_once_with()
         self.pw.remove_container.assert_called_once_with()
         self.pw.start_container.assert_called_once_with()
+        self.pw.compare_config.assert_not_called()
+
+    def test_recreate_or_restart_container_copy_always_config_diff(self):
+        self.pw = get_PodmanWorker({
+            'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
+        running = construct_container(self.fake_data['containers'][0])
+        self.pw.get_container_info = mock.Mock(return_value=running.attrs)
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=True)
+        self.pw.restart_container = mock.Mock()
+
+        self.pw.recreate_or_restart_container()
+
+        self.pw.restart_container.assert_called_once_with()
+
+    def test_recreate_or_restart_container_copy_always_needs_start(self):
+        self.pw = get_PodmanWorker({
+            'environment': dict(KOLLA_CONFIG_STRATEGY='COPY_ALWAYS')})
+        stopped = construct_container(self.fake_data['containers'][1])
+        self.pw.get_container_info = mock.Mock(return_value=stopped.attrs)
+        self.pw.check_container_differs = mock.Mock(return_value=False)
+        self.pw.compare_config = mock.Mock(return_value=False)
+        self.pw.restart_container = mock.Mock()
+
+        self.pw.recreate_or_restart_container()
+
+        self.pw.restart_container.assert_called_once_with()
 
     def test_recreate_or_restart_container_container_copy_once(self):
         self.pw = get_PodmanWorker({
