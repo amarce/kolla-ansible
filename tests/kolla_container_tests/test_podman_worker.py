@@ -218,8 +218,33 @@ class TestContainer(base.BaseTestCase):
         params.update({'pid_mode': 'host', 'cgroupns_mode': 'host'})
         self.pw = get_PodmanWorker(params)
         args = self.pw.prepare_container_args()
-        self.assertEqual('host', args.get('pid'))
+        self.assertEqual('host', args.get('pid_mode'))
         self.assertEqual('host', args.get('cgroupns'))
+
+    def test_create_container_rejects_unknown_option(self):
+        self.pw = get_PodmanWorker(self.fake_data['params'].copy())
+        self.pw.prepare_container_args = mock.Mock(return_value={'bogus': 'value'})
+        self.pw.pc.containers.create = mock.Mock()
+
+        self.pw.create_container()
+
+        self.pw.module.fail_json.assert_called_once_with(
+            failed=True,
+            msg='Unsupported Podman container option(s): bogus')
+        self.pw.pc.containers.create.assert_not_called()
+
+    def test_create_container_type_error_translates_to_fail_json(self):
+        self.pw = get_PodmanWorker(self.fake_data['params'].copy())
+        container_args = {'name': 'example', 'image': 'image', 'network_mode': 'host'}
+        self.pw.prepare_container_args = mock.Mock(return_value=container_args)
+        self.pw.pc.containers.create.side_effect = TypeError("Unknown keyword argument(s): 'pid'")
+
+        self.pw.create_container()
+
+        self.pw.module.fail_json.assert_called_once_with(
+            failed=True,
+            msg="Podman client rejected container options: Unknown keyword argument(s): 'pid'"
+        )
 
     def test_create_container_with_dimensions(self):
         self.fake_data['params']['dimensions'] = {'blkio_weight': 10}
@@ -639,6 +664,26 @@ class TestContainer(base.BaseTestCase):
         self.pw.recreate_or_restart_container()
 
         self.pw.start_container.assert_called_once_with()
+
+    def test_recreate_or_restart_container_creates_with_pid_mode_host(self):
+        params = self.fake_data['params'].copy()
+        params.update({'pid_mode': 'host'})
+        self.pw = get_PodmanWorker(params)
+        container_obj = construct_container(self.fake_data['containers'][0])
+        self.pw.check_container = mock.Mock(side_effect=[None, container_obj])
+        self.pw.ensure_image = mock.Mock()
+        self.pw.create_container_volumes = mock.Mock()
+        created_container = mock.Mock()
+        created_container.attrs = {'Id': 'created'}
+        self.pw.pc.containers.create.return_value = created_container
+
+        self.pw.recreate_or_restart_container()
+
+        self.pw.pc.containers.create.assert_called_once()
+        self.assertEqual(
+            'host',
+            self.pw.pc.containers.create.call_args.kwargs.get('pid_mode')
+        )
 
     def test_recreate_or_restart_container_container_copy_always(self):
         self.pw = get_PodmanWorker({

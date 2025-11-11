@@ -65,7 +65,7 @@ CONTAINER_PARAMS = [
     "netns",  # dict
     "network_options",  # string - none,bridge,host,container:id,
     # missing in docker but needs to be host
-    "pid",  # "string"  host, private or ''
+    "pid_mode",  # "string"  host, private or ''
     "privileged",  # bool
     "restart_policy",  # set to none, handled by systemd
     "remove",  # bool
@@ -76,6 +76,9 @@ CONTAINER_PARAMS = [
     "volumes",  # array of dict
     "volumes_from",  # array of strings
 ]
+
+SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS = set(CONTAINER_PARAMS)
+SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"mounts", "network_mode"})
 
 
 class PodmanWorker(ContainerWorker):
@@ -136,7 +139,6 @@ class PodmanWorker(ContainerWorker):
         convert_keys = dict(
             graceful_timeout="stop_timeout",
             cgroupns_mode="cgroupns",
-            pid_mode="pid",
         )
 
         # remap differing args
@@ -146,10 +148,6 @@ class PodmanWorker(ContainerWorker):
 
                 if value is not None:
                     args[key_new] = value
-                if key_orig == "pid_mode":
-                    # keep desired pid namespace for later comparisons
-                    # while ensuring Podman receives the expected "pid" arg
-                    continue
 
         # record remaining args
         for key, value in self.params.items():
@@ -493,12 +491,36 @@ class PodmanWorker(ContainerWorker):
             ulimits_opt.append(dict(Name=key, Soft=soft, Hard=hard))
         return ulimits_opt
 
+    def _validate_create_args(self, args):
+        unsupported = set(args) - SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS
+        if unsupported:
+            self.module.fail_json(
+                failed=True,
+                msg=(
+                    "Unsupported Podman container option(s): {}".format(
+                        ", ".join(sorted(unsupported))
+                    )
+                ),
+            )
+            return False
+        return True
+
     def create_container(self):
         # ensure volumes are pre-created before container creation
         self.create_container_volumes()
 
         args = self.prepare_container_args()
-        container = self.pc.containers.create(**args)
+        if not self._validate_create_args(args):
+            return None
+
+        try:
+            container = self.pc.containers.create(**args)
+        except TypeError as exc:
+            self.module.fail_json(
+                failed=True,
+                msg="Podman client rejected container options: {}".format(exc),
+            )
+            return None
         if container.attrs == {}:
             data = container.to_dict()
             self.module.fail_json(failed=True, msg="Creation failed", **data)
