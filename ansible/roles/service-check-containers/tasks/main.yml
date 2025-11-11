@@ -71,19 +71,37 @@
   tags:
     - container-verify
 
-- name: "{{ kolla_role_name | default(project_name) }} | Notify service handlers for queued actions"
-  vars:
-    restart_targets: >-
+- name: Determine services for queued actions
+  set_fact:
+    service_check_restart_services: >-
       {{ service_check_pending_summary | default([])
          | selectattr('container_needs_recreate', 'truthy')
          | rejectattr('container_missing', 'truthy')
          | map(attribute='service_name')
-         | map('regex_replace', '^(.*)$', 'Restart \\1 container')
          | list | unique }}
+
+- name: Validate queued service handler targets
+  assert:
+    that:
+      - (service_check_restart_services | map('type_debug') | list | unique | difference(['str', 'unicode'])) | length == 0
+      - service_check_restart_services | select('search', '\\') | list | length == 0
+      - service_check_restart_services | select('match', "^\\\\?\\d+$") | list | length == 0
+    fail_msg: "Invalid service names detected in service_check_restart_services: {{ service_check_restart_services }}"
+  when: service_check_restart_services | length > 0
+
+- name: Determine service handlers for queued actions
+  set_fact:
+    service_check_restart_targets: >-
+      {{ service_check_restart_services | default([])
+         | map('regex_replace', '^', 'Restart ')
+         | map('regex_replace', '$', ' container')
+         | list | unique }}
+
+- name: "{{ kolla_role_name | default(project_name) }} | Notify service handlers for queued actions"
   debug:
     msg: Notifying handlers
-  changed_when: restart_targets | length > 0
+  changed_when: service_check_restart_targets | length > 0
   when:
-    - restart_targets | length > 0
+    - service_check_restart_targets | length > 0
     - kolla_container_engine == 'docker' or (kolla_container_engine == 'podman' and kolla_podman_use_systemd | bool)
-  notify: "{{ restart_targets }}"
+  notify: "{{ service_check_restart_targets }}"
