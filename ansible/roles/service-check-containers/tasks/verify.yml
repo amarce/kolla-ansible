@@ -63,6 +63,16 @@
                | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
                | list | items2dict) }}
 
+- name: Refresh container presence after ensure
+  become: true
+  command: >-
+    {{ kolla_container_engine }}
+    {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
+       else 'container inspect ' + container_name }}
+  register: container_result
+  changed_when: false
+  failed_when: false
+
 - name: Inspect container
   become: true
   kolla_container_facts:

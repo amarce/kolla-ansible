@@ -49,7 +49,7 @@ def test_compare_container_podman_no_change():
             ],
             'RestartPolicy': {'Name': ''},
         },
-        'Config': {'Env': []},
+        'Config': {'Env': [], 'User': 'root'},
         'State': {'Status': 'running'},
         'Image': 'imageid',
     }
@@ -60,6 +60,31 @@ def test_compare_container_podman_no_change():
 
     assert pw.compare_container() is False
     assert pw.changed is False
+
+
+def test_compare_container_podman_detects_user_drift():
+    pw = PodmanWorker(DummyModule(user='nova'))
+    info = {
+        'HostConfig': {
+            'Binds': ['devpts:/dev/pts', '/data:/data'],
+            'Ulimits': [
+                {'Name': 'RLIMIT_NPROC', 'Soft': 4194304, 'Hard': 4194304},
+            ],
+            'RestartPolicy': {'Name': ''},
+        },
+        'Config': {'Env': [], 'User': 'root'},
+        'State': {'Status': 'running'},
+        'Image': 'imageid',
+    }
+    pw.check_container = mock.MagicMock(return_value=True)
+    pw.get_container_info = mock.MagicMock(return_value=info)
+    pw.compare_config = mock.MagicMock(return_value=False)
+    pw.systemd.check_unit_change = mock.MagicMock(return_value=False)
+
+    assert pw.compare_container() is True
+    assert pw.changed is True
+    assert pw.result.get('container_needs_recreate') is True
+    assert 'user' in pw.result.get('container_recreate_reasons', [])
 
 
 def test_wait_overrides_defer_start():
