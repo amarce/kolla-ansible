@@ -65,6 +65,9 @@ running unless a configuration, image, or healthcheck change is detected.
 The restart handlers honour the verified action queue assembled by the
 ``service-check-containers`` role, so a ``Restart <service> container``
 notification is emitted only when a recreate or start is actually required.
+The handler name is constructed directly from the service definition to avoid
+regex backreferences such as ``\1`` leaking into the notification and to fail
+early if a malformed service name is queued for processing.
 When ``kolla_podman_use_systemd`` is ``false`` those notifications are suppressed
 entirely to avoid referencing non-existent systemd units; container lifecycle is
 managed directly through the Podman client instead.

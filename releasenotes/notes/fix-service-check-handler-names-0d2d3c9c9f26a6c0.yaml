@@ -1,0 +1,10 @@
+---
+fixes:
+  - |
+    Fixes the ``service-check-containers`` role so that handler notifications
+    are constructed deterministically as ``Restart <service> container`` without
+    relying on regex backreferences. This avoids malformed notifications such as
+    ``Restart \1 container`` and adds validation that queued service names do
+    not contain backslashes or bare regex group references before flushing
+    handlers. This prevents reconfigure failures when services like
+    ``nova-ssh`` are queued for restart while using Podman.
