@@ -286,6 +286,71 @@ EXAMPLES = '''
 '''
 
 
+def _unwrap_module_args(raw_args):
+    """Return the innermost module arguments mapping from ``raw_args``."""
+
+    module_args = raw_args
+    visited = set()
+
+    while isinstance(module_args, dict):
+        identity = id(module_args)
+        if identity in visited:
+            break
+        visited.add(identity)
+
+        nested = module_args.get("ANSIBLE_MODULE_ARGS")
+        if isinstance(nested, dict):
+            module_args = nested
+            continue
+
+        nested = module_args.get("module_args")
+        if isinstance(nested, dict):
+            module_args = nested
+            continue
+
+        break
+
+    if isinstance(module_args, dict):
+        return module_args
+    return {}
+
+
+def _collect_specified_options(raw_args):
+    """Collect option names explicitly provided to the module.
+
+    ``raw_args`` should be the mapping returned by ``_load_params``.  The
+    resulting set records only the arguments supplied by the user, excluding
+    implicit defaults injected by Ansible.  Nested ``common_options`` keys are
+    represented using dotted notation (``common_options.restart_policy``) so
+    that callers can distinguish between explicit overrides and defaults.
+    """
+
+    specified = set()
+
+    module_args = _unwrap_module_args(raw_args)
+    if not isinstance(module_args, dict):
+        return specified
+
+    for key in module_args.keys():
+        if not isinstance(key, str):
+            continue
+        if key.startswith("_ansible_"):
+            continue
+        if key in ("common_options", "action"):
+            continue
+        specified.add(key)
+
+    if "common_options" in module_args:
+        common_opts = module_args.get("common_options")
+        if isinstance(common_opts, dict):
+            for key in common_opts.keys():
+                if not isinstance(key, str):
+                    continue
+                specified.add(f"common_options.{key}")
+
+    return specified
+
+
 def generate_module():
     try:
         from ansible.module_utils.basic import _load_params as _ansible_load_params
@@ -397,20 +462,7 @@ def generate_module():
         except Exception:  # pragma: no cover - keep module resilient
             raw_args = {}
         if isinstance(raw_args, dict):
-            module_args = raw_args
-            while isinstance(module_args, dict):
-                if isinstance(module_args.get('ANSIBLE_MODULE_ARGS'), dict):
-                    module_args = module_args['ANSIBLE_MODULE_ARGS']
-                    continue
-                if isinstance(module_args.get('module_args'), dict):
-                    module_args = module_args['module_args']
-                    continue
-                break
-            if isinstance(module_args, dict):
-                specified_options.update(module_args.keys())
-                common_opts = module_args.get('common_options')
-                if isinstance(common_opts, dict):
-                    specified_options.update(common_opts.keys())
+            specified_options = _collect_specified_options(raw_args)
 
     common_options_defaults = {
         'auth_email': None,

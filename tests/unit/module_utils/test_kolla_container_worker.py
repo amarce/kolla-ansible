@@ -153,6 +153,21 @@ def test_compare_healthcheck_detects_test_change(cw):
     assert cw.compare_healthcheck(container) is True
 
 
+def test_compare_user_ignored_when_unspecified(cw):
+    cw.params['user'] = 'nova'
+    container = {'Config': {'User': 'root'}}
+
+    assert cw.compare_user(container) is False
+
+
+def test_compare_user_detects_drift_when_specified(cw):
+    cw.params['user'] = 'nova'
+    cw.specified_options = {'user'}
+    container = {'Config': {'User': 'root'}}
+
+    assert cw.compare_user(container) is True
+
+
 def test_normalise_container_info_strips_security_opt_default():
     params = {'container_engine': 'podman', 'security_opt': []}
     info = {'HostConfig': {'SecurityOpt': ['unmask=all', 'label=disable']}}

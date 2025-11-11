@@ -62,3 +62,9 @@ Operators should ensure ``kolla_podman_use_systemd`` is set to ``true`` in
 ``/etc/kolla/globals.yml`` when systemd units are used to supervise Podman
 containers. With this setting enabled, reconfigure operations leave containers
 running unless a configuration, image, or healthcheck change is detected.
+The restart handlers honour the verified action queue assembled by the
+``service-check-containers`` role, so a ``Restart <service> container``
+notification is emitted only when a recreate or start is actually required.
+When ``kolla_podman_use_systemd`` is ``false`` those notifications are suppressed
+entirely to avoid referencing non-existent systemd units; container lifecycle is
+managed directly through the Podman client instead.

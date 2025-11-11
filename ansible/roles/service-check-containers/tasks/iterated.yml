@@ -26,11 +26,3 @@
     - "{{ range(1,(service.iterate_var | int) + 1) | list }}"
   register: container_check
 
-# NOTE(yoctozepto): Must be a separate task because one cannot see the whole
-# result in the previous task and Ansible has a quirk regarding notifiers.
-# For details see https://github.com/ansible/ansible/issues/22579
-- name: "{{ kolla_role_name | default(project_name) }} | Notify handlers to restart containers"
-  debug:
-    msg: Notifying handlers
-  changed_when: container_check is changed
-  notify: "Restart {{ outer_item.key }} container"
