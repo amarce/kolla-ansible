@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Fixed Podman container recreation failures introduced in PR #305 where
+    the worker forwarded an unsupported ``pid`` keyword to ``podman-py``.
+    The Podman backend now maps ``pid_mode`` into the format expected by the
+    client, normalises the inspected PID namespace when detecting drift, and
+    ignores implicit runtime users unless a service explicitly sets
+    ``user``. ``cgroupns_mode`` overrides provided via ``common_options`` are
+    honoured while unsupported keys continue to be stripped before reaching
+    the Podman API.

@@ -78,7 +78,7 @@ CONTAINER_PARAMS = [
 ]
 
 SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS = set(CONTAINER_PARAMS)
-SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"mounts", "network_mode"})
+SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"hostconfig", "mounts", "network_mode"})
 
 
 class PodmanWorker(ContainerWorker):
@@ -137,8 +137,11 @@ class PodmanWorker(ContainerWorker):
         desired_pid_mode = self.params.get("pid_mode")
         if desired_pid_mode in (None, ""):
             desired_pid_mode = self.params.get("pid")
+
         if desired_pid_mode not in (None, ""):
             args["pid_mode"] = desired_pid_mode
+            hostconfig = args.setdefault("hostconfig", {})
+            hostconfig["PidMode"] = desired_pid_mode
 
         # maybe can be done straight away,
         # at first it was around 6 keys that's why it is this way
@@ -163,6 +166,10 @@ class PodmanWorker(ContainerWorker):
                 args[key] = value
 
         args.pop("restart_policy", None)  # handled by systemd
+        args.pop("pid", None)
+
+        if args.get("hostconfig") in (None, {}):
+            args.pop("hostconfig", None)
 
         return args
 
@@ -339,8 +346,22 @@ class PodmanWorker(ContainerWorker):
         if desired in (None, ""):
             desired = self.params.get("pid")
 
-        host_config = container_info.get("HostConfig", {})
-        current = host_config.get("PidMode") or host_config.get("PidNS")
+        host_config = container_info.get("HostConfig") or {}
+        nested_host_config = container_info.get("Config", {}).get("HostConfig", {})
+        if host_config:
+            merged_host_config = dict(host_config)
+            merged_host_config.update(nested_host_config or {})
+        else:
+            merged_host_config = nested_host_config or {}
+
+        current = (
+            merged_host_config.get("PidMode")
+            or merged_host_config.get("PidNS")
+            or merged_host_config.get("Pidns")
+            or merged_host_config.get("pidns")
+            or merged_host_config.get("mode")
+            or merged_host_config.get("value")
+        )
 
         def _normalise(value):
             if isinstance(value, dict):
