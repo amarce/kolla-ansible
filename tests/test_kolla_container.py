@@ -160,6 +160,7 @@ class SpecifiedOptionsTest(base.BaseTestCase):
                 'image',
                 'user',
                 'pid_mode',
+                'restart_policy',
                 'common_options.restart_policy',
             },
             specified,

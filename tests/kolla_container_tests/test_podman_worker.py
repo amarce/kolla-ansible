@@ -121,10 +121,13 @@ class APIErrorStub(Exception):
 def get_PodmanWorker(mod_param):
     module = mock.MagicMock()
     params = copy.deepcopy(mod_param)
-    specified = set(params.keys())
-    common_opts = params.get('common_options')
+    common_opts = params.pop('common_options', None)
+    specified = {k for k in mod_param.keys() if k != 'common_options'}
     if isinstance(common_opts, dict):
+        for key, value in common_opts.items():
+            params.setdefault(key, value)
         specified.update(common_opts.keys())
+        specified.update(f"common_options.{key}" for key in common_opts)
     if specified:
         params['_kolla_specified_options'] = list(specified)
     module.params = params
@@ -1246,6 +1249,11 @@ class TestAttrComp(base.BaseTestCase):
     def test_compare_pid_mode_pos(self):
         container_info = {'HostConfig': dict(PidMode='host1')}
         self.pw = get_PodmanWorker({'pid_mode': 'host2'})
+        self.assertTrue(self.pw.compare_pid_mode(container_info))
+
+    def test_compare_pid_mode_common_options(self):
+        container_info = {'HostConfig': dict(PidMode='private')}
+        self.pw = get_PodmanWorker({'common_options': {'pid_mode': 'host'}})
         self.assertTrue(self.pw.compare_pid_mode(container_info))
 
     def test_compare_pid_mode_pidns_neg(self):
