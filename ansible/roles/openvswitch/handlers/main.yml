@@ -6,22 +6,33 @@
     _unit_name: >-
       {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
     _needs_recreate: "{{ service_check_compare_results[service_name] | default(false) }}"
+    _pending_actions: "{{ service_check_pending_actions | default([]) }}"
+    _existing_action: >-
+      {{ (_pending_actions
+          | selectattr('container_name', 'equalto', service_def.container_name)
+          | list
+          | first) | default({}) }}
+    _action_update: >-
+      {{ (
+           _existing_action | default({})
+         )
+         | combine({
+           'container_name': service_def.container_name,
+           'unit_name': _unit_name,
+           'service': (_existing_action.service | default({})) | combine(service_def, recursive=True),
+           'container_inspect': _existing_action.container_inspect | default({}),
+           'container_missing': _existing_action.container_missing | default(false),
+           'container_needs_recreate': (_existing_action.container_needs_recreate | default(false)) or (_needs_recreate | bool),
+           'unit_enabled': _existing_action.unit_enabled | default(false),
+           'needs_start': true
+         }, recursive=True) }}
   set_fact:
     service_check_pending_actions: "{{ (
-        service_check_pending_actions | default([])
-      )
-      | rejectattr('container_name', 'equalto', service_def.container_name)
-      | list
-      + [ {
-        'container_name': service_def.container_name,
-        'unit_name': _unit_name,
-        'service': service_def,
-        'container_inspect': {},
-        'container_missing': false,
-        'container_needs_recreate': _needs_recreate | bool,
-        'unit_enabled': false,
-        'needs_start': true
-      } ] }}"
+        _pending_actions
+        | rejectattr('container_name', 'equalto', service_def.container_name)
+        | list
+        + [ _action_update ]
+      ) }}"
   listen: Restart openvswitch-db-server container
   notify:
     - Process service-check actions
@@ -43,22 +54,33 @@
     _unit_name: >-
       {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ service_def.container_name }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
     _needs_recreate: "{{ service_check_compare_results[service_name] | default(false) }}"
+    _pending_actions: "{{ service_check_pending_actions | default([]) }}"
+    _existing_action: >-
+      {{ (_pending_actions
+          | selectattr('container_name', 'equalto', service_def.container_name)
+          | list
+          | first) | default({}) }}
+    _action_update: >-
+      {{ (
+           _existing_action | default({})
+         )
+         | combine({
+           'container_name': service_def.container_name,
+           'unit_name': _unit_name,
+           'service': (_existing_action.service | default({})) | combine(service_def, recursive=True),
+           'container_inspect': _existing_action.container_inspect | default({}),
+           'container_missing': _existing_action.container_missing | default(false),
+           'container_needs_recreate': (_existing_action.container_needs_recreate | default(false)) or (_needs_recreate | bool),
+           'unit_enabled': _existing_action.unit_enabled | default(false),
+           'needs_start': true
+         }, recursive=True) }}
   set_fact:
     service_check_pending_actions: "{{ (
-        service_check_pending_actions | default([])
-      )
-      | rejectattr('container_name', 'equalto', service_def.container_name)
-      | list
-      + [ {
-        'container_name': service_def.container_name,
-        'unit_name': _unit_name,
-        'service': service_def,
-        'container_inspect': {},
-        'container_missing': false,
-        'container_needs_recreate': _needs_recreate | bool,
-        'unit_enabled': false,
-        'needs_start': true
-      } ] }}"
+        _pending_actions
+        | rejectattr('container_name', 'equalto', service_def.container_name)
+        | list
+        + [ _action_update ]
+      ) }}"
   listen: Restart openvswitch-vswitchd container
   notify:
     - Process service-check actions

@@ -38,7 +38,7 @@
 
 - name: Mark managed OVSDB as reachable
   set_fact:
-    ovsdb_reachable: "{{ ovsdb_wait.rc == 0 }}"
+    ovsdb_reachable: "{{ (ovsdb_wait | default({})).get('rc', 1) == 0 }}"
   when:
     - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
     - openvswitch_manage_db_container | bool

@@ -31,6 +31,33 @@
   changed_when: false
   failed_when: false
 
+- block:
+    - name: Ensure {{ container_name }} container exists before validation
+      vars:
+        service_name: "{{ item.key }}"
+        service: "{{ container_spec }}"
+        ensure_container_common_options: "{{ _service_check_common_options }}"
+      import_tasks: roles/common/tasks/_ensure_service_container.yml
+
+    - name: Re-check container presence after ensure
+      become: true
+      command: >-
+        {{ kolla_container_engine }}
+        {{ 'container exists ' + container_name if kolla_container_engine == 'podman'
+           else 'container inspect ' + container_name }}
+      register: container_result
+      changed_when: false
+      failed_when: false
+  when:
+    - service_enabled | bool
+    - container_result.rc != 0
+  vars:
+    _service_check_common_options: >-
+      {{ docker_common_options if kolla_container_engine != 'podman'
+         else (docker_common_options | dict2items
+               | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+               | list | items2dict) }}
+
 - name: Inspect container
   become: true
   kolla_container_facts:
