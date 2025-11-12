@@ -22,6 +22,13 @@ be running as-is.
    ``kolla_toolbox`` are running without a systemd unit, both during service
    checks and while applying start-order sequencing.
 
+Services that explicitly disable systemd integration through
+``podman_use_systemd: false`` are treated the same way. The verification logic
+ignores ``systemctl`` results even if a unit file happens to exist and instead
+relies solely on the container state reported by Podman. This prevents
+``systemctl is-active`` from failing plays on hosts where containers are
+intentionally supervised outside of systemd.
+
 Operators can further suppress actions for specific containers by setting
 ``service_check_exclude_services`` to a list of container names. Any container
 listed there is ignored by the ``service-check-containers`` role even if the

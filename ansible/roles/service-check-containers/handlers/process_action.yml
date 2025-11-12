@@ -9,6 +9,7 @@
     container_needs_recreate: "{{ handler_context.container_needs_recreate | bool }}"
     unit_enabled: "{{ handler_context.unit_enabled | bool }}"
     needs_start: "{{ handler_context.needs_start | bool }}"
+    service_use_systemd: "{{ handler_context.service_use_systemd | default(kolla_container_engine == 'docker') | bool }}"
 
 - name: Refresh handler unit file state
   become: true
@@ -84,7 +85,7 @@
         - unit_name is defined
         - unit_enabled | bool
         - service.unit_file_exists | default(false) | bool
-        - kolla_container_engine == 'docker'
+        - service_use_systemd | bool
   when:
     - container_missing | bool or container_needs_recreate | bool
 
@@ -113,7 +114,7 @@
         - unit_name is defined
         - service.unit_file_exists | default(false) | bool
         - runtime_restart is failed
-        - kolla_container_engine == 'docker'
+        - service_use_systemd | bool
 
     - name: Restart unit as fallback
       become: true
@@ -124,7 +125,7 @@
         - unit_name is defined
         - service.unit_file_exists | default(false) | bool
         - runtime_restart is failed
-        - kolla_container_engine == 'docker'
+        - service_use_systemd | bool
   when:
     - not (container_missing | bool or container_needs_recreate | bool)
     - needs_start | bool

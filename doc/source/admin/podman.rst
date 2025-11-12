@@ -41,6 +41,12 @@ generate and enable systemd unit files for services. Unit files are
 installed as ``/etc/systemd/system/container-<name>.service`` and allow
 systemd to start containers during host boot.
 
+When ``podman_use_systemd`` remains ``false`` for a service, Kolla Ansible's
+health checks and restart handlers consider only the container state reported by
+Podman. Any matching unit file is ignored during verification so that
+``systemctl`` does not mark the deployment failed simply because the unit is
+inactive.
+
 Kolla Ansible verifies that each container exists before attempting to
 generate a unit file. When the container is missing the play reports that
 generation is skipped instead of failing the deployment. This makes it safe
