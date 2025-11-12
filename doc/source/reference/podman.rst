@@ -71,3 +71,16 @@ early if a malformed service name is queued for processing.
 When ``kolla_podman_use_systemd`` is ``false`` those notifications are suppressed
 entirely to avoid referencing non-existent systemd units; container lifecycle is
 managed directly through the Podman client instead.
+
+
+Container runtime options
+-------------------------
+
+The ``kolla_container`` module now maps host-related runtime settings directly
+to Podman's native API fields instead of forwarding Docker-specific
+``HostConfig`` dictionaries. Options such as ``pid_mode``, IPC/UTS namespaces,
+privileged mode, bind mounts, and ulimits are translated to the corresponding
+Podman arguments and validated before creation. If unsupported Docker-only
+arguments like ``hostconfig`` or ``networking_config`` are supplied, the module
+fails early with a clear error so deployments do not reach Podman's client with
+invalid parameters.

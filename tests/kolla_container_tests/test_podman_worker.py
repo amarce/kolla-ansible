@@ -230,7 +230,7 @@ class TestContainer(base.BaseTestCase):
         args = self.pw.prepare_container_args()
         self.assertEqual('host', args.get('pid_mode'))
         self.assertEqual('host', args.get('cgroupns'))
-        self.assertEqual({'PidMode': 'host'}, args.get('hostconfig'))
+        self.assertNotIn('hostconfig', args)
 
     def test_create_container_rejects_unknown_option(self):
         self.pw = get_PodmanWorker(self.fake_data['params'].copy())
@@ -693,8 +693,8 @@ class TestContainer(base.BaseTestCase):
         self.pw.pc.containers.create.assert_called_once()
         create_kwargs = self.pw.pc.containers.create.call_args.kwargs
         self.assertEqual('host', create_kwargs.get('pid_mode'))
-        self.assertEqual({'PidMode': 'host'}, create_kwargs.get('hostconfig'))
         self.assertNotIn('pid', create_kwargs)
+        self.assertNotIn('hostconfig', create_kwargs)
 
     def test_prepare_container_args_sets_pid_mode(self):
         params = self.fake_data['params'].copy()
@@ -705,7 +705,7 @@ class TestContainer(base.BaseTestCase):
 
         self.assertEqual('host', args.get('pid_mode'))
         self.assertNotIn('pid', args)
-        self.assertEqual({'PidMode': 'host'}, args.get('hostconfig'))
+        self.assertNotIn('hostconfig', args)
 
     def test_create_container_maps_pid_namespace_without_pid_kw(self):
         params = self.fake_data['params'].copy()
@@ -721,8 +721,8 @@ class TestContainer(base.BaseTestCase):
         create_kwargs = worker.pc.containers.create.call_args.kwargs
         self.assertEqual('host', create_kwargs.get('pid_mode'))
         self.assertEqual('host', create_kwargs.get('cgroupns'))
-        self.assertEqual({'PidMode': 'host'}, create_kwargs.get('hostconfig'))
         self.assertNotIn('pid', create_kwargs)
+        self.assertNotIn('hostconfig', create_kwargs)
 
     def test_compare_pid_mode_matches_host(self):
         worker = get_PodmanWorker({'pid_mode': 'host'})

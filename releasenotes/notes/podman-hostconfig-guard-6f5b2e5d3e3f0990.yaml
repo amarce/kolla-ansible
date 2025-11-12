@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Fixed Podman container creation to stop passing Docker ``hostconfig``
+    keywords to the Podman client. Host namespace settings such as
+    ``pid_mode`` are now mapped directly to the native Podman arguments, and
+    unsupported Docker-only options fail fast with a clear error message. This
+    resolves ``Unknown keyword argument(s): 'hostconfig'`` failures seen during
+    fresh deployments when ensuring the ``nova-libvirt`` container.
