@@ -78,7 +78,7 @@ CONTAINER_PARAMS = [
 ]
 
 SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS = set(CONTAINER_PARAMS)
-SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"hostconfig", "mounts", "network_mode"})
+SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"mounts", "network_mode"})
 
 
 class PodmanWorker(ContainerWorker):
@@ -140,8 +140,6 @@ class PodmanWorker(ContainerWorker):
 
         if desired_pid_mode not in (None, ""):
             args["pid_mode"] = desired_pid_mode
-            hostconfig = args.setdefault("hostconfig", {})
-            hostconfig["PidMode"] = desired_pid_mode
 
         # maybe can be done straight away,
         # at first it was around 6 keys that's why it is this way
@@ -167,9 +165,6 @@ class PodmanWorker(ContainerWorker):
 
         args.pop("restart_policy", None)  # handled by systemd
         args.pop("pid", None)
-
-        if args.get("hostconfig") in (None, {}):
-            args.pop("hostconfig", None)
 
         return args
 
