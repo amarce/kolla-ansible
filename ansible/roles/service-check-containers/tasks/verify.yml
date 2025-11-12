@@ -40,6 +40,30 @@
   set_fact:
     service_enabled: "{{ container_spec.enabled | default(True) | bool }}"
 
+- name: Determine service systemd usage
+  set_fact:
+    service_use_systemd: >-
+      {{
+        (kolla_container_engine == 'docker')
+        or (
+          kolla_container_engine == 'podman'
+          and (
+            (
+              container_spec.podman_use_systemd
+              if container_spec.podman_use_systemd is defined
+                 and container_spec.podman_use_systemd is not none
+              else kolla_podman_use_systemd
+            ) | bool
+          )
+        )
+      }}
+
+- name: Initialise unit status defaults
+  set_fact:
+    unit_file: {"stat": {"exists": false}}
+    unit_enabled: false
+    unit_active: {"rc": 0}
+
 - name: Check container presence
   become: true
   command: >-
@@ -127,6 +151,7 @@
   register: unit_file
   changed_when: false
   failed_when: false
+  when: service_use_systemd | bool
 
 - name: Check unit enabled
   become: true
@@ -134,11 +159,18 @@
   register: unit_enabled_res
   changed_when: false
   failed_when: false
-  when: unit_file.stat.exists
+  when:
+    - service_use_systemd | bool
+    - unit_file.stat.exists
 
 - name: Set unit enabled fact
   set_fact:
-    unit_enabled: "{{ unit_file.stat.exists and (unit_enabled_res.rc | default(1)) == 0 }}"
+    unit_enabled: >-
+      {{
+        unit_file.stat.exists
+        and (unit_enabled_res.rc | default(1)) == 0
+      }}
+  when: service_use_systemd | bool
 
 - name: Check unit active
   become: true
@@ -146,14 +178,30 @@
   register: unit_active
   changed_when: false
   failed_when: false
-  when: unit_file.stat.exists
+  when:
+    - service_use_systemd | bool
+    - unit_file.stat.exists
 
 - name: Record container and unit status
   set_fact:
     container_missing: "{{ (container_probe.rc | default(1)) != 0 }}"
-    unit_missing_or_disabled: "{{ not unit_enabled }}"
+    unit_missing_or_disabled: >-
+      {{
+        (service_use_systemd | bool)
+        and (not unit_enabled)
+      }}
     needs_start: >-
-      {{ (container_probe.rc | default(1)) != 0 or (unit_file.stat.exists and (not unit_enabled or unit_active.rc | default(3) != 0)) }}
+      {{
+        (container_probe.rc | default(1)) != 0
+        or (
+          service_use_systemd | bool
+          and unit_file.stat.exists
+          and (
+            (not unit_enabled)
+            or (unit_active.rc | default(3) != 0)
+          )
+        )
+      }}
 
 - block:
     - name: Detect health-check drift
@@ -219,7 +267,8 @@
                 'container_missing': container_missing | bool,
                 'container_needs_recreate': container_needs_recreate | bool,
                 'unit_enabled': unit_enabled | bool,
-                'needs_start': needs_start | bool
+                'needs_start': needs_start | bool,
+                'service_use_systemd': service_use_systemd | bool
               }
             ] }}"
       when:
@@ -259,7 +308,7 @@
       when:
         - not container_missing
         - unit_file.stat.exists
-        - kolla_container_engine == 'docker'
+        - service_use_systemd | bool
         - (unit_active.rc | default(0)) != 0
   when:
     - service_enabled | bool
