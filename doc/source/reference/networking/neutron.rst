@@ -221,9 +221,21 @@ service-check actions for the Open vSwitch database.
 vSwitch when their configuration has not changed. The
 ``ovs_provider_fail_mode`` variable defaults to ``standalone`` and controls the
 fail mode applied to provider bridges such as ``br-ex``. Override this value if
-your environment requires ``secure`` behaviour. Both ``deploy`` and
-``reconfigure`` respect the container module's no-op result, so Open vSwitch is
-not restarted when the container definition is unchanged.
+your environment requires ``secure`` behaviour. The role probes the current
+bridge definition with ``ovs-vsctl`` before applying updates so rerunning
+``deploy`` or ``reconfigure`` is idempotent. Existing bridges are left intact,
+attributes such as ``fail_mode`` are updated only when a change is required, and
+interfaces are attached with ``--may-exist`` so repeated executions do not
+remove and recreate resources.
+
+When the ``external_interface`` resolves to the same name as the target bridge,
+``kolla-ansible`` logs a warning and skips the attachment to avoid creating
+bridging loops. Operators can also defer bridge management during a
+``reconfigure`` by setting ``openvswitch_manage_provider_bridges_on_reconfigure``
+to ``false``. The option defaults to ``true``, so provider bridges are still
+verified unless it is explicitly disabled. With that flag disabled, the
+post-configuration tasks leave the existing provider bridges and interface
+bindings untouched while still applying other Open vSwitch configuration.
 
 Verification of the Open vSwitch containers only proceeds when the
 corresponding systemd unit or container is present.  If neither exists, the
