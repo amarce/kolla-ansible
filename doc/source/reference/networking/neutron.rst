@@ -221,12 +221,15 @@ service-check actions for the Open vSwitch database.
 vSwitch when their configuration has not changed. The
 ``ovs_provider_fail_mode`` variable defaults to ``standalone`` and controls the
 fail mode applied to provider bridges such as ``br-ex``. Override this value if
-your environment requires ``secure`` behaviour. The role probes the current
-bridge definition with ``ovs-vsctl`` before applying updates so rerunning
-``deploy`` or ``reconfigure`` is idempotent. Existing bridges are left intact,
-attributes such as ``fail_mode`` are updated only when a change is required, and
-interfaces are attached with ``--may-exist`` so repeated executions do not
-remove and recreate resources.
+your environment requires ``secure`` behaviour. The role first checks for the
+bridge with ``ovs-vsctl br-exists`` and reconciles ``fail_mode`` by reading the
+current value through ``ovs-vsctl get-fail-mode`` before calling
+``ovs-vsctl set-fail-mode``. As a result rerunning ``deploy`` or ``reconfigure``
+is idempotent: existing bridges are left intact, attributes such as
+``fail_mode`` are updated only when a change is required, and interfaces are
+attached with ``--may-exist`` so repeated executions do not remove and recreate
+resources. Safeguards also prevent accidental patch or datapath loops by
+skipping any port attachment whose peer resolves to the same provider bridge.
 
 When the ``external_interface`` resolves to the same name as the target bridge,
 ``kolla-ansible`` logs a warning and skips the attachment to avoid creating
