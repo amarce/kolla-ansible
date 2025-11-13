@@ -107,106 +107,23 @@
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
 
 - name: Ensure provider bridge interfaces are attached
-  become: true
   vars:
     provider_bridges: "{{ neutron_bridge_name.split(',') | map('trim') | list }}"
     provider_interfaces: "{{ neutron_external_interface.split(',') | map('trim') | list }}"
     provider_indices: "{{ range(0, provider_bridges | length) | list }}"
+    provider_port_options_map: "{{ openvswitch_provider_port_options | default({}) }}"
+  include_tasks: provider_interface.yml
   loop: "{{ provider_indices }}"
   loop_control:
     loop_var: provider_index
     label: >-
       {{ (provider_bridges[provider_index] | default('')) }} <- {{ (provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '') }}
+  vars:
+    provider_bridge: "{{ provider_bridges[provider_index] | default('') }}"
+    provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '' }}"
+    provider_port_options: "{{ (provider_port_options_map[provider_port] | default({})) if provider_port | length > 0 else {} }}"
   when:
     - provider_bridges | length > 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
-  block:
-    - name: Manage provider interface mapping for index {{ provider_index }}
-      vars:
-        provider_bridge: "{{ provider_bridges[provider_index] | default('') }}"
-        provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '' }}"
-      block:
-        - name: Skip provider interface attachment for empty bridge name
-          debug:
-            msg: "Skipping provider interface mapping because the bridge name is empty"
-            verbosity: 1
-          when: provider_bridge | length == 0
-
-        - name: Skip provider interface attachment when no interface is defined
-          debug:
-            msg: "No external interface defined for provider bridge {{ provider_bridge }}"
-            verbosity: 1
-          when:
-            - provider_bridge | length > 0
-            - provider_port | length == 0
-
-        - name: Guard against attaching provider bridge {{ provider_bridge }} to itself
-          debug:
-            msg: >-
-              Skipping provider port attachment because the external interface "{{ provider_port }}" resolves to the bridge name "{{ provider_bridge }}"
-            warn: true
-          when:
-            - provider_bridge | length > 0
-            - provider_port | length > 0
-            - provider_bridge == provider_port
-
-        - name: List ports on provider bridge {{ provider_bridge }}
-          kolla_toolbox:
-            container_engine: "{{ kolla_container_engine }}"
-            user: root
-            module_name: command
-            module_args:
-              argv:
-                - ovs-vsctl
-                - list-ports
-                - "{{ provider_bridge }}"
-          register: ovs_provider_bridge_ports
-          changed_when: false
-          failed_when: ovs_provider_bridge_ports.rc != 0
-          when:
-            - provider_bridge | length > 0
-            - provider_port | length > 0
-            - provider_bridge != provider_port
-
-        - name: Log provider interface already present on bridge {{ provider_bridge }}
-          debug:
-            msg: "Provider interface {{ provider_port }} already attached to {{ provider_bridge }}"
-            verbosity: 1
-          when:
-            - provider_bridge | length > 0
-            - provider_port | length > 0
-            - provider_bridge != provider_port
-            - ovs_provider_bridge_ports is defined
-            - ovs_provider_bridge_ports.stdout_lines is defined
-            - provider_port in (ovs_provider_bridge_ports.stdout_lines | map('trim') | list)
-
-        - name: Attach provider interface {{ provider_port }} to bridge {{ provider_bridge }}
-          kolla_toolbox:
-            container_engine: "{{ kolla_container_engine }}"
-            user: root
-            module_name: command
-            module_args:
-              argv:
-                - ovs-vsctl
-                - --may-exist
-                - add-port
-                - "{{ provider_bridge }}"
-                - "{{ provider_port }}"
-          register: ovs_provider_bridge_attach
-          changed_when: true
-          when:
-            - provider_bridge | length > 0
-            - provider_port | length > 0
-            - provider_bridge != provider_port
-            - ovs_provider_bridge_ports is defined
-            - provider_port not in (ovs_provider_bridge_ports.stdout_lines | default([]) | map('trim') | list)
-
-        - name: Log provider interface attachment to bridge {{ provider_bridge }}
-          debug:
-            msg: "Attached provider interface {{ provider_port }} to {{ provider_bridge }}"
-            verbosity: 1
-          when:
-            - ovs_provider_bridge_attach is defined
-            - ovs_provider_bridge_attach is changed
