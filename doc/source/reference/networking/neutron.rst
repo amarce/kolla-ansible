@@ -231,6 +231,19 @@ attached with ``--may-exist`` so repeated executions do not remove and recreate
 resources. Safeguards also prevent accidental patch or datapath loops by
 skipping any port attachment whose peer resolves to the same provider bridge.
 
+Interface attachments are reconciled with the same idempotent approach. The
+role probes the current mapping with ``ovs-vsctl --if-exists port-to-br`` before
+calling ``add-port`` and fails fast when an interface is already attached to a
+different bridge, prompting the operator to make an explicit decision. When an
+interface is present on the expected bridge the play simply logs the fact and
+skips the attachment. Port options can be managed through the
+``openvswitch_provider_port_options`` variable, which accepts a dictionary keyed
+by interface name. Supported attributes include ``tag``, ``trunks``,
+``external_ids``, ``other_config``, ``type`` and ``options``. Each attribute is
+only updated when the current state differs, so consecutive runs avoid
+unnecessary OVSDB mutations while still converging to the requested
+configuration.
+
 When the ``external_interface`` resolves to the same name as the target bridge,
 ``kolla-ansible`` logs a warning and skips the attachment to avoid creating
 bridging loops. Operators can also defer bridge management during a

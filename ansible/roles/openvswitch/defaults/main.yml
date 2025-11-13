@@ -120,3 +120,4 @@ openvswitch_manage_provider_bridges_on_reconfigure: true
 openvswitch_system_id: "{{ ansible_facts.hostname }}"
 openvswitch_hostname: "{{ ansible_facts.fqdn }}"
 openvswitch_hw_offload: "no"
+openvswitch_provider_port_options: {}

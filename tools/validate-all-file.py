@@ -214,11 +214,64 @@ def check_container_become(fullpath, task, block=''):
     return return_code
 
 
+def check_block_loop_usage():
+    """Ensure no block tasks use loop or with_* constructs."""
+    return_code = 0
+    target = os.path.join(
+        PROJECT_ROOT,
+        'ansible',
+        'roles',
+        'openvswitch',
+        'tasks',
+        'post-config.yml',
+    )
+    if not os.path.exists(target):
+        return return_code
+
+    try:
+        with open(target) as fp:
+            data = yaml.safe_load(fp) or []
+    except yaml.YAMLError:
+        LOG.exception('Failed to parse %s', target)
+        return 1
+
+    if not isinstance(data, list):
+        return return_code
+
+    def _visit(task):
+        nonlocal return_code
+        if not isinstance(task, dict):
+            return
+        if 'block' in task:
+            for key in list(task.keys()):
+                if key == 'loop' or key.startswith('with_'):
+                    LOG.error(
+                        "Use of %s on block task %s in %s",
+                        key,
+                        task.get('name', '<unnamed>'),
+                        target,
+                    )
+                    return_code = 1
+            for section in ('block', 'rescue', 'always'):
+                for nested in task.get(section, []) or []:
+                    _visit(nested)
+        else:
+            for section in ('block', 'rescue', 'always'):
+                for nested in task.get(section, []) or []:
+                    _visit(nested)
+
+    for task in data:
+        _visit(task)
+
+    return return_code
+
+
 def main():
     checks = (
         check_newline_eof,
         check_json_j2,
         check_task_contents,
+        check_block_loop_usage,
     )
     return sum([check() for check in checks])
 

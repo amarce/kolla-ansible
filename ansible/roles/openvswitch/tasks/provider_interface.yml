@@ -1,0 +1,247 @@
+---
+- name: Skip provider interface attachment for empty bridge name
+  debug:
+    msg: "Skipping provider interface mapping because the bridge name is empty"
+    verbosity: 1
+  when: provider_bridge | default('') | length == 0
+
+- name: Manage provider interface {{ provider_port | default('') }} on bridge {{ provider_bridge }}
+  when: provider_bridge | default('') | length > 0
+  block:
+    - name: Skip provider interface attachment when no interface is defined
+      debug:
+        msg: "No external interface defined for provider bridge {{ provider_bridge }}"
+        verbosity: 1
+      when: provider_port | default('') | length == 0
+
+    - name: Guard against attaching provider bridge {{ provider_bridge }} to itself
+      debug:
+        msg: >-
+          Skipping provider port attachment because the external interface "{{ provider_port }}" resolves to the bridge name "{{ provider_bridge }}"
+        warn: true
+      when:
+        - provider_port | default('') | length > 0
+        - provider_bridge == provider_port
+
+    - name: Manage provider interface {{ provider_port }} attachment and options
+      when:
+        - provider_port | default('') | length > 0
+        - provider_bridge != provider_port
+      block:
+        - name: Reset provider interface state facts
+          set_fact:
+            provider_port_current_bridge: ''
+            provider_port_state: {}
+
+        - name: Get current bridge for provider interface {{ provider_port }}
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - --if-exists
+                - port-to-br
+                - "{{ provider_port }}"
+          register: ovs_provider_port_bridge
+          changed_when: false
+
+        - name: Record provider interface {{ provider_port }} bridge membership
+          set_fact:
+            provider_port_current_bridge: "{{ (ovs_provider_port_bridge.stdout | default('') | trim) }}"
+
+        - name: Fail when provider interface {{ provider_port }} is attached to another bridge
+          fail:
+            msg: >-
+              Provider interface {{ provider_port }} is currently attached to bridge {{ provider_port_current_bridge }} and cannot be moved automatically to {{ provider_bridge }}.
+          when:
+            - provider_port_current_bridge | length > 0
+            - provider_port_current_bridge != provider_bridge
+
+        - name: Attach provider interface {{ provider_port }} to bridge {{ provider_bridge }}
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - --may-exist
+                - add-port
+                - "{{ provider_bridge }}"
+                - "{{ provider_port }}"
+          register: ovs_provider_bridge_attach
+          when: provider_port_current_bridge | length == 0
+          changed_when: provider_port_current_bridge | length == 0
+
+        - name: Log provider interface {{ provider_port }} attachment to bridge {{ provider_bridge }}
+          debug:
+            msg: "Attached provider interface {{ provider_port }} to {{ provider_bridge }}"
+            verbosity: 1
+          when:
+            - ovs_provider_bridge_attach is defined
+            - ovs_provider_bridge_attach is changed
+
+        - name: Log provider interface {{ provider_port }} already attached to {{ provider_bridge }}
+          debug:
+            msg: "Provider interface {{ provider_port }} already attached to {{ provider_bridge }}"
+            verbosity: 1
+          when: provider_port_current_bridge == provider_bridge
+
+        - name: Collect provider interface {{ provider_port }} state
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - --format=json
+                - --columns=name,tag,trunks,external_ids,other_config,type,options
+                - find
+                - Port
+                - "name=\"{{ provider_port }}\""
+          register: ovs_provider_port_state
+          changed_when: false
+          failed_when: ovs_provider_port_state.rc not in [0]
+          when: provider_port_options | default({}) | length > 0
+
+        - name: Parse provider interface {{ provider_port }} state
+          set_fact:
+            provider_port_state: "{{ (ovs_provider_port_state.stdout | from_json | ovsdb_rows)[0] | default({}) }}"
+          when:
+            - ovs_provider_port_state is defined
+            - ovs_provider_port_state.stdout | default('') | length > 0
+
+        - name: Configure provider interface {{ provider_port }} tag
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "tag={{ provider_port_options['tag'] | default([], true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'tag' in provider_port_options
+            - (provider_port_state.get('tag') | default(None) | ovsdb_canonical) != (provider_port_options['tag'] | default([], true) | ovsdb_canonical)
+          register: ovs_provider_port_set_tag
+          changed_when: true
+
+        - name: Configure provider interface {{ provider_port }} trunks
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "trunks={{ provider_port_options['trunks'] | default([], true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'trunks' in provider_port_options
+            - (provider_port_state.get('trunks') | default([]) | ovsdb_canonical) != (provider_port_options['trunks'] | default([], true) | ovsdb_canonical)
+          register: ovs_provider_port_set_trunks
+          changed_when: true
+
+        - name: Configure provider interface {{ provider_port }} external IDs
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "external_ids={{ provider_port_options['external_ids'] | default({}, true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'external_ids' in provider_port_options
+            - (provider_port_state.get('external_ids') | default({}) | ovsdb_canonical) != (provider_port_options['external_ids'] | default({}, true) | ovsdb_canonical)
+          register: ovs_provider_port_set_external_ids
+          changed_when: true
+
+        - name: Configure provider interface {{ provider_port }} other_config
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "other_config={{ provider_port_options['other_config'] | default({}, true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'other_config' in provider_port_options
+            - (provider_port_state.get('other_config') | default({}) | ovsdb_canonical) != (provider_port_options['other_config'] | default({}, true) | ovsdb_canonical)
+          register: ovs_provider_port_set_other_config
+          changed_when: true
+
+        - name: Configure provider interface {{ provider_port }} type
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "type={{ provider_port_options['type'] | default('', true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'type' in provider_port_options
+            - (provider_port_state.get('type') | default('') | ovsdb_canonical) != (provider_port_options['type'] | default('', true) | ovsdb_canonical)
+          register: ovs_provider_port_set_type
+          changed_when: true
+
+        - name: Configure provider interface {{ provider_port }} options
+          become: true
+          kolla_toolbox:
+            container_engine: "{{ kolla_container_engine }}"
+            user: root
+            module_name: command
+            module_args:
+              argv:
+                - ovs-vsctl
+                - --timeout=10
+                - set
+                - Port
+                - "{{ provider_port }}"
+                - "options={{ provider_port_options['options'] | default({}, true) | to_ovsdb }}"
+          when:
+            - provider_port_options is mapping
+            - 'options' in provider_port_options
+            - (provider_port_state.get('options') | default({}) | ovsdb_canonical) != (provider_port_options['options'] | default({}, true) | ovsdb_canonical)
+          register: ovs_provider_port_set_options
+          changed_when: true
