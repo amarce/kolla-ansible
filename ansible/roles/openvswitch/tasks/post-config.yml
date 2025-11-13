@@ -106,24 +106,49 @@
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
 
-- name: Ensure provider bridge interfaces are attached
+- name: Initialize provider bridge interface mappings
+  set_fact:
+    openvswitch_provider_interface_mappings: []
+
+- name: Build provider bridge interface mappings
   vars:
-    provider_bridges: "{{ neutron_bridge_name.split(',') | map('trim') | list }}"
-    provider_interfaces: "{{ neutron_external_interface.split(',') | map('trim') | list }}"
-    provider_indices: "{{ range(0, provider_bridges | length) | list }}"
+    provider_bridges: "{{ (neutron_bridge_name | default('')).split(',') | map('trim') | reject('equalto', '') | list }}"
+    provider_interfaces: "{{ (neutron_external_interface | default('')).split(',') | map('trim') | reject('equalto', '') | list }}"
     provider_port_options_map: "{{ openvswitch_provider_port_options | default({}) }}"
-  include_tasks: provider_interface.yml
-  loop: "{{ provider_indices }}"
+  set_fact:
+    openvswitch_provider_interface_mappings: "{{ openvswitch_provider_interface_mappings + [
+      {
+        'bridge': provider_bridges[provider_index] | default(''),
+        'port': (provider_interfaces[provider_index] if provider_interfaces | length > provider_index else ''),
+        'options': (
+          provider_port_options_map.get(provider_interfaces[provider_index], {})
+          if provider_interfaces | length > provider_index and provider_interfaces[provider_index] | length > 0
+          else {}
+        )
+      }
+    ] }}"
+  loop: "{{ range(provider_bridges | length) | list }}"
   loop_control:
     loop_var: provider_index
-    label: >-
-      {{ (provider_bridges[provider_index] | default('')) }} <- {{ (provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '') }}
-  vars:
-    provider_bridge: "{{ provider_bridges[provider_index] | default('') }}"
-    provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '' }}"
-    provider_port_options: "{{ provider_port_options_map.get(provider_port, {}) if provider_port | length > 0 else {} }}"
   when:
     - provider_bridges | length > 0
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Ensure provider bridge interfaces are attached
+  include_tasks: provider_interface.yml
+  loop: "{{ openvswitch_provider_interface_mappings | default([]) }}"
+  loop_control:
+    loop_var: provider_mapping
+    label: >-
+      {{ provider_mapping.bridge | default('') }} <- {{ provider_mapping.port | default('') }}
+  vars:
+    provider_bridge: "{{ provider_mapping.bridge | default('') }}"
+    provider_port: "{{ provider_mapping.port | default('') }}"
+    provider_port_options: "{{ provider_mapping.options | default({}) }}"
+  when:
+    - (openvswitch_provider_interface_mappings | default([])) | length > 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
