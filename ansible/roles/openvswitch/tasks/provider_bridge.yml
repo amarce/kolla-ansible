@@ -18,7 +18,12 @@
           cmd: "ovs-vsctl br-exists {{ provider_bridge }}"
       register: ovs_provider_bridge_check
       changed_when: false
-      failed_when: ovs_provider_bridge_check.rc not in [0, 2]
+      failed_when:
+        - ovs_provider_bridge_check.rc not in [0, 2]
+        - ovs_provider_bridge_check.rc == 2 and (
+            'No such file or directory' in (ovs_provider_bridge_check.msg | default('')) or
+            (ovs_provider_bridge_check.stderr | default('') | length > 0)
+          )
 
     - name: Create provider bridge {{ provider_bridge }} when missing
       kolla_toolbox:

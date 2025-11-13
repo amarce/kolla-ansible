@@ -122,16 +122,32 @@ class KollaToolboxWorker():
             )
         return cont[0]
 
-    def _format_module_args(self, module_args: dict) -> list:
-        """Format dict of module parameters into list of 'key=value' pairs."""
-        pairs = list()
-        for key, value in module_args.items():
-            if isinstance(value, dict):
-                value_json = json.dumps(value)
-                pairs.append(f"{key}='{value_json}'")
-            else:
-                pairs.append(f"{key}='{value}'")
-        return pairs
+    def _normalize_for_json(self, value):
+        """Convert templated values into JSON-serialisable Python objects."""
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, bytes):
+            return value.decode(errors='ignore')
+        if isinstance(value, dict):
+            return {str(k): self._normalize_for_json(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [self._normalize_for_json(v) for v in value]
+        return str(value)
+
+    def _format_module_args(self, module_args: dict) -> str:
+        """Render module parameters as a JSON string understood by ansible CLI."""
+        if not module_args:
+            return ''
+
+        normalized = self._normalize_for_json(module_args)
+        try:
+            return json.dumps(normalized, separators=(',', ':'), sort_keys=True)
+        except TypeError:
+            normalized = {
+                str(key): self._normalize_for_json(value)
+                for key, value in module_args.items()
+            }
+            return json.dumps(normalized, separators=(',', ':'), sort_keys=True)
 
     def _generate_command(self) -> list:
         """Generate the command that will be executed inside kolla_toolbox."""
@@ -143,9 +159,9 @@ class KollaToolboxWorker():
         command = ['ansible', 'localhost']
         command.extend(['-m', self.module.params.get('module_name')])
         if args_formatted:
-            command.extend(['-a', ' '.join(args_formatted)])
+            command.extend(['-a', args_formatted])
         if extra_vars_formatted:
-            command.extend(['-e', ' '.join(extra_vars_formatted)])
+            command.extend(['-e', extra_vars_formatted])
         if self.module.check_mode:
             command.append('--check')
 

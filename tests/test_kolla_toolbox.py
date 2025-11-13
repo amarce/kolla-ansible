@@ -141,13 +141,13 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
         module_args = [
             {
                 'module_args': {},
-                'expected_output': []
+                'expected_output': ''
             },
             {
                 'module_args': {
                     'path': '/some/folder',
                     'state': 'absent'},
-                'expected_output': ["path='/some/folder'", "state='absent'"]
+                'expected_output': '{"path":"/some/folder","state":"absent"}'
             }
         ]
 
@@ -157,8 +157,7 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
 
             self.assertEqual(args['expected_output'], formatted_args)
 
-    @mock.patch('kolla_toolbox.KollaToolboxWorker._format_module_args')
-    def test_generate_correct_ktb_command(self, mock_formatter):
+    def test_generate_correct_ktb_command(self):
         fake_module_params = {
             'module_args': {
                 'path': '/some/folder',
@@ -178,24 +177,16 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
         mock_params.get.side_effect = lambda key: fake_module_params.get(key)
         self.mock_ansible_module.params = mock_params
 
-        mock_formatter.side_effect = [
-            ["path='/some/folder'", "state='absent'"],
-            ['variable=\'{"key": "pair", "list": ["item1", "item2"]}\'']
+        expected_command = [
+            'ansible', 'localhost', '-m', 'file',
+            '-a', '{"path":"/some/folder","state":"absent"}',
+            '-e', '{"variable":{"key":"pair","list":["item1","item2"]}}',
+            '--check'
         ]
-
-        expected_command = ['ansible', 'localhost', '-m', 'file',
-                            '-a', "path='/some/folder' state='absent'",
-                            '-e', 'variable=\'{"key": "pair", '
-                            '"list": ["item1", "item2"]}\'',
-                            '--check']
 
         generated_command = self.fake_ktbw._generate_command()
 
         self.assertEqual(expected_command, generated_command)
-        mock_formatter.assert_has_calls([
-            mock.call(fake_module_params['module_args']),
-            mock.call(fake_module_params['module_extra_vars'])
-        ])
 
     def test_run_command_raises_apierror(self):
         ktb_container = mock.MagicMock()
