@@ -15,10 +15,7 @@
         user: root
         module_name: command
         module_args:
-          argv:
-            - ovs-vsctl
-            - br-exists
-            - "{{ provider_bridge }}"
+          cmd: "ovs-vsctl br-exists {{ provider_bridge }}"
       register: ovs_provider_bridge_check
       changed_when: false
       failed_when: ovs_provider_bridge_check.rc not in [0, 2]
@@ -29,11 +26,7 @@
         user: root
         module_name: command
         module_args:
-          argv:
-            - ovs-vsctl
-            - --may-exist
-            - add-br
-            - "{{ provider_bridge }}"
+          cmd: "ovs-vsctl --may-exist add-br {{ provider_bridge }}"
       register: ovs_provider_bridge_create
       changed_when: ovs_provider_bridge_create.rc == 0
       when: ovs_provider_bridge_check.rc != 0
@@ -63,10 +56,7 @@
         user: root
         module_name: command
         module_args:
-          argv:
-            - ovs-vsctl
-            - get-fail-mode
-            - "{{ provider_bridge }}"
+          cmd: "ovs-vsctl get-fail-mode {{ provider_bridge }}"
       register: ovs_provider_bridge_fail_mode
       changed_when: false
       failed_when: ovs_provider_bridge_fail_mode.rc not in [0, 2]
@@ -87,11 +77,7 @@
         user: root
         module_name: command
         module_args:
-          argv:
-            - ovs-vsctl
-            - set-fail-mode
-            - "{{ provider_bridge }}"
-            - "{{ ovs_provider_fail_mode }}"
+          cmd: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ ovs_provider_fail_mode }}"
       register: ovs_provider_bridge_set_fail_mode
       changed_when: ovs_provider_bridge_set_fail_mode.rc == 0
       failed_when: ovs_provider_bridge_set_fail_mode.rc != 0
