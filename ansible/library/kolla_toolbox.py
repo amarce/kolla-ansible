@@ -134,10 +134,17 @@ class KollaToolboxWorker():
             return [self._normalize_for_json(v) for v in value]
         return str(value)
 
-    def _format_module_args(self, module_args: dict) -> str:
-        """Render module parameters as key=value pairs for the ansible CLI."""
-        if not module_args:
+    def _format_module_args(self, module_args) -> str:
+        """Render module parameters for the ansible CLI."""
+        if module_args in (None, {}):
             return ''
+
+        if isinstance(module_args, str):
+            return module_args
+
+        if isinstance(module_args, (list, tuple)):
+            return ' '.join(str(self._normalize_for_json(value))
+                            for value in module_args)
 
         normalized = self._normalize_for_json(module_args)
 
@@ -335,7 +342,7 @@ def create_ansible_module() -> AnsibleModule:
                               choices=['podman', 'docker'],
                               required=True),
         module_name=dict(type='str', required=True),
-        module_args=dict(type='dict', default=dict()),
+        module_args=dict(type='raw', default=None),
         module_extra_vars=dict(type='dict', default=dict()),
         api_version=dict(type='str', default='auto'),
         timeout=dict(type='int', default=180),

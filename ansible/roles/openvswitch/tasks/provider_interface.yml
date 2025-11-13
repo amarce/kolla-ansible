@@ -39,8 +39,7 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: "ovs-vsctl --timeout=10 --if-exists port-to-br {{ provider_port }}"
+            module_args: "ovs-vsctl --timeout=10 --if-exists port-to-br {{ provider_port }}"
           register: ovs_provider_port_bridge
           changed_when: false
 
@@ -62,8 +61,7 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: "ovs-vsctl --timeout=10 --may-exist add-port {{ provider_bridge }} {{ provider_port }}"
+            module_args: "ovs-vsctl --timeout=10 --may-exist add-port {{ provider_bridge }} {{ provider_port }}"
           register: ovs_provider_bridge_attach
           when: provider_port_current_bridge | length == 0
           changed_when: provider_port_current_bridge | length == 0
@@ -88,11 +86,10 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 --format=json
-                --columns=name,tag,trunks,external_ids,other_config,type,options
-                find Port "name=\"{{ provider_port }}\""
+            module_args: >-
+              ovs-vsctl --timeout=10 --format=json
+              --columns=name,tag,trunks,external_ids,other_config,type,options
+              find Port "name=\"{{ provider_port }}\""
           register: ovs_provider_port_state
           changed_when: false
           failed_when: ovs_provider_port_state.rc not in [0]
@@ -111,10 +108,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "tag={{ provider_port_options['tag'] | default([], true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "tag={{ provider_port_options['tag'] | default([], true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'tag' in provider_port_options
@@ -128,10 +124,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "trunks={{ provider_port_options['trunks'] | default([], true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "trunks={{ provider_port_options['trunks'] | default([], true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'trunks' in provider_port_options
@@ -145,10 +140,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "external_ids={{ provider_port_options['external_ids'] | default({}, true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "external_ids={{ provider_port_options['external_ids'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'external_ids' in provider_port_options
@@ -162,10 +156,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "other_config={{ provider_port_options['other_config'] | default({}, true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "other_config={{ provider_port_options['other_config'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'other_config' in provider_port_options
@@ -179,10 +172,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "type={{ provider_port_options['type'] | default('', true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "type={{ provider_port_options['type'] | default('', true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'type' in provider_port_options
@@ -196,10 +188,9 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args:
-              cmd: >-
-                ovs-vsctl --timeout=10 set Port {{ provider_port }}
-                "options={{ provider_port_options['options'] | default({}, true) | to_ovsdb }}"
+            module_args: >-
+              ovs-vsctl --timeout=10 set Port {{ provider_port }}
+              "options={{ provider_port_options['options'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
             - 'options' in provider_port_options
