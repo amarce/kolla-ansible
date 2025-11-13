@@ -147,7 +147,14 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
                 'module_args': {
                     'path': '/some/folder',
                     'state': 'absent'},
-                'expected_output': '{"path":"/some/folder","state":"absent"}'
+                'expected_output': 'path="/some/folder" state="absent"'
+            },
+            {
+                'module_args': {
+                    'enable': True,
+                    'threshold': 3
+                },
+                'expected_output': 'enable=true threshold=3'
             }
         ]
 
@@ -179,8 +186,8 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
 
         expected_command = [
             'ansible', 'localhost', '-m', 'file',
-            '-a', '{"path":"/some/folder","state":"absent"}',
-            '-e', '{"variable":{"key":"pair","list":["item1","item2"]}}',
+            '-a', 'path="/some/folder" state="absent"',
+            '-e', 'variable={"key":"pair","list":["item1","item2"]}',
             '--check'
         ]
 
@@ -222,7 +229,7 @@ class TestKollaToolboxMethods(TestKollaToolboxModule):
         error = self.assertRaises(AnsibleFailJson,
                                   self.fake_ktbw._process_container_output,
                                   invalid_json)
-        self.assertIn('Bad JSON from kolla_toolbox',
+        self.assertIn('JSON not found in output',
                       error.result['msg'])
 
     def test_process_container_output_invalid_structure(self):

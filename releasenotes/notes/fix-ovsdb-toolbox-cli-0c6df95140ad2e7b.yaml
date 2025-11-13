@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Fixes failures when running the ``openvswitch_db`` module via
+    ``kolla_toolbox`` by formatting arguments in a way compatible with the
+    Ansible version shipped in the toolbox container. This restores
+    configuration of ``external_ids`` and ``other_config`` entries such as
+    ``system-id``, ``hostname`` and ``hw-offload`` during Open vSwitch
+    post-configuration.

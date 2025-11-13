@@ -135,19 +135,32 @@ class KollaToolboxWorker():
         return str(value)
 
     def _format_module_args(self, module_args: dict) -> str:
-        """Render module parameters as a JSON string understood by ansible CLI."""
+        """Render module parameters as key=value pairs for the ansible CLI."""
         if not module_args:
             return ''
 
         normalized = self._normalize_for_json(module_args)
-        try:
-            return json.dumps(normalized, separators=(',', ':'), sort_keys=True)
-        except TypeError:
+
+        if not isinstance(normalized, dict):
             normalized = {
                 str(key): self._normalize_for_json(value)
                 for key, value in module_args.items()
             }
-            return json.dumps(normalized, separators=(',', ':'), sort_keys=True)
+
+        def _stringify(value):
+            try:
+                return json.dumps(value, separators=(',', ':'), sort_keys=True)
+            except TypeError:
+                return json.dumps(
+                    self._normalize_for_json(value),
+                    separators=(',', ':'),
+                    sort_keys=True,
+                )
+
+        return ' '.join(
+            f"{key}={_stringify(normalized[key])}"
+            for key in sorted(normalized)
+        )
 
     def _generate_command(self) -> list:
         """Generate the command that will be executed inside kolla_toolbox."""
