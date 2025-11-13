@@ -14,24 +14,17 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args:
-          cmd: "ovs-vsctl br-exists {{ provider_bridge }}"
+        module_args: "ovs-vsctl br-exists {{ provider_bridge }}"
       register: ovs_provider_bridge_check
       changed_when: false
-      failed_when:
-        - ovs_provider_bridge_check.rc not in [0, 2]
-        - ovs_provider_bridge_check.rc == 2 and (
-            'No such file or directory' in (ovs_provider_bridge_check.msg | default('')) or
-            (ovs_provider_bridge_check.stderr | default('') | length > 0)
-          )
+      failed_when: ovs_provider_bridge_check.rc not in [0, 2]
 
     - name: Create provider bridge {{ provider_bridge }} when missing
       kolla_toolbox:
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args:
-          cmd: "ovs-vsctl --may-exist add-br {{ provider_bridge }}"
+        module_args: "ovs-vsctl --may-exist add-br {{ provider_bridge }}"
       register: ovs_provider_bridge_create
       changed_when: ovs_provider_bridge_create.rc == 0
       when: ovs_provider_bridge_check.rc != 0
@@ -60,8 +53,7 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args:
-          cmd: "ovs-vsctl get-fail-mode {{ provider_bridge }}"
+        module_args: "ovs-vsctl get-fail-mode {{ provider_bridge }}"
       register: ovs_provider_bridge_fail_mode
       changed_when: false
       failed_when: ovs_provider_bridge_fail_mode.rc not in [0, 2]
@@ -81,8 +73,7 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args:
-          cmd: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ ovs_provider_fail_mode }}"
+        module_args: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ ovs_provider_fail_mode }}"
       register: ovs_provider_bridge_set_fail_mode
       changed_when: ovs_provider_bridge_set_fail_mode.rc == 0
       failed_when: ovs_provider_bridge_set_fail_mode.rc != 0
