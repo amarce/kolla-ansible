@@ -121,7 +121,7 @@
   vars:
     provider_bridge: "{{ provider_bridges[provider_index] | default('') }}"
     provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else '' }}"
-    provider_port_options: "{{ (provider_port_options_map[provider_port] | default({})) if provider_port | length > 0 else {} }}"
+    provider_port_options: "{{ provider_port_options_map.get(provider_port, {}) if provider_port | length > 0 else {} }}"
   when:
     - provider_bridges | length > 0
     - inventory_hostname in groups["network"]
