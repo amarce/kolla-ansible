@@ -39,13 +39,17 @@
             container_engine: "{{ kolla_container_engine }}"
             user: root
             module_name: command
-            module_args: "ovs-vsctl --timeout=10 --if-exists port-to-br {{ provider_port }}"
+            # Older Open vSwitch releases (e.g. Mitaka era) do not support
+            # "--if-exists" for the introspection command "port-to-br". Treat
+            # a non-zero return code as "no bridge" instead of a fatal error.
+            module_args: "ovs-vsctl --timeout=10 port-to-br {{ provider_port }}"
           register: ovs_provider_port_bridge
           changed_when: false
+          failed_when: false
 
         - name: Record provider interface {{ provider_port }} bridge membership
           set_fact:
-            provider_port_current_bridge: "{{ (ovs_provider_port_bridge.stdout | default('') | trim) }}"
+            provider_port_current_bridge: "{{ (ovs_provider_port_bridge.stdout | default('') | trim) if ovs_provider_port_bridge.rc == 0 else '' }}"
 
         - name: Fail when provider interface {{ provider_port }} is attached to another bridge
           fail:
