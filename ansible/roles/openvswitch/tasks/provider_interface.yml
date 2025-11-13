@@ -113,7 +113,7 @@
               "tag={{ provider_port_options['tag'] | default([], true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'tag' in provider_port_options
+            - "'tag' in provider_port_options"
             - (provider_port_state.get('tag') | default(None) | ovsdb_canonical) != (provider_port_options['tag'] | default([], true) | ovsdb_canonical)
           register: ovs_provider_port_set_tag
           changed_when: true
@@ -129,7 +129,7 @@
               "trunks={{ provider_port_options['trunks'] | default([], true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'trunks' in provider_port_options
+            - "'trunks' in provider_port_options"
             - (provider_port_state.get('trunks') | default([]) | ovsdb_canonical) != (provider_port_options['trunks'] | default([], true) | ovsdb_canonical)
           register: ovs_provider_port_set_trunks
           changed_when: true
@@ -145,7 +145,7 @@
               "external_ids={{ provider_port_options['external_ids'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'external_ids' in provider_port_options
+            - "'external_ids' in provider_port_options"
             - (provider_port_state.get('external_ids') | default({}) | ovsdb_canonical) != (provider_port_options['external_ids'] | default({}, true) | ovsdb_canonical)
           register: ovs_provider_port_set_external_ids
           changed_when: true
@@ -161,7 +161,7 @@
               "other_config={{ provider_port_options['other_config'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'other_config' in provider_port_options
+            - "'other_config' in provider_port_options"
             - (provider_port_state.get('other_config') | default({}) | ovsdb_canonical) != (provider_port_options['other_config'] | default({}, true) | ovsdb_canonical)
           register: ovs_provider_port_set_other_config
           changed_when: true
@@ -177,7 +177,7 @@
               "type={{ provider_port_options['type'] | default('', true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'type' in provider_port_options
+            - "'type' in provider_port_options"
             - (provider_port_state.get('type') | default('') | ovsdb_canonical) != (provider_port_options['type'] | default('', true) | ovsdb_canonical)
           register: ovs_provider_port_set_type
           changed_when: true
@@ -193,7 +193,7 @@
               "options={{ provider_port_options['options'] | default({}, true) | to_ovsdb }}"
           when:
             - provider_port_options is mapping
-            - 'options' in provider_port_options
+            - "'options' in provider_port_options"
             - (provider_port_state.get('options') | default({}) | ovsdb_canonical) != (provider_port_options['options'] | default({}, true) | ovsdb_canonical)
           register: ovs_provider_port_set_options
           changed_when: true
