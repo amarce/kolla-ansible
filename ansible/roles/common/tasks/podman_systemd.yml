@@ -92,4 +92,9 @@
         - podman_systemd_service_name not in skip_podman_systemd_for_services
         - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
   vars:
-    podman_systemd_service_name: "{{ service_name | default(service.container_name) }}"
+    podman_systemd_service_name: >-
+      {%- if service_name is defined and service_name is not none and (service_name | string | trim | length) > 0 -%}
+      {{ service_name }}
+      {%- else -%}
+      {{ service.container_name }}
+      {%- endif -%}
