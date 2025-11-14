@@ -566,3 +566,30 @@ class TestFilters(unittest.TestCase):
             'baz': services['baz'],
         }
         self.assertEqual(expected, result)
+
+    def test_service_check_restart_services_invalid_all_known(self):
+        restart_services = ['openvswitch-vswitchd', 'nova-compute']
+        known_services = ['openvswitch-vswitchd', 'nova-compute', 'nova-libvirt']
+
+        result = filters.service_check_restart_services_invalid(
+            restart_services, known_services)
+
+        self.assertEqual([], result)
+
+    def test_service_check_restart_services_invalid_with_unknown(self):
+        restart_services = ['openvswitch-vswitchd', 'bad-service']
+        known_services = {'openvswitch-vswitchd': {'container_name': 'openvswitch_vswitchd'}}
+
+        result = filters.service_check_restart_services_invalid(
+            restart_services, known_services)
+
+        self.assertEqual(['bad-service'], result)
+
+    def test_service_check_restart_services_invalid_ignores_non_strings(self):
+        restart_services = ['openvswitch-vswitchd', {'bad': 'structure'}]
+        known_services = ['openvswitch-vswitchd']
+
+        result = filters.service_check_restart_services_invalid(
+            restart_services, known_services)
+
+        self.assertEqual([], result)
