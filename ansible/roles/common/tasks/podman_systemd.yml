@@ -30,6 +30,16 @@
         - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
 
+    - name: Record container existence result for {{ service.container_name }}
+      set_fact:
+        podman_systemd_container_status: "{{ podman_systemd_container_exists }}"
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name is defined
+        - podman_systemd_container_exists is defined
+
     - block:
         - name: Ensure {{ service.container_name }} container exists before systemd generation
           vars:
@@ -45,16 +55,24 @@
         - name: Re-check if {{ service.container_name }} container exists for systemd generation
           become: true
           command: "podman container exists {{ service.container_name }}"
-          register: podman_systemd_container_exists
+          register: podman_systemd_container_exists_recheck
           changed_when: false
-          failed_when: podman_systemd_container_exists.rc not in [0, 1]
+          failed_when: podman_systemd_container_exists_recheck.rc not in [0, 1]
+
+        - name: Update container existence status after re-check of {{ service.container_name }}
+          set_fact:
+            podman_systemd_container_status: "{{ podman_systemd_container_exists_recheck }}"
+          when:
+            - podman_systemd_container_exists_recheck is defined
       when:
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
         - podman_systemd_service_name is defined
-        - podman_systemd_container_exists is defined
-        - podman_systemd_container_exists.rc != 0 and podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_status is defined
+        - podman_systemd_container_status.rc is defined
+        - podman_systemd_container_status.rc != 0
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
 
     - name: Skipping systemd generation for {{ service.container_name }} because container is missing
       debug:
@@ -64,8 +82,10 @@
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
         - podman_systemd_service_name is defined
-        - podman_systemd_container_exists is defined
-        - podman_systemd_container_exists.rc != 0 and podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_status is defined
+        - podman_systemd_container_status.rc is defined
+        - podman_systemd_container_status.rc != 0
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
 
     - name: Generate systemd unit for {{ service.container_name }}
       become: true
@@ -79,7 +99,9 @@
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
         - podman_systemd_service_name is defined
-        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_status is not defined
+          or (podman_systemd_container_status.rc is defined and podman_systemd_container_status.rc == 0)
 
     # Add optional dependency lines
     - name: Configure systemd dependencies for {{ service.container_name }}
@@ -96,7 +118,8 @@
         - service.podman_systemd_dependencies is defined
         - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
-        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+        - podman_systemd_container_status is not defined
+          or (podman_systemd_container_status.rc is defined and podman_systemd_container_status.rc == 0)
 
     - name: Reload systemd and enable unit {{ service.container_name }}
       become: true
@@ -110,4 +133,5 @@
         - service.enabled | bool
         - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
-        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+        - podman_systemd_container_status is not defined
+          or (podman_systemd_container_status.rc is defined and podman_systemd_container_status.rc == 0)
