@@ -12,6 +12,32 @@
     - service.enabled | bool
     - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
 
+- block:
+    - name: Ensure {{ service.container_name }} container exists before systemd generation
+      vars:
+        _podman_systemd_common_options: >-
+          {{ docker_common_options | dict2items
+             | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+             | list | items2dict }}
+        ensure_container_common_options: "{{ _podman_systemd_common_options }}"
+        ensure_container_name: "{{ service.container_name }}"
+        service_name: "{{ service_name | default(service.container_name) }}"
+      include_tasks: _ensure_service_container.yml
+
+    - name: Re-check if {{ service.container_name }} container exists for systemd generation
+      become: true
+      command: "podman container exists {{ service.container_name }}"
+      register: podman_systemd_container_exists
+      changed_when: false
+      failed_when: podman_systemd_container_exists.rc not in [0, 1]
+  when:
+    - kolla_container_engine == 'podman'
+    - kolla_podman_use_systemd | bool
+    - service.enabled | bool
+    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
+    - podman_systemd_container_exists is defined
+    - podman_systemd_container_exists.rc != 0
+
 - name: Skipping systemd generation for {{ service.container_name }} because container is missing
   debug:
     msg: "Skipping systemd unit generation for {{ service.container_name }} because the container does not exist."
