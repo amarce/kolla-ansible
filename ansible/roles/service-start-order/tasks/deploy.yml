@@ -23,6 +23,33 @@
   set_fact:
     start_order_services: "{{ kolla_service_start_priority | select('in', existing_units) | list }}"
 
+- name: Detect enabled service units
+  become: true
+  command: "systemctl is-enabled {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+  loop: "{{ start_order_services }}"
+  register: service_enabled
+  changed_when: false
+  failed_when: false
+  when: (start_order_services | length) > 0
+
+- name: Detect enabled alias service units
+  become: true
+  command: "systemctl is-enabled kolla-{{ item }}-container.service"
+  loop: "{{ start_order_services | select('in', alias_service_units.results | default([]) | selectattr('stat.exists') | map(attribute='item') | list) | list }}"
+  register: alias_service_enabled
+  changed_when: false
+  failed_when: false
+  when:
+    - kolla_container_engine == 'podman'
+    - (start_order_services | length) > 0
+
+- name: Build list of enabled services
+  set_fact:
+    enabled_services: "{{ (
+      ((service_enabled.results if service_enabled is defined else []) | selectattr('rc', 'equalto', 0) | map(attribute='item') | list)
+      + ((alias_service_enabled.results if alias_service_enabled is defined else []) | selectattr('rc', 'equalto', 0) | map(attribute='item') | list)
+    ) | unique }}"
+
 - name: Build start order pairs
   set_fact:
     start_order_pairs: "{{ lookup('template', 'start-order-pairs.json.j2') | from_json }}"

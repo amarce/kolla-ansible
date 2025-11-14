@@ -74,8 +74,13 @@ these checks. When no health indicator exists the delay is controlled by
 post-healthy delay may be configured via ``kolla_post_healthy_delay`` or
 per-service variables suffixed with ``_post_healthy_delay`` (for example,
 ``openvswitch_vswitchd_post_healthy_delay`` or
-``nova_compute_post_healthy_delay``). This delay applies even when a
-dependency reports healthy immediately and defaults to 30 seconds.
+``nova_compute_post_healthy_delay``). The helper respects the
+``kolla_dependency_wait_timeout`` (or the per-service
+``*_dependency_wait_timeout`` overrides) when waiting for dependency units
+and their containers. If a dependency unit is disabled or absent the wait
+is skipped, while missing or unhealthy dependencies now trigger a fast
+failure once the timeout is exceeded. The post-healthy delay applies even
+when a dependency reports healthy immediately and defaults to 30 seconds.
 The role reloads systemd after writing any drop-in files so that new
 dependencies are applied immediately. It also stops containers that were
 previously launched directly via Podman and restarts them under systemd.

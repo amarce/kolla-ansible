@@ -1,12 +1,14 @@
 [Unit]
 After={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
-{% if item.0 not in (kolla_service_one_shot | default({})) %}
+{% set dependency_enabled = item.0 in (enabled_services | default([])) %}
+{% if dependency_enabled and item.0 not in (kolla_service_one_shot | default({})) %}
 Wants={{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service
 {% endif -%}
 
 [Service]
+{% set dependency_timeout = vars.get(item.1 ~ '_dependency_wait_timeout', kolla_dependency_wait_timeout) %}
 {% set post_delay = vars.get(item.1 ~ '_post_healthy_delay', kolla_post_healthy_delay) %}
 TimeoutStartSec={{ kolla_service_start_timeout }}
-{% if item.0 not in (kolla_service_one_shot | default({})) %}
-ExecStartPre=/usr/local/lib/kolla/wait-unit-and-container-healthy.sh {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service {{ item.0 }} {{ post_delay }}
+{% if dependency_enabled and item.0 not in (kolla_service_one_shot | default({})) %}
+ExecStartPre=/usr/local/lib/kolla/wait-unit-and-container-healthy.sh {{ kolla_service_unit_prefix }}{{ item.0 }}{{ kolla_service_unit_suffix }}.service {{ item.0 }} {{ dependency_timeout }} {{ post_delay }}
 {% endif -%}
