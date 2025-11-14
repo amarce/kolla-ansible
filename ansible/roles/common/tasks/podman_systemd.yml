@@ -1,93 +1,95 @@
----
 # Generate systemd unit for a Podman container
-- name: Check if {{ service.container_name }} container exists for systemd generation
-  become: true
-  command: "podman container exists {{ service.container_name }}"
-  register: podman_systemd_container_exists
-  changed_when: false
-  failed_when: podman_systemd_container_exists.rc not in [0, 1]
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-
 - block:
-    - name: Ensure {{ service.container_name }} container exists before systemd generation
-      vars:
-        _podman_systemd_common_options: >-
-          {{ docker_common_options | dict2items
-             | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
-             | list | items2dict }}
-        ensure_container_common_options: "{{ _podman_systemd_common_options }}"
-        ensure_container_name: "{{ service.container_name }}"
-        service_name: "{{ service_name | default(service.container_name) }}"
-      include_tasks: _ensure_service_container.yml
-
-    - name: Re-check if {{ service.container_name }} container exists for systemd generation
+    - name: Check if {{ service.container_name }} container exists for systemd generation
       become: true
       command: "podman container exists {{ service.container_name }}"
       register: podman_systemd_container_exists
       changed_when: false
       failed_when: podman_systemd_container_exists.rc not in [0, 1]
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-    - podman_systemd_container_exists is defined
-    - podman_systemd_container_exists.rc != 0
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
 
-- name: Skipping systemd generation for {{ service.container_name }} because container is missing
-  debug:
-    msg: "Skipping systemd unit generation for {{ service.container_name }} because the container does not exist."
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-    - podman_systemd_container_exists is defined
-    - podman_systemd_container_exists.rc != 0
+    - block:
+        - name: Ensure {{ service.container_name }} container exists before systemd generation
+          vars:
+            _podman_systemd_common_options: >-
+              {{ docker_common_options | dict2items
+                 | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
+                 | list | items2dict }}
+            ensure_container_common_options: "{{ _podman_systemd_common_options }}"
+            ensure_container_name: "{{ service.container_name }}"
+            service_name: "{{ podman_systemd_service_name }}"
+          include_tasks: _ensure_service_container.yml
 
-- name: Generate systemd unit for {{ service.container_name }}
-  become: true
-  command: >-
-    podman generate systemd --name --files --restart-policy=always {{ service.container_name }}
-  args:
-    chdir: /etc/systemd/system
-    creates: "/etc/systemd/system/container-{{ service.container_name }}.service"
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-    - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+        - name: Re-check if {{ service.container_name }} container exists for systemd generation
+          become: true
+          command: "podman container exists {{ service.container_name }}"
+          register: podman_systemd_container_exists
+          changed_when: false
+          failed_when: podman_systemd_container_exists.rc not in [0, 1]
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_exists is defined
+        - podman_systemd_container_exists.rc != 0
 
-# Add optional dependency lines
-- name: Configure systemd dependencies for {{ service.container_name }}
-  become: true
-  lineinfile:
-    path: "/etc/systemd/system/container-{{ service.container_name }}.service"
-    line: "{{ item }}"
-    insertafter: '^\[Unit\]$'
-  loop: "{{ service.podman_systemd_dependencies | default([]) }}"
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - service.podman_systemd_dependencies is defined
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-    - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+    - name: Skipping systemd generation for {{ service.container_name }} because container is missing
+      debug:
+        msg: "Skipping systemd unit generation for {{ service.container_name }} because the container does not exist."
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_exists is defined
+        - podman_systemd_container_exists.rc != 0
 
-- name: Reload systemd and enable unit {{ service.container_name }}
-  become: true
-  systemd:
-    name: "container-{{ service.container_name }}.service"
-    enabled: true
-    daemon_reload: true
-  when:
-    - kolla_container_engine == 'podman'
-    - kolla_podman_use_systemd | bool
-    - service.enabled | bool
-    - (service_name | default(service.container_name)) not in skip_podman_systemd_for_services
-    - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+    - name: Generate systemd unit for {{ service.container_name }}
+      become: true
+      command: >-
+        podman generate systemd --name --files --restart-policy=always {{ service.container_name }}
+      args:
+        chdir: /etc/systemd/system
+        creates: "/etc/systemd/system/container-{{ service.container_name }}.service"
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+
+    # Add optional dependency lines
+    - name: Configure systemd dependencies for {{ service.container_name }}
+      become: true
+      lineinfile:
+        path: "/etc/systemd/system/container-{{ service.container_name }}.service"
+        line: "{{ item }}"
+        insertafter: '^\[Unit\]$'
+      loop: "{{ service.podman_systemd_dependencies | default([]) }}"
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - service.podman_systemd_dependencies is defined
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+
+    - name: Reload systemd and enable unit {{ service.container_name }}
+      become: true
+      systemd:
+        name: "container-{{ service.container_name }}.service"
+        enabled: true
+        daemon_reload: true
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
+  vars:
+    podman_systemd_service_name: "{{ service_name | default(service.container_name) }}"
