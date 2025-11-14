@@ -1,6 +1,14 @@
 ---
 # NOTE(r-krcek): List of arguments should follow argument_spec in
 # kolla_container module
+
+- name: Ensure wait helper script is installed
+  include_role:
+    name: service-start-order
+    tasks_from: helper-script
+  when:
+    - (kolla_action | default('')) in ['deploy', 'reconfigure']
+
 - name: Reset service-check pending summary
   set_fact:
     service_check_pending_summary: []
