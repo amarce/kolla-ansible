@@ -91,7 +91,9 @@
          | list | unique }}
     service_check_restart_services_invalid_entries: >-
       {{ service_check_restart_services
-         | service_check_restart_services_invalid(service_check_known_service_names) }}
+         | select('string')
+         | reject('in', service_check_known_service_names)
+         | list }}
   assert:
     that:
       - service_check_restart_services_non_strings | length == 0
