@@ -1,5 +1,22 @@
 # Generate systemd unit for a Podman container
 - block:
+    - name: Resolve service name for systemd generation of {{ service.container_name }}
+      set_fact:
+        podman_systemd_service_name: >-
+          {% set _service_name = (service_name
+                                   if (service_name is defined and service_name is not none)
+                                   else '') %}
+          {% set _service_name = (_service_name | string | trim) %}
+          {% if _service_name | length > 0 %}
+          {{ _service_name }}
+          {% else %}
+          {{ service.container_name }}
+          {% endif %}
+      when:
+        - kolla_container_engine == 'podman'
+        - kolla_podman_use_systemd | bool
+        - service.enabled | bool
+
     - name: Check if {{ service.container_name }} container exists for systemd generation
       become: true
       command: "podman container exists {{ service.container_name }}"
@@ -10,6 +27,7 @@
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
+        - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
 
     - block:
@@ -34,9 +52,9 @@
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
-        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_service_name is defined
         - podman_systemd_container_exists is defined
-        - podman_systemd_container_exists.rc != 0
+        - podman_systemd_container_exists.rc != 0 and podman_systemd_service_name not in skip_podman_systemd_for_services
 
     - name: Skipping systemd generation for {{ service.container_name }} because container is missing
       debug:
@@ -45,9 +63,9 @@
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
-        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_service_name is defined
         - podman_systemd_container_exists is defined
-        - podman_systemd_container_exists.rc != 0
+        - podman_systemd_container_exists.rc != 0 and podman_systemd_service_name not in skip_podman_systemd_for_services
 
     - name: Generate systemd unit for {{ service.container_name }}
       become: true
@@ -60,7 +78,7 @@
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
-        - podman_systemd_service_name not in skip_podman_systemd_for_services
+        - podman_systemd_service_name is defined
         - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
 
     # Add optional dependency lines
@@ -76,6 +94,7 @@
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
         - service.podman_systemd_dependencies is defined
+        - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
         - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
 
@@ -89,12 +108,6 @@
         - kolla_container_engine == 'podman'
         - kolla_podman_use_systemd | bool
         - service.enabled | bool
+        - podman_systemd_service_name is defined
         - podman_systemd_service_name not in skip_podman_systemd_for_services
         - podman_systemd_container_exists is not defined or podman_systemd_container_exists.rc == 0
-  vars:
-    podman_systemd_service_name: >-
-      {%- if service_name is defined and service_name is not none and (service_name | string | trim | length) > 0 -%}
-      {{ service_name }}
-      {%- else -%}
-      {{ service.container_name }}
-      {%- endif -%}
