@@ -81,12 +81,19 @@
          | list | unique }}
 
 - name: Validate queued service handler targets
+  vars:
+    service_check_restart_services_non_strings: "{{ service_check_restart_services | reject('string') | list }}"
   assert:
     that:
-      - (service_check_restart_services | map('type_debug') | list | unique | difference(['str', 'unicode'])) | length == 0
+      - service_check_restart_services_non_strings | length == 0
       - service_check_restart_services | select('search', '\\') | list | length == 0
       - service_check_restart_services | select('match', "^\\\\?\\d+$") | list | length == 0
-    fail_msg: "Invalid service names detected in service_check_restart_services: {{ service_check_restart_services }}"
+    fail_msg: >-
+      {% if service_check_restart_services_non_strings | length > 0 %}
+      Non-string entries found in service_check_restart_services: {{ service_check_restart_services_non_strings }}
+      {% else %}
+      Invalid service names detected in service_check_restart_services: {{ service_check_restart_services }}
+      {% endif %}
   when: service_check_restart_services | length > 0
 
 - name: Determine service handlers for queued actions
