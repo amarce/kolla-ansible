@@ -54,24 +54,6 @@
   set_fact:
     start_order_pairs: "{{ lookup('template', 'start-order-pairs.json.j2') | from_json }}"
 
-- name: Ensure helper script directory exists
-  become: true
-  ansible.builtin.file:
-    path: /usr/local/lib/kolla
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Install wait helper script
-  become: true
-  ansible.builtin.template:
-    src: wait-unit-and-container-healthy.sh.j2
-    dest: /usr/local/lib/kolla/wait-unit-and-container-healthy.sh
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: Ensure override directories exist
   become: true
   file:

@@ -1,4 +1,8 @@
 ---
+- include_tasks: helper-script.yml
+  when:
+    - kolla_action in ['deploy', 'reconfigure']
+
 - include_tasks: deploy.yml
   when:
     - kolla_action in ['deploy', 'reconfigure']
