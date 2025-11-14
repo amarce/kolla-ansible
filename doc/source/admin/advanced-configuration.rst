@@ -350,7 +350,13 @@ service is started. If a dependency has no ``HEALTHCHECK`` a fixed delay is
 applied before continuing. The role installs a helper script at
 ``/usr/local/lib/kolla/wait-unit-and-container-healthy.sh`` to perform
 these checks and avoid brittle inline shell in the systemd drop-in. The
-delays are controlled by the variables
+helper first verifies that the dependency unit is enabled; disabled or
+missing units are skipped so optional services do not delay unrelated
+starts. Waiting for dependencies is bounded by
+``kolla_dependency_wait_timeout`` (or per-service
+``*_dependency_wait_timeout`` overrides) to prevent infinite waits when a
+service fails to start or its container never appears. Additional delays
+are controlled by the variables
 ``kolla_service_start_timeout`` (systemd ``TimeoutStartSec`` applied while
 waiting for dependency health; ``0`` disables the timeout),
 ``kolla_grace_no_healthcheck`` (seconds to pause when no health check exists),
@@ -384,6 +390,7 @@ to them as well.
 
 .. code-block:: yaml
 
+   kolla_dependency_wait_timeout: 300
    kolla_service_start_timeout: 0
    kolla_grace_no_healthcheck: 30
    kolla_post_healthy_delay: 30

@@ -1,42 +1,114 @@
 #!/bin/sh
+
 unit="$1"
 container="$2"
-post_delay="${3:-{{ kolla_post_healthy_delay }}}"
+timeout="${3:-{{ kolla_dependency_wait_timeout }}}"
+post_delay="${4:-{{ kolla_post_healthy_delay }}}"
 
-until systemctl is-active --quiet "$unit"; do
+log() {
+    printf '%s wait-unit-and-container-healthy: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$1" >&2
+}
+
+usage() {
+    log "Usage: $0 <unit> <container> [timeout] [post_delay]"
+    exit 1
+}
+
+[ -n "$unit" ] && [ -n "$container" ] || usage
+
+case "$timeout" in
+    ''|*[!0-9]*)
+        log "Invalid timeout '$timeout'"
+        exit 1
+        ;;
+esac
+
+case "$post_delay" in
+    ''|*[!0-9]*)
+        log "Invalid post-delay '$post_delay'"
+        exit 1
+        ;;
+esac
+
+dependency_status=$(systemctl is-enabled "$unit" 2>&1)
+dependency_rc=$?
+if [ "$dependency_rc" -ne 0 ]; then
+    if [ -n "$dependency_status" ]; then
+        log "Skipping wait: $unit is ${dependency_status}."
+    else
+        log "Skipping wait: $unit is not present."
+    fi
+    exit 0
+fi
+
+if [ "$timeout" -gt 0 ]; then
+    deadline=$(( $(date +%s) + timeout ))
+else
+    deadline=0
+fi
+
+check_timeout() {
+    if [ "$timeout" -gt 0 ]; then
+        now=$(date +%s)
+        if [ "$now" -ge "$deadline" ]; then
+            log "Timed out after ${timeout}s waiting for $1."
+            exit 1
+        fi
+    fi
+}
+
+while ! systemctl is-active --quiet "$unit"; do
+    check_timeout "systemd unit $unit to become active"
     sleep 1
 done
 
+if [ "$timeout" -gt 0 ]; then
+    deadline=$(( $(date +%s) + timeout ))
+fi
+
+wait_for_container() {
+    while ! {{ kolla_container_engine }} inspect "$container" >/dev/null 2>&1; do
+        check_timeout "container $container to exist"
+        sleep 1
+    done
+}
+
+wait_for_container
+
+if [ "$timeout" -gt 0 ]; then
+    deadline=$(( $(date +%s) + timeout ))
+fi
+
 if [ "{{ kolla_container_engine }}" = "podman" ]; then
-    {{ kolla_container_engine }} healthcheck run "$container" >/dev/null 2>&1
-    rc=$?
-    if [ "$rc" -eq 125 ]; then
-        sleep {{ kolla_grace_no_healthcheck }}
-    elif [ "$rc" -ne 0 ]; then
-        until {{ kolla_container_engine }} healthcheck run "$container" >/dev/null 2>&1; do
-            sleep 1
-        done
-    fi
-    if [ "$post_delay" -gt 0 ]; then
-        sleep "$post_delay"
-    fi
+    while :; do
+        {{ kolla_container_engine }} healthcheck run "$container" >/dev/null 2>&1
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+            break
+        fi
+        if [ "$rc" -eq 125 ]; then
+            sleep {{ kolla_grace_no_healthcheck }}
+            break
+        fi
+        check_timeout "container $container to become healthy"
+        sleep 1
+    done
 elif [ "{{ kolla_container_engine }}" = "docker" ]; then
-    has_hc=$({{ kolla_container_engine }} inspect --format={{"{{"}}json .Config.Healthcheck{{"}}"}} "$container")
+    has_hc=$({{ kolla_container_engine }} inspect --format={{"{{"}}json .Config.Healthcheck{{"}}"}} "$container" 2>/dev/null)
     if [ "$has_hc" = "null" ] || [ -z "$has_hc" ]; then
         sleep {{ kolla_grace_no_healthcheck }}
     else
-        until [ "$({{ kolla_container_engine }} inspect --format={{"{{"}}.State.Health.Status{{"}}"}} "$container")" = "healthy" ]; do
+        while [ "$({{ kolla_container_engine }} inspect --format={{"{{"}}.State.Health.Status{{"}}"}} "$container" 2>/dev/null)" != "healthy" ]; do
+            check_timeout "container $container to become healthy"
             sleep 1
         done
     fi
-    if [ "$post_delay" -gt 0 ]; then
-        sleep "$post_delay"
-    fi
 else
     sleep {{ kolla_grace_no_healthcheck }}
-    if [ "$post_delay" -gt 0 ]; then
-        sleep "$post_delay"
-    fi
+fi
+
+if [ "$post_delay" -gt 0 ]; then
+    sleep "$post_delay"
 fi
 
 exit 0

@@ -42,6 +42,7 @@
         marker: /tmp/c2_marker
     kolla_post_healthy_delay: 0
     c3_post_healthy_delay: 5
+    kolla_dependency_wait_timeout: 30
   tasks:
     - name: Ensure c0 container is running
       become: true
@@ -204,6 +205,12 @@
       file:
         path: /tmp/c2_marker
         state: touch
+
+    - name: Enable c1 systemd unit
+      become: true
+      ansible.builtin.systemd:
+        name: container-c1.service
+        enabled: true
 
     - name: Run service-start-order role
       include_role:

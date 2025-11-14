@@ -14,6 +14,8 @@ kolla_service_start_priority:
   - ceilometer_compute
   - collectd
 
+kolla_dependency_wait_timeout: 300
+
 # Containers recreated during the playbook run and started directly via
 # ``podman start``. These are restarted under systemd exactly once when the
 # ``service-start-order`` role executes.
