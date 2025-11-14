@@ -109,6 +109,27 @@ def select_services_enabled_and_mapped_to_host(context, services):
             if service_enabled_and_mapped_to_host(context, service)}
 
 
+def service_check_restart_services_invalid(restart_services, known_services):
+    """Return restart services that are not present in the known set."""
+
+    if restart_services is None:
+        return []
+
+    if known_services is None:
+        known_iterable = []
+    elif isinstance(known_services, dict):
+        known_iterable = known_services.keys()
+    else:
+        known_iterable = known_services
+
+    valid_names = {name for name in known_iterable if isinstance(name, str)}
+
+    return [
+        service for service in restart_services
+        if isinstance(service, str) and service not in valid_names
+    ]
+
+
 def get_filters():
     return {
         "extract_haproxy_services": extract_haproxy_services,
@@ -118,4 +139,6 @@ def get_filters():
             service_enabled_and_mapped_to_host),
         "select_services_enabled_and_mapped_to_host": (
             select_services_enabled_and_mapped_to_host),
+        "service_check_restart_services_invalid": (
+            service_check_restart_services_invalid),
     }

@@ -83,16 +83,24 @@
 - name: Validate queued service handler targets
   vars:
     service_check_restart_services_non_strings: "{{ service_check_restart_services | reject('string') | list }}"
+    service_check_known_service_names: >-
+      {{ lookup('vars', (kolla_role_name | default(project_name)) + '_services')
+         | select_services_enabled_and_mapped_to_host
+         | dict2items
+         | map(attribute='key')
+         | list | unique }}
+    service_check_restart_services_invalid_entries: >-
+      {{ service_check_restart_services
+         | service_check_restart_services_invalid(service_check_known_service_names) }}
   assert:
     that:
       - service_check_restart_services_non_strings | length == 0
-      - service_check_restart_services | select('search', '\\') | list | length == 0
-      - service_check_restart_services | select('match', "^\\\\?\\d+$") | list | length == 0
+      - service_check_restart_services_invalid_entries | length == 0
     fail_msg: >-
       {% if service_check_restart_services_non_strings | length > 0 %}
       Non-string entries found in service_check_restart_services: {{ service_check_restart_services_non_strings }}
       {% else %}
-      Invalid service names detected in service_check_restart_services: {{ service_check_restart_services }}
+      Invalid service names detected in service_check_restart_services: {{ service_check_restart_services_invalid_entries }}
       {% endif %}
   when: service_check_restart_services | length > 0
 
