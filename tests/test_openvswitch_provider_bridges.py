@@ -193,6 +193,61 @@ def test_large_provider_bridge_list_uses_bulk_state_and_is_idempotent(tmp_path):
     assert all(not command.startswith("get Bridge ") for command in commands)
 
 
+def test_recreated_bridge_reapplies_fail_mode_within_same_play(tmp_path):
+    inventory = tmp_path / "inventory"
+    python_path = sys.executable
+    inventory.write_text(
+        f"[network]\nlocalhost ansible_connection=local ansible_python_interpreter={python_path}\n",
+        encoding="utf-8",
+    )
+
+    state_file = tmp_path / "ovs_state.json"
+    command_log = tmp_path / "ovs_commands.log"
+
+    playbook = tmp_path / "playbook.yml"
+    playbook.write_text(
+        """---
+- hosts: network
+  gather_facts: false
+  vars:
+    kolla_action: deploy
+    kolla_container_engine: podman
+    ovs_provider_fail_mode: secure
+    provider_bridges:
+      - br-provider
+    ovs_state_file: __STATE_FILE__
+  tasks:
+    - name: Manage provider bridge (first include)
+      include_role:
+        name: openvswitch
+        tasks_from: provider_bridge
+
+    - name: Simulate bridge recreation with empty fail_mode
+      copy:
+        dest: "{{ ovs_state_file }}"
+        mode: "0600"
+        content: |
+          {"bridges": {"br-provider": {"fail_mode": "", "ports": []}}}
+
+    - name: Manage provider bridge (second include)
+      include_role:
+        name: openvswitch
+        tasks_from: provider_bridge
+""".replace("__STATE_FILE__", str(state_file)),
+        encoding="utf-8",
+    )
+
+    run = _run_playbook(playbook, inventory, state_file, command_log).stdout
+    assert _extract_changed(run) > 0
+
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert state["bridges"]["br-provider"]["fail_mode"] == "secure"
+
+    commands = [line.strip() for line in command_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    set_fail_mode_commands = [command for command in commands if command == "set-fail-mode br-provider secure"]
+    assert len(set_fail_mode_commands) == 2
+
+
 def test_missing_explicit_provider_fail_mode_fails_fast_when_required(tmp_path):
     inventory = tmp_path / "inventory"
     python_path = sys.executable
