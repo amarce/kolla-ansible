@@ -10,6 +10,9 @@
     service_check_inspect_pid_mode: null
     service_explicit_user: false
     openvswitch_vswitchd_runtime_protection_active: false
+    service_check_healthcheck_drift: false
+    service_check_pid_mode_drift: false
+    service_check_compare_container_drift: false
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
@@ -229,6 +232,7 @@
     - name: Detect health-check drift
       set_fact:
         container_needs_recreate: true
+        service_check_healthcheck_drift: true
       when:
         - not container_missing
         - (container_inspect.Config.Healthcheck.Test | default([]) | to_json)
@@ -237,6 +241,7 @@
     - name: Detect pid namespace drift via inspect
       set_fact:
         container_needs_recreate: true
+        service_check_pid_mode_drift: true
       when:
         - service_check_pid_mode_specified | bool
         - (service_check_inspect_pid_mode | default('private') | lower)
@@ -259,6 +264,8 @@
       set_fact:
         container_needs_recreate: >-
           {{ (container_needs_recreate | bool) or (needs_recreate | bool) }}
+        service_check_compare_container_drift: >-
+          {{ (service_check_compare_container_drift | bool) or (needs_recreate | bool) }}
       when: service_check_compare_results[item.key] | default(false)
 
     - name: Suppress openvswitch_vswitchd recreate when runtime protection is active
@@ -272,8 +279,9 @@
       debug:
         msg: >-
           Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file }} is present and
-          openvswitch_vswitchd is running. Skipping recreate for openvswitch_vswitchd.
-          Set openvswitch_vswitchd_break_glass=true to override this protection.
+          openvswitch_vswitchd is running. Skipping recreate for openvswitch_vswitchd
+          (reason: runtime_protection_active). Set openvswitch_vswitchd_break_glass=true
+          to override this protection.
       when:
         - openvswitch_vswitchd_runtime_protection_active | bool
         - not container_missing | bool
@@ -292,6 +300,27 @@
       when: container_missing | bool
 
     - name: Queue service-check action when needed
+      vars:
+        service_check_reason_codes: >-
+          {{
+            ([
+              'container_missing'
+              if (container_missing | bool)
+              else none,
+              'unit_inactive'
+              if ((needs_start | bool) and not (container_missing | bool))
+              else none,
+              'healthcheck_drift'
+              if (service_check_healthcheck_drift | bool)
+              else none,
+              'pid_mode_drift'
+              if (service_check_pid_mode_drift | bool)
+              else none,
+              'compare_container_drift'
+              if (service_check_compare_container_drift | bool)
+              else none,
+            ] | reject('none') | list) | unique
+          }}
       set_fact:
         service_check_pending_actions: "{{ (
             service_check_pending_actions | default([])
@@ -308,6 +337,7 @@
                 'container_needs_recreate': container_needs_recreate | bool,
                 'unit_enabled': unit_enabled | bool,
                 'needs_start': needs_start | bool,
+                'reason_codes': service_check_reason_codes,
                 'service_use_systemd': service_use_systemd | bool,
                 'openvswitch_vswitchd_runtime_protection_active': openvswitch_vswitchd_runtime_protection_active | bool
               }
@@ -316,6 +346,27 @@
         - service.enabled | default(True) | bool
         - container_missing | bool or container_needs_recreate | bool or needs_start | bool
     - name: Record queued service-check summary
+      vars:
+        service_check_reason_codes: >-
+          {{
+            ([
+              'container_missing'
+              if (container_missing | bool)
+              else none,
+              'unit_inactive'
+              if ((needs_start | bool) and not (container_missing | bool))
+              else none,
+              'healthcheck_drift'
+              if (service_check_healthcheck_drift | bool)
+              else none,
+              'pid_mode_drift'
+              if (service_check_pid_mode_drift | bool)
+              else none,
+              'compare_container_drift'
+              if (service_check_compare_container_drift | bool)
+              else none,
+            ] | reject('none') | list) | unique
+          }}
       set_fact:
         service_check_pending_summary: "{{ (
             service_check_pending_summary | default([])
@@ -330,6 +381,7 @@
                 'container_missing': container_missing | bool,
                 'container_needs_recreate': container_needs_recreate | bool,
                 'needs_start': needs_start | bool,
+                'reason_codes': service_check_reason_codes,
               }
             ] }}"
       when:
