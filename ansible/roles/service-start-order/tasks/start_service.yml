@@ -99,3 +99,28 @@
     - service_unit.stat.exists
     - not one_shot_marker.stat.exists | default(false)
     - not (svc_running and svc_healthy)
+
+
+- name: Ensure openvswitch runtime marker directory exists
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - item == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - service_unit.stat.exists
+    - (svc_running and svc_healthy) or (svc_health is defined)
+
+- name: Record openvswitch_vswitchd runtime marker after health check
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}"
+    state: touch
+    mode: "0644"
+  when:
+    - item == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - service_unit.stat.exists
+    - (svc_running and svc_healthy) or (svc_health is defined)

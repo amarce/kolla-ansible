@@ -20,7 +20,7 @@
 - name: Check openvswitch_vswitchd runtime marker
   become: true
   stat:
-    path: "{{ openvswitch_vswitchd_runtime_marker_path }}"
+    path: "{{ openvswitch_vswitchd_runtime_marker_file }}"
   register: openvswitch_vswitchd_runtime_marker
   changed_when: false
   failed_when: false
@@ -267,6 +267,17 @@
       when:
         - openvswitch_vswitchd_runtime_protection_active | bool
         - not container_missing | bool
+
+    - name: Warn when runtime protection skips openvswitch_vswitchd recreate
+      debug:
+        msg: >-
+          Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file }} is present and
+          openvswitch_vswitchd is running. Skipping recreate for openvswitch_vswitchd.
+          Set openvswitch_vswitchd_break_glass=true to override this protection.
+      when:
+        - openvswitch_vswitchd_runtime_protection_active | bool
+        - not container_missing | bool
+        - not needs_start | bool
 
     - name: Init service fact for handlers
       set_fact:

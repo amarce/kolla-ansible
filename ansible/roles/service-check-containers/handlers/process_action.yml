@@ -128,6 +128,54 @@
         - service.unit_file_exists | default(false) | bool
         - runtime_restart is failed
         - service_use_systemd | bool
+
   when:
     - not (container_missing | bool or container_needs_recreate | bool)
     - needs_start | bool
+
+- name: Warn when runtime protection enforces start-only recovery
+  debug:
+    msg: >-
+      Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file }} is present but
+      openvswitch_vswitchd is not running. Performing start-only recovery and skipping restart
+      actions. Set openvswitch_vswitchd_break_glass=true to override this protection.
+  when:
+    - container_name == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_runtime_protection_active | bool
+    - needs_start | bool
+
+- name: Verify openvswitch_vswitchd healthy before recording runtime marker
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name: "{{ container_name }}"
+  register: openvswitch_vswitchd_health
+  retries: "{{ kolla_service_healthcheck_retries | default(60) }}"
+  delay: "{{ kolla_service_healthcheck_delay | default(2) }}"
+  until:
+    - openvswitch_vswitchd_health.containers.get(container_name, {}).get('State', {}).get('Status') == 'running'
+    - (openvswitch_vswitchd_health.containers.get(container_name, {}).get('State', {}).get('Health', {}).get('Status', 'healthy')) == 'healthy'
+  when:
+    - container_name == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+
+- name: Ensure openvswitch runtime marker directory exists
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - container_name == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+
+- name: Record openvswitch_vswitchd runtime marker
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file }}"
+    state: touch
+    mode: "0644"
+  when:
+    - container_name == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
