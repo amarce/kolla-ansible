@@ -7,6 +7,7 @@ provided via the ``OVS_STATE_PATH`` environment variable.
 
 import json
 import os
+import shlex
 from pathlib import Path
 
 from ansible.module_utils.basic import AnsibleModule
@@ -100,7 +101,7 @@ def main():
             container_engine=dict(type="str", required=False),
             user=dict(type="str", required=False),
             module_name=dict(type="str", required=True),
-            module_args=dict(type="dict", required=False, default={}),
+            module_args=dict(type="raw", required=False, default={}),
         ),
         supports_check_mode=False,
     )
@@ -108,7 +109,11 @@ def main():
     if module.params["module_name"] != "command":
         module.exit_json(changed=False, rc=0, stdout="", stderr="")
 
-    argv = module.params["module_args"].get("argv", [])
+    module_args = module.params["module_args"]
+    if isinstance(module_args, str):
+        argv = shlex.split(module_args)
+    else:
+        argv = module_args.get("argv", [])
     if not argv:
         module.fail_json(msg="argv is required", rc=1)
 
