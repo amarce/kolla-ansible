@@ -10,6 +10,7 @@
     unit_enabled: "{{ handler_context.unit_enabled | bool }}"
     needs_start: "{{ handler_context.needs_start | bool }}"
     service_use_systemd: "{{ handler_context.service_use_systemd | default(kolla_container_engine == 'docker') | bool }}"
+    openvswitch_vswitchd_runtime_protection_active: "{{ handler_context.openvswitch_vswitchd_runtime_protection_active | default(false) | bool }}"
 
 - name: Refresh handler unit file state
   become: true
@@ -61,6 +62,7 @@
   when:
     - container_needs_recreate | bool
     - not container_missing | bool
+    - not openvswitch_vswitchd_runtime_protection_active | bool
 
 - block:
     - name: Start container immediately after ensure or recreate
@@ -80,7 +82,7 @@
       become: true
       systemd:
         name: "{{ unit_name }}"
-        state: restarted
+        state: "{{ 'started' if openvswitch_vswitchd_runtime_protection_active | bool else 'restarted' }}"
       when:
         - unit_name is defined
         - unit_enabled | bool
@@ -90,7 +92,7 @@
     - container_missing | bool or container_needs_recreate | bool
 
 - block:
-    - name: Attempt runtime restart first
+    - name: Restore runtime state
       become: true
       vars:
         _service_check_common_options: >-
@@ -99,7 +101,7 @@
                    | rejectattr('key', 'in', ['restart_policy', 'restart_retries'])
                    | list | items2dict) }}
       kolla_container:
-        action: restart_container
+        action: "{{ 'start_container' if openvswitch_vswitchd_runtime_protection_active | bool else 'restart_container' }}"
         common_options: "{{ _service_check_common_options }}"
         name: "{{ container_name }}"
       register: runtime_restart
@@ -120,7 +122,7 @@
       become: true
       systemd:
         name: "{{ unit_name }}"
-        state: restarted
+        state: "{{ 'started' if openvswitch_vswitchd_runtime_protection_active | bool else 'restarted' }}"
       when:
         - unit_name is defined
         - service.unit_file_exists | default(false) | bool
