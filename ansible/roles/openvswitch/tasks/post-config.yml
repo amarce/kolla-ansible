@@ -102,6 +102,17 @@
         msg: "Effective ovs_provider_fail_mode='{{ ovs_provider_fail_mode_effective }}'"
         verbosity: 1
 
+    - name: Require explicit ovs_provider_fail_mode definition when enabled
+      assert:
+        that:
+          - not openvswitch_require_explicit_provider_fail_mode | bool
+            or 'ovs_provider_fail_mode' in hostvars[inventory_hostname]
+        fail_msg: >-
+          openvswitch_require_explicit_provider_fail_mode=true requires
+          ovs_provider_fail_mode to be explicitly set in inventory variables
+          (for example group_vars/network/openvswitch.yml,
+          /etc/kolla/globals.yml, or host_vars).
+
     - name: Validate ovs_provider_fail_mode value
       assert:
         that:
