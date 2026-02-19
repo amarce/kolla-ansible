@@ -101,6 +101,7 @@
 
 - name: Build restart list for changed overrides
   set_fact:
+    start_order_override_changed_services: "{{ start_order_override_result.results | selectattr('changed') | map(attribute='item.1') | list }}"
     start_order_restart_services: "{{ start_order_override_result.results | selectattr('changed') | map(attribute='item.1') | list }}"
   when: start_order_override_result is defined
 
@@ -117,6 +118,37 @@
 - name: Keep original restart candidates
   set_fact:
     start_order_restart_services_requested: "{{ start_order_restart_services | default([]) }}"
+
+- name: Record restart candidate reason codes
+  vars:
+    override_services: "{{ start_order_override_changed_services | default([]) }}"
+    changed_services: "{{ changed_restart_services | default([]) }}"
+  set_fact:
+    start_order_restart_service_reasons: >-
+      {{
+        start_order_restart_service_reasons | default({})
+        | combine({
+            item: (
+              ([
+                'override_changed'
+                if (item in override_services)
+                else none,
+                'changed_container'
+                if (item in changed_services)
+                else none,
+              ] | reject('none') | list) | unique
+            )
+          })
+      }}
+  loop: "{{ start_order_restart_services_requested | default([]) }}"
+
+- name: Log restart candidate reasons
+  debug:
+    msg: >-
+      Service {{ item }} queued for restart because:
+      {{ start_order_restart_service_reasons.get(item, []) | join(', ') if (start_order_restart_service_reasons.get(item, []) | length > 0) else 'unspecified' }}
+  loop: "{{ start_order_restart_services_requested | default([]) }}"
+  when: (start_order_restart_services_requested | default([]) | length) > 0
 
 - name: Check openvswitch runtime marker
   become: true
@@ -174,8 +206,8 @@
   debug:
     msg: >-
       Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}
-      is present and openvswitch_vswitchd is running. Skipping restart/recreate in service-start-order.
-      Set openvswitch_vswitchd_break_glass=true to override this protection.
+      is present and openvswitch_vswitchd is running. Skipping restart/recreate in service-start-order (reason: runtime_protection_active).
+      Override with openvswitch_vswitchd_break_glass=true to bypass this protection.
   when:
     - start_order_openvswitch_runtime_protected | default(false) | bool
     - start_order_openvswitch_running | default(false) | bool
@@ -185,7 +217,8 @@
     msg: >-
       Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}
       is present but openvswitch_vswitchd is not running. Skipping restart/recreate and allowing start-only
-      recovery. Set openvswitch_vswitchd_break_glass=true to override this protection.
+      recovery (reason: runtime_protection_start_only). Override with
+      openvswitch_vswitchd_break_glass=true to bypass this protection.
   when:
     - start_order_openvswitch_runtime_protected | default(false) | bool
     - not (start_order_openvswitch_running | default(false) | bool)

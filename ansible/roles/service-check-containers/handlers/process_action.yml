@@ -9,8 +9,36 @@
     container_needs_recreate: "{{ handler_context.container_needs_recreate | bool }}"
     unit_enabled: "{{ handler_context.unit_enabled | bool }}"
     needs_start: "{{ handler_context.needs_start | bool }}"
+    reason_codes: "{{ handler_context.reason_codes | default([]) }}"
     service_use_systemd: "{{ handler_context.service_use_systemd | default(kolla_container_engine == 'docker') | bool }}"
     openvswitch_vswitchd_runtime_protection_active: "{{ handler_context.openvswitch_vswitchd_runtime_protection_active | default(false) | bool }}"
+
+- name: Determine selected service-check action
+  set_fact:
+    service_check_selected_action: >-
+      {{
+        'ensure_missing_container'
+        if (container_missing | bool)
+        else (
+          'recreate_container'
+          if (container_needs_recreate | bool)
+          else (
+            'start_only_recovery'
+            if (needs_start | bool and openvswitch_vswitchd_runtime_protection_active | bool)
+            else (
+              'restore_runtime_state'
+              if (needs_start | bool)
+              else 'no_action'
+            )
+          )
+        )
+      }}
+
+- name: Log selected service-check action and reason codes
+  debug:
+    msg: >-
+      Service-check action for {{ container_name }}: {{ service_check_selected_action }}
+      (reason_codes={{ reason_codes | default([]) | unique | join(',') if (reason_codes | default([]) | length > 0) else 'none' }})
 
 - name: Refresh handler unit file state
   become: true
@@ -138,7 +166,8 @@
     msg: >-
       Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file }} is present but
       openvswitch_vswitchd is not running. Performing start-only recovery and skipping restart
-      actions. Set openvswitch_vswitchd_break_glass=true to override this protection.
+      actions (reason: runtime_protection_start_only). Set openvswitch_vswitchd_break_glass=true
+      to override this protection.
   when:
     - container_name == 'openvswitch_vswitchd'
     - openvswitch_vswitchd_runtime_protection_active | bool
