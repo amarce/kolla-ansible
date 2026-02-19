@@ -152,3 +152,34 @@
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Check if openvswitch_vswitchd container is running
+  become: true
+  command: >-
+    {{ kolla_container_engine }} container inspect -f '{{ '{{.State.Running}}' }}' openvswitch_vswitchd
+  register: openvswitch_vswitchd_running
+  changed_when: false
+  failed_when: false
+  when:
+    - openvswitch_services['openvswitch-vswitchd'].host_in_groups | bool
+    - openvswitch_services['openvswitch-vswitchd'].enabled | bool
+
+- name: Ensure runtime marker directory exists
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_path | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - openvswitch_vswitchd_running.rc == 0
+    - (openvswitch_vswitchd_running.stdout | trim | lower) == 'true'
+
+- name: Record successful openvswitch_vswitchd startup marker
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_path }}"
+    state: touch
+    mode: "0644"
+  when:
+    - openvswitch_vswitchd_running.rc == 0
+    - (openvswitch_vswitchd_running.stdout | trim | lower) == 'true'

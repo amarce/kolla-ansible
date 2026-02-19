@@ -9,12 +9,36 @@
     service_check_desired_pid_mode: null
     service_check_inspect_pid_mode: null
     service_explicit_user: false
+    openvswitch_vswitchd_runtime_marker_exists: false
+    openvswitch_vswitchd_runtime_protection_active: false
 - name: Set container and unit names
   set_fact:
     container_name: "{{ item.value.container_name | default(item.key) }}"
     unit_name: >-
       {{ 'container-' if kolla_container_engine == 'podman' else 'kolla-' }}{{ item.value.container_name | default(item.key) }}{{ '' if kolla_container_engine == 'podman' else '-container' }}.service
     container_spec: "{{ item.value }}"
+
+- name: Check openvswitch_vswitchd runtime marker
+  become: true
+  stat:
+    path: "{{ openvswitch_vswitchd_runtime_marker_path }}"
+  register: openvswitch_vswitchd_runtime_marker
+  changed_when: false
+  failed_when: false
+  when:
+    - item.key == 'openvswitch-vswitchd'
+    - openvswitch_vswitchd_protect_runtime | bool
+
+- name: Set openvswitch_vswitchd runtime protection state
+  set_fact:
+    openvswitch_vswitchd_runtime_marker_exists: "{{ (openvswitch_vswitchd_runtime_marker | default({})).get('stat', {}).get('exists', false) | bool }}"
+    openvswitch_vswitchd_runtime_protection_active: >-
+      {{
+        item.key == 'openvswitch-vswitchd'
+        and (openvswitch_vswitchd_protect_runtime | bool)
+        and ((openvswitch_vswitchd_runtime_marker | default({})).get('stat', {}).get('exists', false) | bool)
+        and not (openvswitch_vswitchd_break_glass | bool)
+      }}
 
 - name: Set desired healthcheck test
   set_fact:
@@ -239,6 +263,13 @@
           {{ (container_needs_recreate | bool) or (needs_recreate | bool) }}
       when: service_check_compare_results[item.key] | default(false)
 
+    - name: Suppress openvswitch_vswitchd recreate when runtime protection is active
+      set_fact:
+        container_needs_recreate: false
+      when:
+        - openvswitch_vswitchd_runtime_protection_active | bool
+        - not container_missing | bool
+
     - name: Init service fact for handlers
       set_fact:
         service: "{{ container_spec | combine({'unit_file_exists': unit_file.stat.exists}) }}"
@@ -268,7 +299,8 @@
                 'container_needs_recreate': container_needs_recreate | bool,
                 'unit_enabled': unit_enabled | bool,
                 'needs_start': needs_start | bool,
-                'service_use_systemd': service_use_systemd | bool
+                'service_use_systemd': service_use_systemd | bool,
+                'openvswitch_vswitchd_runtime_protection_active': openvswitch_vswitchd_runtime_protection_active | bool
               }
             ] }}"
       when:
