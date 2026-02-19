@@ -200,7 +200,7 @@
 - name: Filter protected services from restart list
   set_fact:
     start_order_restart_services: "{{ start_order_restart_services_requested |
-      difference(start_order_runtime_protected_services | default([])) }}"
+      reject('in', (start_order_runtime_protected_services | default([]))) | list }}"
 
 - name: Warn when runtime protection skips openvswitch_vswitchd restart
   debug:
