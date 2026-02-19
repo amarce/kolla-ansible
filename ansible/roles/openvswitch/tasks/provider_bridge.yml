@@ -55,7 +55,7 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args: "ovs-vsctl get-fail-mode {{ provider_bridge }}"
+        module_args: "ovs-vsctl get Bridge {{ provider_bridge }} fail_mode"
       register: ovs_provider_bridge_fail_mode
       changed_when: false
       failed_when: ovs_provider_bridge_fail_mode.rc not in [0, 2]
