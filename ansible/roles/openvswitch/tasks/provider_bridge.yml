@@ -65,10 +65,10 @@
       set_fact:
         provider_bridge_current_fail_mode: >-
           {{ (ovs_provider_bridge_fail_mode.stdout | default('') | trim
-              | regex_replace('^\"+', '')
-              | regex_replace('\"+$', '')
-              | regex_replace("^'+", '')
-              | regex_replace("'+$", '')
+              | regex_replace('^\"', '')
+              | regex_replace('\"$', '')
+              | regex_replace("^'", '')
+              | regex_replace("'$", '')
               | trim
               | lower
               | regex_replace('^(\\[\\]|null|none|nil|n/a|na|<nil>|\\(null\\))$', '')) }}

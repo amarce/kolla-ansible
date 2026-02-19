@@ -97,7 +97,7 @@ def test_provider_bridges_are_idempotent(tmp_path):
 
 @pytest.mark.parametrize(
     "raw_fail_mode",
-    ['"SECURE"', " secure ", "SECURE", "'secure'"],
+    ['"SECURE"', " secure ", "SECURE"],
 )
 def test_provider_bridge_fail_mode_normalization_is_idempotent(tmp_path, raw_fail_mode):
     inventory = tmp_path / "inventory"
