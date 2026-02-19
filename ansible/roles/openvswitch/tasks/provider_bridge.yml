@@ -46,6 +46,7 @@
     - name: Reset provider bridge {{ provider_bridge }} fail_mode fact
       set_fact:
         provider_bridge_current_fail_mode: ''
+        provider_bridge_desired_fail_mode: "{{ ovs_provider_fail_mode | default('') | trim }}"
       changed_when: false
 
     - name: Get provider bridge {{ provider_bridge }} fail_mode
@@ -73,17 +74,26 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ ovs_provider_fail_mode }}"
+        module_args: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ provider_bridge_desired_fail_mode }}"
       register: ovs_provider_bridge_set_fail_mode
       changed_when: ovs_provider_bridge_set_fail_mode.rc == 0
       failed_when: ovs_provider_bridge_set_fail_mode.rc != 0
       when:
-        - ovs_provider_fail_mode | length > 0
-        - ovs_provider_bridge_check.rc != 0 or provider_bridge_current_fail_mode != ovs_provider_fail_mode
+        - provider_bridge_desired_fail_mode | length > 0
+        - ovs_provider_bridge_check.rc != 0 or provider_bridge_current_fail_mode != provider_bridge_desired_fail_mode
+
+    - name: Log provider bridge {{ provider_bridge }} fail_mode normalized evaluation
+      debug:
+        msg: >-
+          Normalized fail_mode comparison for {{ provider_bridge }}:
+          current='{{ provider_bridge_current_fail_mode }}',
+          desired='{{ provider_bridge_desired_fail_mode }}'
+        verbosity: 1
+      when: provider_bridge_desired_fail_mode | length > 0
 
     - name: Log provider bridge {{ provider_bridge }} fail_mode update
       debug:
-        msg: "Updated provider bridge {{ provider_bridge }} fail_mode to {{ ovs_provider_fail_mode }}"
+        msg: "Updated provider bridge {{ provider_bridge }} fail_mode to {{ provider_bridge_desired_fail_mode }}"
         verbosity: 1
       when:
         - ovs_provider_bridge_set_fail_mode is defined
@@ -91,9 +101,9 @@
 
     - name: Log provider bridge {{ provider_bridge }} fail_mode already set
       debug:
-        msg: "Provider bridge {{ provider_bridge }} fail_mode already {{ ovs_provider_fail_mode }}"
+        msg: "Provider bridge {{ provider_bridge }} fail_mode already {{ provider_bridge_desired_fail_mode }}"
         verbosity: 1
       when:
         - ovs_provider_bridge_check.rc == 0
-        - ovs_provider_fail_mode | length > 0
-        - provider_bridge_current_fail_mode == ovs_provider_fail_mode
+        - provider_bridge_desired_fail_mode | length > 0
+        - provider_bridge_current_fail_mode == provider_bridge_desired_fail_mode
