@@ -9,7 +9,6 @@
     service_check_desired_pid_mode: null
     service_check_inspect_pid_mode: null
     service_explicit_user: false
-    openvswitch_vswitchd_runtime_marker_exists: false
     openvswitch_vswitchd_runtime_protection_active: false
 - name: Set container and unit names
   set_fact:
@@ -31,7 +30,6 @@
 
 - name: Set openvswitch_vswitchd runtime protection state
   set_fact:
-    openvswitch_vswitchd_runtime_marker_exists: "{{ (openvswitch_vswitchd_runtime_marker | default({})).get('stat', {}).get('exists', false) | bool }}"
     openvswitch_vswitchd_runtime_protection_active: >-
       {{
         item.key == 'openvswitch-vswitchd'
