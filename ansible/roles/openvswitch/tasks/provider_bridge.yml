@@ -46,7 +46,8 @@
     - name: Reset provider bridge {{ provider_bridge }} fail_mode fact
       set_fact:
         provider_bridge_current_fail_mode: ''
-        provider_bridge_desired_fail_mode: "{{ ovs_provider_fail_mode | default('') | trim }}"
+        provider_bridge_desired_fail_mode: >-
+          {{ ovs_provider_fail_mode | default('') | trim | lower }}
       changed_when: false
 
     - name: Get provider bridge {{ provider_bridge }} fail_mode
@@ -54,7 +55,7 @@
         container_engine: "{{ kolla_container_engine }}"
         user: root
         module_name: command
-        module_args: "ovs-vsctl get-fail-mode {{ provider_bridge }}"
+        module_args: "ovs-vsctl get Bridge {{ provider_bridge }} fail_mode"
       register: ovs_provider_bridge_fail_mode
       changed_when: false
       failed_when: ovs_provider_bridge_fail_mode.rc not in [0, 2]
@@ -64,8 +65,13 @@
       set_fact:
         provider_bridge_current_fail_mode: >-
           {{ (ovs_provider_bridge_fail_mode.stdout | default('') | trim
-              | regex_replace('^"(.*)"$', '\\1')
-              | regex_replace('^\\[\\]$', '')) }}
+              | regex_replace('^\"+', '')
+              | regex_replace('\"+$', '')
+              | regex_replace("^'+", '')
+              | regex_replace("'+$", '')
+              | trim
+              | lower
+              | regex_replace('^(\\[\\]|null|none|nil|n/a|na|<nil>|\\(null\\))$', '')) }}
       changed_when: false
       when: ovs_provider_bridge_fail_mode is defined
 
@@ -76,7 +82,7 @@
         module_name: command
         module_args: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ provider_bridge_desired_fail_mode }}"
       register: ovs_provider_bridge_set_fail_mode
-      changed_when: ovs_provider_bridge_set_fail_mode.rc == 0
+      changed_when: provider_bridge_current_fail_mode != provider_bridge_desired_fail_mode
       failed_when: ovs_provider_bridge_set_fail_mode.rc != 0
       when:
         - provider_bridge_desired_fail_mode | length > 0
