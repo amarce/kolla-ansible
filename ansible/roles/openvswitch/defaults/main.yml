@@ -118,6 +118,7 @@ openvswitch_ovs_vsctl_wrapper_enabled: false
 #############
 
 ovs_provider_fail_mode: standalone
+openvswitch_require_explicit_provider_fail_mode: false
 openvswitch_manage_provider_bridges_on_reconfigure: true
 
 openvswitch_system_id: "{{ ansible_facts.hostname }}"
