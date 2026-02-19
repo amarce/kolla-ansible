@@ -93,3 +93,48 @@ def test_provider_bridges_are_idempotent(tmp_path):
 
     second_run = _run_playbook(playbook, inventory, state_file)
     assert _extract_changed(second_run) == 0
+
+
+@pytest.mark.parametrize(
+    "raw_fail_mode",
+    ['"SECURE"', " secure ", "SECURE"],
+)
+def test_provider_bridge_fail_mode_normalization_is_idempotent(tmp_path, raw_fail_mode):
+    inventory = tmp_path / "inventory"
+    python_path = sys.executable
+    inventory.write_text(
+        f"[network]\nlocalhost ansible_connection=local ansible_python_interpreter={python_path}\n",
+        encoding="utf-8",
+    )
+
+    playbook = tmp_path / "playbook.yml"
+    playbook.write_text(
+        """---
+- hosts: network
+  gather_facts: false
+  vars:
+    kolla_action: deploy
+    kolla_container_engine: podman
+    ovs_provider_fail_mode: "  Secure  "
+  tasks:
+    - name: Manage provider bridge item
+      include_role:
+        name: openvswitch
+        tasks_from: provider_bridge
+      vars:
+        provider_bridge: br-provider
+""",
+        encoding="utf-8",
+    )
+
+    state_file = tmp_path / "ovs_state.json"
+    state_file.write_text(
+        json.dumps({"bridges": {"br-provider": {"fail_mode": raw_fail_mode, "ports": []}}}),
+        encoding="utf-8",
+    )
+
+    first_run = _run_playbook(playbook, inventory, state_file)
+    assert _extract_changed(first_run) == 0
+
+    second_run = _run_playbook(playbook, inventory, state_file)
+    assert _extract_changed(second_run) == 0
