@@ -168,6 +168,10 @@ workaround_ansible_issue_8743: yes
 # For details, see: https://docs.openstack.org/neutron/latest/admin/config-experimental-framework.html
 #neutron_plugin_agent: "openvswitch"
 
+# Explicitly set provider bridge fail mode for Open vSwitch provider bridges.
+# Valid options are [ secure, standalone ]
+ovs_provider_fail_mode: "secure"
+
 # Valid options are [ internal, infoblox ]
 #neutron_ipam_driver: "internal"
 
