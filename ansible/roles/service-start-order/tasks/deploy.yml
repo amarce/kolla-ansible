@@ -114,6 +114,20 @@
     start_order_restart_services: "{{ (start_order_restart_services |
       default([]) + changed_restart_services) | unique }}"
 
+- name: Keep original restart candidates
+  set_fact:
+    start_order_restart_services_requested: "{{ start_order_restart_services | default([]) }}"
+
+- name: Filter protected services from restart list
+  set_fact:
+    start_order_restart_services: "{{ start_order_restart_services_requested |
+      difference(kolla_start_order_no_restart_services | default([])) }}"
+
+- name: Log protected services skipped for restart
+  debug:
+    msg: "Skipping restart for protected services per policy: {{ start_order_restart_services_requested | intersect(kolla_start_order_no_restart_services | default([])) }}"
+  when: (start_order_restart_services_requested | intersect(kolla_start_order_no_restart_services | default([])) | length) > 0
+
 - name: Show restart candidates
   debug:
     msg: "Services queued for restart: {{ start_order_restart_services }}"

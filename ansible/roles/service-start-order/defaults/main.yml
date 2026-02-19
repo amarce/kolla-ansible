@@ -21,6 +21,11 @@ kolla_dependency_wait_timeout: 300
 # ``service-start-order`` role executes.
 kolla_changed_containers: []
 
+# Services protected from restart operations by this role. They may still be
+# started by ``start_service.yml`` when unhealthy or down.
+kolla_start_order_no_restart_services:
+  - openvswitch_vswitchd
+
 #####################
 # Service start wait behaviour
 #####################
