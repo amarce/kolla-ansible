@@ -905,7 +905,29 @@ class TestImage(base.BaseTestCase):
             user='root')
         self.assertTrue(return_data)
 
-    def test_compare_config_changed_container_exited(self):
+    @mock.patch('kolla_podman_worker.time.sleep')
+    def test_compare_config_transient_non_running_then_unchanged(self, mock_sleep):
+        self.fake_data['params']['name'] = 'my_container'
+        self.pw = get_PodmanWorker(self.fake_data['params'])
+        my_container = construct_container(self.fake_data['containers'][0])
+        my_container.reload = mock.Mock(side_effect=[
+            setattr(my_container, 'status', 'stopping'),
+            setattr(my_container, 'status', 'running'),
+        ])
+        my_container.exec_run = mock.Mock(return_value=(0, 'fake_data'.encode()))
+        self.pw.pc.containers.get.return_value = my_container
+
+        return_data = self.pw.compare_config()
+
+        self.assertFalse(return_data)
+        self.assertEqual(2, self.pw.pc.containers.get.call_count)
+        my_container.exec_run.assert_called_once_with(
+            pwm.COMPARE_CONFIG_CMD,
+            user='root')
+        mock_sleep.assert_called_once()
+
+    @mock.patch('kolla_podman_worker.time.sleep')
+    def test_compare_config_changed_container_exited(self, mock_sleep):
         self.fake_data['params']['name'] = 'my_container'
         self.pw = get_PodmanWorker(self.fake_data['params'])
         my_container = construct_container(self.fake_data['containers'][0])
@@ -913,14 +935,39 @@ class TestImage(base.BaseTestCase):
         self.pw.pc.containers.get.return_value = my_container
 
         return_data = self.pw.compare_config()
-        self.pw.pc.containers.get.assert_called_once_with(
-            self.fake_data['params']['name'])
-        my_container.exec_run.assert_not_called()
+
         self.assertTrue(return_data)
+        self.assertEqual(3, self.pw.pc.containers.get.call_count)
+        my_container.exec_run.assert_not_called()
+        self.assertEqual(2, mock_sleep.call_count)
 
     @mock.patch('kolla_podman_worker.APIError',
                 new_callable=lambda: APIErrorStub)
-    def test_compare_config_changed_client_failure(self, stub_exception):
+    @mock.patch('kolla_podman_worker.time.sleep')
+    def test_compare_config_changed_client_failure(self, mock_sleep, stub_exception):
+        stub_exception.is_client_error = mock.Mock(return_value=True)
+        self.fake_data['params']['name'] = 'my_container'
+        self.pw = get_PodmanWorker(self.fake_data['params'])
+        my_container = construct_container(self.fake_data['containers'][0])
+        my_container.exec_run = mock.Mock(side_effect=[
+            stub_exception(),
+            (0, 'fake_data'.encode()),
+        ])
+        self.pw.pc.containers.get.return_value = my_container
+
+        return_data = self.pw.compare_config()
+
+        self.assertFalse(return_data)
+        self.assertEqual(2, self.pw.pc.containers.get.call_count)
+        self.assertEqual(2, my_container.exec_run.call_count)
+        mock_sleep.assert_called_once()
+
+    @mock.patch('kolla_podman_worker.APIError',
+                new_callable=lambda: APIErrorStub)
+    @mock.patch('kolla_podman_worker.time.sleep')
+    def test_compare_config_changed_client_failure_persistent(
+        self, mock_sleep, stub_exception
+    ):
         stub_exception.is_client_error = mock.Mock(return_value=True)
         self.fake_data['params']['name'] = 'my_container'
         self.pw = get_PodmanWorker(self.fake_data['params'])
@@ -929,12 +976,11 @@ class TestImage(base.BaseTestCase):
         self.pw.pc.containers.get.return_value = my_container
 
         return_data = self.pw.compare_config()
-        self.pw.pc.containers.get.assert_called_once_with(
-            self.fake_data['params']['name'])
-        my_container.exec_run.assert_called_once_with(
-            pwm.COMPARE_CONFIG_CMD,
-            user='root')
+
         self.assertTrue(return_data)
+        self.assertEqual(3, self.pw.pc.containers.get.call_count)
+        self.assertEqual(3, my_container.exec_run.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
 
     def test_compare_config_error(self):
         self.fake_data['params']['name'] = 'my_container'

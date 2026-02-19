@@ -881,40 +881,83 @@ class TestImage(base.BaseTestCase):
         self.dw.dc.exec_inspect.assert_called_once_with(job)
         self.assertTrue(return_data)
 
-    def test_compare_config_changed_container_exited(self):
+    @mock.patch('kolla_docker_worker.time.sleep')
+    def test_compare_config_transient_exit_then_unchanged(self, mock_sleep):
+        self.dw = get_DockerWorker(FAKE_DATA['params'])
+        self.dw._debug = mock.Mock()
+        job = mock.MagicMock()
+        self.dw.dc.exec_create.return_value = job
+        self.dw.dc.exec_start.return_value = 'fake output'
+        self.dw.dc.exec_inspect.side_effect = [
+            {'ExitCode': 137},
+            {'ExitCode': 0},
+        ]
+
+        return_data = self.dw.compare_config()
+
+        self.assertFalse(return_data)
+        self.assertEqual(2, self.dw.dc.exec_create.call_count)
+        self.assertEqual(2, self.dw.dc.exec_start.call_count)
+        self.assertEqual(2, self.dw.dc.exec_inspect.call_count)
+        mock_sleep.assert_called_once()
+
+    @mock.patch('kolla_docker_worker.time.sleep')
+    def test_compare_config_persistent_exit_137(self, mock_sleep):
         self.dw = get_DockerWorker(FAKE_DATA['params'])
         job = mock.MagicMock()
         self.dw.dc.exec_create.return_value = job
         self.dw.dc.exec_start.return_value = 'fake output'
         self.dw.dc.exec_inspect.return_value = {'ExitCode': 137}
-        return_data = self.dw.compare_config()
-        self.dw.dc.exec_create.assert_called_once_with(
-            FAKE_DATA['params']['name'],
-            dwm.COMPARE_CONFIG_CMD,
-            user='root')
-        self.dw.dc.exec_start.assert_called_once_with(job)
-        self.dw.dc.exec_inspect.assert_called_once_with(job)
-        self.assertTrue(return_data)
 
-    def test_compare_config_changed_client_failure(self):
+        return_data = self.dw.compare_config()
+
+        self.assertTrue(return_data)
+        self.assertEqual(3, self.dw.dc.exec_create.call_count)
+        self.assertEqual(3, self.dw.dc.exec_start.call_count)
+        self.assertEqual(3, self.dw.dc.exec_inspect.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
+
+    @mock.patch('kolla_docker_worker.time.sleep')
+    def test_compare_config_changed_client_failure(self, mock_sleep):
         self.dw = get_DockerWorker(FAKE_DATA['params'])
         job = mock.MagicMock()
         self.dw.dc.exec_create.return_value = job
         self.dw.dc.exec_start.return_value = 'fake output'
         failure_response = mock.MagicMock()
         failure_response.status_code = 409  # any client error should do here
+        self.dw.dc.exec_inspect.side_effect = [
+            docker_error.APIError(message="foo", response=failure_response),
+            {'ExitCode': 0},
+        ]
+
+        return_data = self.dw.compare_config()
+
+        self.assertFalse(return_data)
+        self.assertEqual(2, self.dw.dc.exec_create.call_count)
+        self.assertEqual(2, self.dw.dc.exec_start.call_count)
+        self.assertEqual(2, self.dw.dc.exec_inspect.call_count)
+        mock_sleep.assert_called_once()
+
+    @mock.patch('kolla_docker_worker.time.sleep')
+    def test_compare_config_changed_client_failure_persistent(self, mock_sleep):
+        self.dw = get_DockerWorker(FAKE_DATA['params'])
+        job = mock.MagicMock()
+        self.dw.dc.exec_create.return_value = job
+        self.dw.dc.exec_start.return_value = 'fake output'
+        failure_response = mock.MagicMock()
+        failure_response.status_code = 409
         self.dw.dc.exec_inspect.side_effect = docker_error.APIError(
             message="foo",
             response=failure_response,
         )
+
         return_data = self.dw.compare_config()
-        self.dw.dc.exec_create.assert_called_once_with(
-            FAKE_DATA['params']['name'],
-            dwm.COMPARE_CONFIG_CMD,
-            user='root')
-        self.dw.dc.exec_start.assert_called_once_with(job)
-        self.dw.dc.exec_inspect.assert_called_once_with(job)
+
         self.assertTrue(return_data)
+        self.assertEqual(3, self.dw.dc.exec_create.call_count)
+        self.assertEqual(3, self.dw.dc.exec_start.call_count)
+        self.assertEqual(3, self.dw.dc.exec_inspect.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
 
     def test_compare_config_error(self):
         self.dw = get_DockerWorker(FAKE_DATA['params'])

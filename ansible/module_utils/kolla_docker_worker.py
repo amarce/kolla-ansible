@@ -31,6 +31,9 @@ def get_docker_client():
 
 class DockerWorker(ContainerWorker):
 
+    _compare_config_max_attempts = 3
+    _compare_config_retry_delay = 0.2
+
     def __init__(self, module):
         super().__init__(module)
 
@@ -126,41 +129,83 @@ class DockerWorker(ContainerWorker):
             return True
 
     def compare_config(self):
-        try:
-            job = self.dc.exec_create(
-                self.params["name"],
-                COMPARE_CONFIG_CMD,
-                user="root",
-            )
-            output = self.dc.exec_start(job)
-            exec_inspect = self.dc.exec_inspect(job)
-        except docker.errors.APIError as e:
-            # NOTE(yoctozepto): If we have a client error, then the container
-            # cannot be used for config check (e.g., is restarting, or stopped
-            # in the mean time) - assume config is stale = return True.
-            # Else, propagate the server error back.
-            if e.is_client_error():
-                return True
-            else:
+        attempts = self._compare_config_max_attempts
+        transient_failures = []
+
+        for attempt in range(1, attempts + 1):
+            try:
+                job = self.dc.exec_create(
+                    self.params["name"],
+                    COMPARE_CONFIG_CMD,
+                    user="root",
+                )
+                output = self.dc.exec_start(job)
+                exec_inspect = self.dc.exec_inspect(job)
+            except docker.errors.APIError as e:
+                if e.is_client_error():
+                    failure_mode = "api_client_error"
+                    transient_failures.append(failure_mode)
+                    self._debug(
+                        "compare_config attempt %s/%s failure_mode=%s decision=%s"
+                        % (
+                            attempt,
+                            attempts,
+                            failure_mode,
+                            "retry" if attempt < attempts else "changed",
+                        )
+                    )
+                    if attempt < attempts:
+                        time.sleep(self._compare_config_retry_delay)
+                        continue
+                    self._debug(
+                        "compare_config final_decision=changed "
+                        "reason=persistent_transient_failures "
+                        "failure_modes=%s" % transient_failures
+                    )
+                    return True
                 raise
-        # Exit codes:
-        # 0: not changed
-        # 1: changed
-        # 137: abrupt exit -> changed
-        # else: error
-        if exec_inspect["ExitCode"] == 0:
-            return False
-        elif exec_inspect["ExitCode"] == 1:
-            return True
-        elif exec_inspect["ExitCode"] == 137:
-            # NOTE(yoctozepto): This is Docker's command exit due to container
-            # exit. It means the container is unstable so we are better off
-            # marking it as requiring a restart due to config update.
-            return True
-        else:
+
+            exit_code = exec_inspect["ExitCode"]
+            if exit_code == 0:
+                self._debug(
+                    "compare_config attempt %s/%s failure_mode=none "
+                    "exit_code=0 decision=unchanged" % (attempt, attempts)
+                )
+                self._debug("compare_config final_decision=unchanged")
+                return False
+            if exit_code == 1:
+                self._debug(
+                    "compare_config attempt %s/%s failure_mode=explicit_diff "
+                    "exit_code=1 decision=changed" % (attempt, attempts)
+                )
+                self._debug("compare_config final_decision=changed reason=explicit_diff")
+                return True
+            if exit_code == 137:
+                failure_mode = "exit_code_137"
+                transient_failures.append(failure_mode)
+                self._debug(
+                    "compare_config attempt %s/%s failure_mode=%s "
+                    "exit_code=137 decision=%s"
+                    % (
+                        attempt,
+                        attempts,
+                        failure_mode,
+                        "retry" if attempt < attempts else "changed",
+                    )
+                )
+                if attempt < attempts:
+                    time.sleep(self._compare_config_retry_delay)
+                    continue
+                self._debug(
+                    "compare_config final_decision=changed "
+                    "reason=persistent_unhealthy_container "
+                    "failure_modes=%s" % transient_failures
+                )
+                return True
+
             raise Exception(
                 "Failed to compare container configuration: "
-                "ExitCode: %s Message: %s" % (exec_inspect["ExitCode"], output)
+                "ExitCode: %s Message: %s" % (exit_code, output)
             )
 
     def get_image_id(self):
