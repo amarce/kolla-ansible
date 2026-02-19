@@ -91,6 +91,11 @@
   register: ovs_provider_bridge_create_results
   changed_when: ovs_provider_bridge_create_results.rc == 0
 
+- name: Reset provider bridge current fail_mode map for this include
+  set_fact:
+    openvswitch_provider_bridge_current_fail_mode_map: {}
+  changed_when: false
+
 - name: Build provider bridge current fail_mode map from bulk state
   set_fact:
     openvswitch_provider_bridge_current_fail_mode_map: >-
@@ -163,12 +168,12 @@
   loop: "{{ openvswitch_provider_bridges_to_manage }}"
   register: ovs_provider_bridge_set_fail_mode_results
   changed_when: >-
-    {{ (openvswitch_provider_bridge_current_fail_mode_map | default({})).get(item, '')
+    {{ openvswitch_provider_bridge_current_fail_mode_map.get(item, '')
        != openvswitch_provider_bridge_desired_fail_mode }}
   failed_when: ovs_provider_bridge_set_fail_mode_results.rc != 0
   when:
     - openvswitch_provider_bridge_desired_fail_mode | length > 0
-    - (openvswitch_provider_bridge_current_fail_mode_map | default({})).get(item, '')
+    - openvswitch_provider_bridge_current_fail_mode_map.get(item, '')
       != openvswitch_provider_bridge_desired_fail_mode
 
 - name: Build changed provider bridge list
