@@ -83,6 +83,9 @@ SUPPORTED_PODMAN_CONTAINER_CREATE_ARGS.update({"mounts", "network_mode"})
 
 class PodmanWorker(ContainerWorker):
 
+    _compare_config_max_attempts = 3
+    _compare_config_retry_delay = 0.2
+
     def __init__(self, module) -> None:
         super().__init__(module)
 
@@ -463,30 +466,93 @@ class PodmanWorker(ContainerWorker):
         return _compare_ulimits(desired, current)
 
     def compare_config(self):
-        try:
-            container = self.pc.containers.get(self.params["name"])
-            container.reload()
-            if container.status != "running":
+        attempts = self._compare_config_max_attempts
+        transient_failures = []
+
+        for attempt in range(1, attempts + 1):
+            try:
+                container = self.pc.containers.get(self.params["name"])
+                container.reload()
+                if container.status != "running":
+                    failure_mode = "non_running"
+                    transient_failures.append(failure_mode)
+                    self._debug(
+                        "compare_config attempt %s/%s failure_mode=%s "
+                        "status=%s decision=%s"
+                        % (
+                            attempt,
+                            attempts,
+                            failure_mode,
+                            container.status,
+                            "retry" if attempt < attempts else "changed",
+                        )
+                    )
+                    if attempt < attempts:
+                        time.sleep(self._compare_config_retry_delay)
+                        continue
+                    self._debug(
+                        "compare_config final_decision=changed "
+                        "reason=persistent_unhealthy_container "
+                        "failure_modes=%s" % transient_failures
+                    )
+                    return True
+
+                rc, raw_output = container.exec_run(COMPARE_CONFIG_CMD, user="root")
+            except APIError as e:
+                error_message = str(e).lower()
+                temporary = e.is_client_error() or any(
+                    token in error_message
+                    for token in (
+                        "temporarily unavailable",
+                        "temporary failure",
+                        "timeout",
+                        "timed out",
+                        "connection reset",
+                        "connection refused",
+                        "try again",
+                        "service unavailable",
+                    )
+                )
+                if temporary:
+                    failure_mode = "api_temporary_unavailable"
+                    transient_failures.append(failure_mode)
+                    self._debug(
+                        "compare_config attempt %s/%s failure_mode=%s "
+                        "decision=%s error=%s"
+                        % (
+                            attempt,
+                            attempts,
+                            failure_mode,
+                            "retry" if attempt < attempts else "changed",
+                            str(e),
+                        )
+                    )
+                    if attempt < attempts:
+                        time.sleep(self._compare_config_retry_delay)
+                        continue
+                    self._debug(
+                        "compare_config final_decision=changed "
+                        "reason=persistent_transient_failures "
+                        "failure_modes=%s" % transient_failures
+                    )
+                    return True
+                raise
+
+            if rc == 0:
+                self._debug(
+                    "compare_config attempt %s/%s failure_mode=none "
+                    "exit_code=0 decision=unchanged" % (attempt, attempts)
+                )
+                self._debug("compare_config final_decision=unchanged")
+                return False
+            if rc == 1:
+                self._debug(
+                    "compare_config attempt %s/%s failure_mode=explicit_diff "
+                    "exit_code=1 decision=changed" % (attempt, attempts)
+                )
+                self._debug("compare_config final_decision=changed reason=explicit_diff")
                 return True
 
-            rc, raw_output = container.exec_run(COMPARE_CONFIG_CMD, user="root")
-        # APIError means either container doesn't exist or exec command
-        # failed, which means that container is in bad state and we can
-        # expect that config is stale so we return True and recreate container
-        except APIError as e:
-            if e.is_client_error():
-                return True
-            else:
-                raise
-        # Exit codes:
-        # 0: not changed
-        # 1: changed
-        # else: error
-        if rc == 0:
-            return False
-        elif rc == 1:
-            return True
-        else:
             raise Exception(
                 "Failed to compare container configuration: "
                 "ExitCode: %s Message: %s" % (rc, raw_output.decode("utf-8","replace"))
