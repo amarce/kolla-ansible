@@ -15,6 +15,16 @@ from ansible.module_utils.basic import AnsibleModule
 STATE_TEMPLATE = {"bridges": {}}
 
 
+def log_command(argv):
+    log_path = os.environ.get("OVS_COMMAND_LOG_PATH")
+    if not log_path:
+        return
+    path = Path(log_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(" ".join(argv) + "\n")
+
+
 def load_state(path: Path) -> dict:
     if path.exists():
         try:
@@ -62,6 +72,10 @@ def ovs_vsctl(argv, state):
             return False, 2, "", ""
         fail_mode = state["bridges"][bridge]["fail_mode"]
         return False, 0, f'"{fail_mode}"' if fail_mode else "[]", ""
+
+    if cmd == "--format=json" and len(argv) >= 4 and argv[1] == "--columns=name,fail_mode" and argv[2] == "list" and argv[3] == "Bridge":
+        data = [[name, details.get("fail_mode", "")] for name, details in sorted(state["bridges"].items())]
+        return False, 0, json.dumps({"data": data}), ""
 
     if cmd == "set-fail-mode" and len(argv) >= 3:
         bridge = argv[1]
@@ -123,7 +137,9 @@ def main():
     state_path = Path(os.environ.get("OVS_STATE_PATH", "ovs_state.json"))
     state = load_state(state_path)
 
-    changed, rc, stdout, stderr = ovs_vsctl(argv[1:], state)
+    ovs_argv = argv[1:]
+    log_command(ovs_argv)
+    changed, rc, stdout, stderr = ovs_vsctl(ovs_argv, state)
 
     if rc != 0 and rc not in (2,):
         module.fail_json(msg=stderr or "ovs-vsctl failed", rc=rc, stdout=stdout)

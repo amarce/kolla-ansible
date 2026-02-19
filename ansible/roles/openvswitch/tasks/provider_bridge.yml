@@ -1,115 +1,203 @@
 ---
-- name: Skip provider bridge {{ provider_bridge }} operations for empty name
-  debug:
-    msg: "Skipping provider bridge management because the name is empty"
-    verbosity: 1
-  when: provider_bridge | default('') | length == 0
+- name: Build provider bridge management list
+  vars:
+    provider_bridges_from_single: >-
+      {{ ([provider_bridge] if (provider_bridge is defined) else []) }}
+  set_fact:
+    openvswitch_provider_bridges_to_manage: >-
+      {{ (provider_bridges | default(provider_bridges_from_single))
+         | map('trim') | reject('equalto', '') | list }}
+    openvswitch_provider_bridge_desired_fail_mode: >-
+      {{ ovs_provider_fail_mode | default('') | trim | lower }}
+  changed_when: false
 
-- name: Manage provider bridge {{ provider_bridge }}
+- name: Query Open vSwitch bridge state once
   become: true
-  when: provider_bridge | default('') | length > 0
-  block:
-    - name: Check provider bridge {{ provider_bridge }} existence
-      kolla_toolbox:
-        container_engine: "{{ kolla_container_engine }}"
-        user: root
-        module_name: command
-        module_args: "ovs-vsctl br-exists {{ provider_bridge }}"
-      register: ovs_provider_bridge_check
-      changed_when: false
-      failed_when: ovs_provider_bridge_check.rc not in [0, 2]
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: "ovs-vsctl --format=json --columns=name,fail_mode list Bridge"
+  register: ovs_provider_bridges_bulk_query
+  changed_when: false
+  failed_when: false
+  when: openvswitch_provider_bridges_to_manage | length > 0
 
-    - name: Create provider bridge {{ provider_bridge }} when missing
-      kolla_toolbox:
-        container_engine: "{{ kolla_container_engine }}"
-        user: root
-        module_name: command
-        module_args: "ovs-vsctl --may-exist add-br {{ provider_bridge }}"
-      register: ovs_provider_bridge_create
-      changed_when: ovs_provider_bridge_create.rc == 0
-      when: ovs_provider_bridge_check.rc != 0
+- name: Initialize provider bridge state map
+  set_fact:
+    openvswitch_provider_bridge_state_map: {}
+    openvswitch_provider_bridge_bulk_available: false
+  changed_when: false
 
-    - name: Log provider bridge {{ provider_bridge }} creation
-      debug:
-        msg: "Created provider bridge {{ provider_bridge }}"
-        verbosity: 1
-      when:
-        - ovs_provider_bridge_create is defined
-        - ovs_provider_bridge_create is changed
+- name: Parse Open vSwitch bridge state query
+  set_fact:
+    openvswitch_provider_bridge_state_map: >-
+      {{ dict((ovs_provider_bridges_bulk_parsed.data | default([]) | map('first') | list)
+      | zip(ovs_provider_bridges_bulk_parsed.data | default([]) | map('last') | list)) }}
+    openvswitch_provider_bridge_bulk_available: true
+  vars:
+    ovs_provider_bridges_bulk_parsed: "{{ ovs_provider_bridges_bulk_query.stdout | default('{}') | from_json }}"
+  changed_when: false
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - ovs_provider_bridges_bulk_query is defined
+    - ovs_provider_bridges_bulk_query.rc == 0
+  failed_when: false
 
-    - name: Log provider bridge {{ provider_bridge }} already present
-      debug:
-        msg: "Provider bridge {{ provider_bridge }} already exists"
-        verbosity: 1
-      when: ovs_provider_bridge_check.rc == 0
+- name: Determine provider bridges that need creation from bulk state
+  set_fact:
+    openvswitch_provider_bridges_missing: >-
+      {{ openvswitch_provider_bridges_to_manage
+         | reject('in', openvswitch_provider_bridge_state_map.keys() | list)
+         | list }}
+  changed_when: false
+  when:
+    - openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Reset provider bridge {{ provider_bridge }} fail_mode fact
-      set_fact:
-        provider_bridge_current_fail_mode: ''
-        provider_bridge_desired_fail_mode: >-
-          {{ ovs_provider_fail_mode | default('') | trim | lower }}
-      changed_when: false
+- name: Fallback provider bridge existence checks when bulk state is unavailable
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: "ovs-vsctl br-exists {{ item }}"
+  loop: "{{ openvswitch_provider_bridges_to_manage }}"
+  register: ovs_provider_bridge_fallback_checks
+  changed_when: false
+  failed_when: ovs_provider_bridge_fallback_checks.rc not in [0, 2]
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - not openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Get provider bridge {{ provider_bridge }} fail_mode
-      kolla_toolbox:
-        container_engine: "{{ kolla_container_engine }}"
-        user: root
-        module_name: command
-        module_args: "ovs-vsctl get Bridge {{ provider_bridge }} fail_mode"
-      register: ovs_provider_bridge_fail_mode
-      changed_when: false
-      failed_when: ovs_provider_bridge_fail_mode.rc not in [0, 2]
-      when: ovs_provider_bridge_check.rc == 0
+- name: Determine provider bridges that need creation from fallback checks
+  set_fact:
+    openvswitch_provider_bridges_missing: >-
+      {{ (ovs_provider_bridge_fallback_checks.results | default([]))
+         | rejectattr('rc', 'equalto', 0)
+         | map(attribute='item') | list }}
+  changed_when: false
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - not openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Store provider bridge {{ provider_bridge }} fail_mode value
-      set_fact:
-        provider_bridge_current_fail_mode: >-
-          {{ (ovs_provider_bridge_fail_mode.stdout | default('') | trim
-              | regex_replace('^\"', '')
-              | regex_replace('\"$', '')
-              | regex_replace("^'", '')
-              | regex_replace("'$", '')
-              | trim
-              | lower
-              | regex_replace('^(\\[\\]|null|none|nil|n/a|na|<nil>|\\(null\\))$', '')) }}
-      changed_when: false
-      when: ovs_provider_bridge_fail_mode is defined
+- name: Create missing provider bridges
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: "ovs-vsctl --may-exist add-br {{ item }}"
+  loop: "{{ openvswitch_provider_bridges_missing | default([]) }}"
+  register: ovs_provider_bridge_create_results
+  changed_when: ovs_provider_bridge_create_results.rc == 0
 
-    - name: Set provider bridge {{ provider_bridge }} fail_mode when required
-      kolla_toolbox:
-        container_engine: "{{ kolla_container_engine }}"
-        user: root
-        module_name: command
-        module_args: "ovs-vsctl set-fail-mode {{ provider_bridge }} {{ provider_bridge_desired_fail_mode }}"
-      register: ovs_provider_bridge_set_fail_mode
-      changed_when: provider_bridge_current_fail_mode != provider_bridge_desired_fail_mode
-      failed_when: ovs_provider_bridge_set_fail_mode.rc != 0
-      when:
-        - provider_bridge_desired_fail_mode | length > 0
-        - ovs_provider_bridge_check.rc != 0 or provider_bridge_current_fail_mode != provider_bridge_desired_fail_mode
+- name: Build provider bridge current fail_mode map from bulk state
+  set_fact:
+    openvswitch_provider_bridge_current_fail_mode_map: >-
+      {{ openvswitch_provider_bridge_current_fail_mode_map | default({})
+         | combine({
+             item: (
+               openvswitch_provider_bridge_state_map[item] | default('') | string | trim
+               | regex_replace('^"', '')
+               | regex_replace('"$', '')
+               | regex_replace("^'", '')
+               | regex_replace("'$", '')
+               | trim
+               | lower
+               | regex_replace('^(\[\]|null|none|nil|n/a|na|<nil>|\(null\))$', '')
+             )
+           }) }}
+  loop: "{{ openvswitch_provider_bridges_to_manage | difference(openvswitch_provider_bridges_missing | default([])) }}"
+  changed_when: false
+  when:
+    - openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Log provider bridge {{ provider_bridge }} fail_mode normalized evaluation
-      debug:
-        msg: >-
-          Normalized fail_mode comparison for {{ provider_bridge }}:
-          current='{{ provider_bridge_current_fail_mode }}',
-          desired='{{ provider_bridge_desired_fail_mode }}'
-        verbosity: 1
-      when: provider_bridge_desired_fail_mode | length > 0
+- name: Read provider bridge fail_mode via fallback checks
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: "ovs-vsctl get Bridge {{ item }} fail_mode"
+  loop: >-
+    {{ (ovs_provider_bridge_fallback_checks.results | default([]))
+       | selectattr('rc', 'equalto', 0)
+       | map(attribute='item') | list }}
+  register: ovs_provider_bridge_fallback_fail_mode
+  changed_when: false
+  failed_when: ovs_provider_bridge_fallback_fail_mode.rc not in [0, 2]
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - not openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Log provider bridge {{ provider_bridge }} fail_mode update
-      debug:
-        msg: "Updated provider bridge {{ provider_bridge }} fail_mode to {{ provider_bridge_desired_fail_mode }}"
-        verbosity: 1
-      when:
-        - ovs_provider_bridge_set_fail_mode is defined
-        - ovs_provider_bridge_set_fail_mode is changed
+- name: Build provider bridge current fail_mode map from fallback reads
+  set_fact:
+    openvswitch_provider_bridge_current_fail_mode_map: >-
+      {{ openvswitch_provider_bridge_current_fail_mode_map | default({})
+         | combine({
+             item.item: (
+               item.stdout | default('') | trim
+               | regex_replace('^"', '')
+               | regex_replace('"$', '')
+               | regex_replace("^'", '')
+               | regex_replace("'$", '')
+               | trim
+               | lower
+               | regex_replace('^(\[\]|null|none|nil|n/a|na|<nil>|\(null\))$', '')
+             )
+           }) }}
+  loop: "{{ ovs_provider_bridge_fallback_fail_mode.results | default([]) }}"
+  changed_when: false
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - not openvswitch_provider_bridge_bulk_available | bool
 
-    - name: Log provider bridge {{ provider_bridge }} fail_mode already set
-      debug:
-        msg: "Provider bridge {{ provider_bridge }} fail_mode already {{ provider_bridge_desired_fail_mode }}"
-        verbosity: 1
-      when:
-        - ovs_provider_bridge_check.rc == 0
-        - provider_bridge_desired_fail_mode | length > 0
-        - provider_bridge_current_fail_mode == provider_bridge_desired_fail_mode
+- name: Set provider bridge fail_mode when required
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: >-
+      ovs-vsctl set-fail-mode {{ item }} {{ openvswitch_provider_bridge_desired_fail_mode }}
+  loop: "{{ openvswitch_provider_bridges_to_manage }}"
+  register: ovs_provider_bridge_set_fail_mode_results
+  changed_when: >-
+    {{ (openvswitch_provider_bridge_current_fail_mode_map | default({})).get(item, '')
+       != openvswitch_provider_bridge_desired_fail_mode }}
+  failed_when: ovs_provider_bridge_set_fail_mode_results.rc != 0
+  when:
+    - openvswitch_provider_bridge_desired_fail_mode | length > 0
+    - (openvswitch_provider_bridge_current_fail_mode_map | default({})).get(item, '')
+      != openvswitch_provider_bridge_desired_fail_mode
+
+- name: Build changed provider bridge list
+  set_fact:
+    openvswitch_provider_bridges_changed: >-
+      {{ ((ovs_provider_bridge_create_results.results | default([])
+           | selectattr('changed', 'equalto', true)
+           | map(attribute='item') | list)
+         + (ovs_provider_bridge_set_fail_mode_results.results | default([])
+           | selectattr('changed', 'equalto', true)
+           | map(attribute='item') | list))
+         | unique | list }}
+  changed_when: false
+
+- name: Log provider bridge changes
+  debug:
+    msg: "Updated provider bridge {{ item }}"
+  loop: "{{ openvswitch_provider_bridges_changed | default([]) }}"
+  when: (openvswitch_provider_bridges_changed | default([])) | length > 0
+
+- name: Log unchanged provider bridges summary
+  debug:
+    msg: >-
+      Provider bridges already in desired state:
+      {{ openvswitch_provider_bridges_to_manage
+         | difference(openvswitch_provider_bridges_changed | default([])) | join(', ') }}
+    verbosity: 1
+  when:
+    - openvswitch_provider_bridges_to_manage | length > 0
+    - (openvswitch_provider_bridges_to_manage
+       | difference(openvswitch_provider_bridges_changed | default([]))
+       | length) > 0

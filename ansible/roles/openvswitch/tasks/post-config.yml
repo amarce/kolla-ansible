@@ -112,10 +112,6 @@
 
     - name: Ensure provider bridges exist with desired fail_mode
       include_tasks: provider_bridge.yml
-      loop: "{{ provider_bridges }}"
-      loop_control:
-        loop_var: provider_bridge
-        label: "{{ provider_bridge }}"
   when:
     - provider_bridges | length > 0
     - inventory_hostname in groups["network"]
