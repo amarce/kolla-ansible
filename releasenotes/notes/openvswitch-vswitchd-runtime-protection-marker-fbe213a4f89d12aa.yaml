@@ -1,0 +1,16 @@
+---
+features:
+  - |
+    Added persistent runtime protection for ``openvswitch_vswitchd`` using the
+    new ``openvswitch_vswitchd_runtime_marker_file`` marker. The marker is now
+    recorded only after successful container health verification in the
+    ``service-check-containers`` and ``service-start-order`` recovery paths.
+  - |
+    When ``openvswitch_vswitchd_protect_runtime`` is enabled and the marker
+    exists, ``service-check-containers`` and ``service-start-order`` no longer
+    restart or recreate ``openvswitch_vswitchd``. If the service is still
+    running, restart/recreate is skipped; if it is down, the roles switch to a
+    start-only recovery flow.
+  - |
+    Operators can override this maintenance safeguard by setting
+    ``openvswitch_vswitchd_break_glass=true``.

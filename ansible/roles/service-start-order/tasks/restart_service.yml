@@ -71,3 +71,26 @@
   when:
     - svc in kolla_service_one_shot
     - not one_shot_marker.stat.exists | default(false)
+
+
+- name: Ensure openvswitch runtime marker directory exists
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') | dirname }}"
+    state: directory
+    mode: "0755"
+  when:
+    - svc == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - svc_health is defined
+
+- name: Record openvswitch_vswitchd runtime marker after health check
+  become: true
+  file:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}"
+    state: touch
+    mode: "0644"
+  when:
+    - svc == 'openvswitch_vswitchd'
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - svc_health is defined

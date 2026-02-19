@@ -4,7 +4,7 @@ openvswitch_manage_vswitchd_container: true
 openvswitch_force_create_db_container: false
 openvswitch_db_socket: "/run/openvswitch/db.sock"
 openvswitch_vswitchd_protect_runtime: true
-openvswitch_vswitchd_runtime_marker_path: "/run/kolla/openvswitch-vswitchd-started"
+openvswitch_vswitchd_runtime_marker_file: "/run/kolla/openvswitch-vswitchd-started"
 openvswitch_vswitchd_break_glass: false
 
 openvswitch_services:

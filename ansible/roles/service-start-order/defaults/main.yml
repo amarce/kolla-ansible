@@ -23,8 +23,7 @@ kolla_changed_containers: []
 
 # Services protected from restart operations by this role. They may still be
 # started by ``start_service.yml`` when unhealthy or down.
-kolla_start_order_no_restart_services:
-  - openvswitch_vswitchd
+kolla_start_order_no_restart_services: []
 
 #####################
 # Service start wait behaviour

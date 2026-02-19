@@ -118,15 +118,82 @@
   set_fact:
     start_order_restart_services_requested: "{{ start_order_restart_services | default([]) }}"
 
+- name: Check openvswitch runtime marker
+  become: true
+  stat:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}"
+  register: start_order_openvswitch_runtime_marker
+  changed_when: false
+  when:
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - "'openvswitch_vswitchd' in (start_order_restart_services_requested | default([]))"
+
+- name: Gather openvswitch_vswitchd facts for runtime protection
+  become: true
+  kolla_container_facts:
+    action: get_containers
+    container_engine: "{{ kolla_container_engine }}"
+    name: openvswitch_vswitchd
+  register: start_order_openvswitch_facts
+  changed_when: false
+  failed_when: false
+  when:
+    - openvswitch_vswitchd_protect_runtime | default(true) | bool
+    - "'openvswitch_vswitchd' in (start_order_restart_services_requested | default([]))"
+
+- name: Evaluate openvswitch_vswitchd runtime protection state
+  set_fact:
+    start_order_openvswitch_runtime_marker_exists: "{{ (start_order_openvswitch_runtime_marker.stat.exists | default(false)) | bool }}"
+    start_order_openvswitch_running: >-
+      {{
+        start_order_openvswitch_facts.containers.get('openvswitch_vswitchd', {}).get('State', {}).get('Status') == 'running'
+      }}
+    start_order_openvswitch_runtime_protected: >-
+      {{
+        (start_order_openvswitch_runtime_marker.stat.exists | default(false) | bool)
+        and (openvswitch_vswitchd_protect_runtime | default(true) | bool)
+        and not (openvswitch_vswitchd_break_glass | default(false) | bool)
+      }}
+  when:
+    - "'openvswitch_vswitchd' in (start_order_restart_services_requested | default([]))"
+
+- name: Build runtime protected service list
+  set_fact:
+    start_order_runtime_protected_services: >-
+      {{
+        (kolla_start_order_no_restart_services | default([]))
+        + (['openvswitch_vswitchd'] if (start_order_openvswitch_runtime_protected | default(false) | bool) else [])
+      | unique }}
+
 - name: Filter protected services from restart list
   set_fact:
     start_order_restart_services: "{{ start_order_restart_services_requested |
-      difference(kolla_start_order_no_restart_services | default([])) }}"
+      difference(start_order_runtime_protected_services | default([])) }}"
+
+- name: Warn when runtime protection skips openvswitch_vswitchd restart
+  debug:
+    msg: >-
+      Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}
+      is present and openvswitch_vswitchd is running. Skipping restart/recreate in service-start-order.
+      Set openvswitch_vswitchd_break_glass=true to override this protection.
+  when:
+    - start_order_openvswitch_runtime_protected | default(false) | bool
+    - start_order_openvswitch_running | default(false) | bool
+
+- name: Warn when runtime protection enforces start-only recovery for openvswitch_vswitchd
+  debug:
+    msg: >-
+      Runtime protection marker {{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}
+      is present but openvswitch_vswitchd is not running. Skipping restart/recreate and allowing start-only
+      recovery. Set openvswitch_vswitchd_break_glass=true to override this protection.
+  when:
+    - start_order_openvswitch_runtime_protected | default(false) | bool
+    - not (start_order_openvswitch_running | default(false) | bool)
 
 - name: Log protected services skipped for restart
   debug:
-    msg: "Skipping restart for protected services per policy: {{ start_order_restart_services_requested | intersect(kolla_start_order_no_restart_services | default([])) }}"
-  when: (start_order_restart_services_requested | intersect(kolla_start_order_no_restart_services | default([])) | length) > 0
+    msg: "Skipping restart for protected services per policy: {{ start_order_restart_services_requested | intersect(start_order_runtime_protected_services | default([])) }}"
+  when: (start_order_restart_services_requested | intersect(start_order_runtime_protected_services | default([])) | length) > 0
 
 - name: Show restart candidates
   debug:
