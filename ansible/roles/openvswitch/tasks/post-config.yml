@@ -95,11 +95,27 @@
 - name: Ensure provider bridges exist with desired fail_mode
   vars:
     provider_bridges: "{{ neutron_bridge_name.split(',') | map('trim') | reject('equalto', '') | list }}"
-  include_tasks: provider_bridge.yml
-  loop: "{{ provider_bridges }}"
-  loop_control:
-    loop_var: provider_bridge
-    label: "{{ provider_bridge }}"
+    ovs_provider_fail_mode_effective: "{{ ovs_provider_fail_mode | default('') | trim | lower }}"
+  block:
+    - name: Log effective ovs_provider_fail_mode
+      debug:
+        msg: "Effective ovs_provider_fail_mode='{{ ovs_provider_fail_mode_effective }}'"
+        verbosity: 1
+
+    - name: Validate ovs_provider_fail_mode value
+      assert:
+        that:
+          - ovs_provider_fail_mode_effective in ['secure', 'standalone']
+        fail_msg: >-
+          ovs_provider_fail_mode must be either 'secure' or 'standalone',
+          got '{{ ovs_provider_fail_mode }}'.
+
+    - name: Ensure provider bridges exist with desired fail_mode
+      include_tasks: provider_bridge.yml
+      loop: "{{ provider_bridges }}"
+      loop_control:
+        loop_var: provider_bridge
+        label: "{{ provider_bridge }}"
   when:
     - provider_bridges | length > 0
     - inventory_hostname in groups["network"]
