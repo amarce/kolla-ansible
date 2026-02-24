@@ -1,0 +1,72 @@
+---
+- name: Initialize provider interface option state facts
+  set_fact:
+    provider_port_state: "{{ provider_port_state_preloaded | default({}) }}"
+
+- name: Collect provider interface {{ provider_port }} state
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: >-
+      ovs-vsctl --timeout=10 --format=json
+      --columns=name,tag,trunks,external_ids,other_config,type,options
+      find Port "name=\"{{ provider_port }}\""
+  register: ovs_provider_port_state
+  changed_when: false
+  failed_when: ovs_provider_port_state.rc not in [0]
+  when: provider_port_state | default({}) | length == 0
+
+- name: Parse provider interface {{ provider_port }} state
+  set_fact:
+    provider_port_state: >-
+      {{
+        (
+          (
+            (ovs_provider_port_state.get('stdout', '') | trim | length > 0)
+            | ternary((ovs_provider_port_state.get('stdout', '') | trim | from_json | ovsdb_rows), [])
+          )
+          | first
+        )
+        | default({})
+      }}
+  when:
+    - ovs_provider_port_state is defined
+    - not (ovs_provider_port_state.skipped | default(false))
+
+- name: Define provider interface {{ provider_port }} option field descriptors
+  set_fact:
+    provider_port_option_fields:
+      - field: tag
+        default: []
+      - field: trunks
+        default: []
+      - field: external_ids
+        default: {}
+      - field: other_config
+        default: {}
+      - field: type
+        default: ''
+      - field: options
+        default: {}
+
+- name: Configure provider interface {{ provider_port }} option fields
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: >-
+      ovs-vsctl --timeout=10 set Port {{ provider_port }}
+      "{{ provider_port_option.field }}={{ provider_port_options[provider_port_option.field] | default(provider_port_option.default, true) | to_ovsdb }}"
+  when:
+    - provider_port_options is mapping
+    - "provider_port_option.field in provider_port_options"
+    - (provider_port_state.get(provider_port_option.field) | default(provider_port_option.default) | ovsdb_canonical) != (provider_port_options[provider_port_option.field] | default(provider_port_option.default, true) | ovsdb_canonical)
+  loop: "{{ provider_port_option_fields | default([]) }}"
+  loop_control:
+    loop_var: provider_port_option
+    label: "{{ provider_port_option.field }}"
+  register: ovs_provider_port_set_fields
+  changed_when: true
