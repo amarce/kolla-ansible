@@ -140,6 +140,7 @@
     provider_bridges: "{{ (neutron_bridge_name | default('')).split(',') | map('trim') | reject('equalto', '') | list }}"
     provider_interfaces: "{{ (neutron_external_interface | default('')).split(',') | map('trim') | list }}"
     provider_port_options_map: "{{ openvswitch_provider_port_options | default({}) }}"
+    provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None }}"
   set_fact:
     openvswitch_provider_interface_mappings: "{{ openvswitch_provider_interface_mappings + [
       {
@@ -148,8 +149,6 @@
         'options': provider_port_options_map.get(provider_port, {})
       }
     ] }}"
-  vars:
-    provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None }}"
   loop: "{{ range(provider_bridges | length) | list }}"
   loop_control:
     loop_var: provider_index
