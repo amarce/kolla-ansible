@@ -30,10 +30,10 @@
       block:
         - name: Initialize provider interface state facts
           set_fact:
-            provider_port_current_bridge: ''
+            provider_port_current_bridge: "{{ provider_port_current_bridge_preloaded | default('') | trim }}"
             provider_port_state: "{{ provider_port_state_preloaded | default({}) }}"
 
-        - name: Get current bridge for provider interface {{ provider_port }}
+        - name: Get current bridge for provider interface {{ provider_port }} (compatibility fallback)
           become: true
           kolla_toolbox:
             container_engine: "{{ kolla_container_engine }}"
@@ -46,10 +46,14 @@
           register: ovs_provider_port_bridge
           changed_when: false
           failed_when: false
+          when: provider_port_current_bridge | length == 0
 
-        - name: Record provider interface {{ provider_port }} bridge membership
+        - name: Record provider interface {{ provider_port }} bridge membership from fallback command
           set_fact:
             provider_port_current_bridge: "{{ (ovs_provider_port_bridge.stdout | default('') | trim) if ovs_provider_port_bridge.rc == 0 else '' }}"
+          when:
+            - ovs_provider_port_bridge is defined
+            - not (ovs_provider_port_bridge.skipped | default(false))
 
         - name: Fail when provider interface {{ provider_port }} is attached to another bridge
           fail:
