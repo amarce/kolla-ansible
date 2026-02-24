@@ -209,6 +209,7 @@
   set_fact:
     openvswitch_provider_ports_unique: "{{ (openvswitch_provider_interface_attach_mappings | default([]) | map(attribute='port') | reject('equalto', '') | unique | list) }}"
     openvswitch_provider_port_state_map: {}
+    openvswitch_provider_port_bridge_map: {}
   when:
     - (openvswitch_provider_interface_attach_mappings | default([])) | length > 0
     - inventory_hostname in groups["network"]
@@ -226,6 +227,46 @@
       --columns=name,tag,trunks,external_ids,other_config,type,options
       list Port
   register: ovs_provider_ports_bulk_state
+  changed_when: false
+  failed_when: false
+  when:
+    - (openvswitch_provider_ports_unique | default([])) | length > 0
+    - ovsdb_reachable | bool
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Bulk query OVSDB Port UUID to name linkage
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: >-
+      ovs-vsctl --timeout=10 --format=json
+      --columns=_uuid,name
+      list Port
+  register: ovs_provider_ports_bulk_linkage
+  changed_when: false
+  failed_when: false
+  when:
+    - (openvswitch_provider_ports_unique | default([])) | length > 0
+    - ovsdb_reachable | bool
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Bulk query OVSDB Bridge to Port UUID linkage
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: >-
+      ovs-vsctl --timeout=10 --format=json
+      --columns=name,ports
+      list Bridge
+  register: ovs_provider_bridges_bulk_linkage
   changed_when: false
   failed_when: false
   when:
@@ -259,6 +300,47 @@
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
 
+- name: Build provider port preloaded bridge map from bulk query
+  vars:
+    openvswitch_bulk_port_rows: "{{ ovs_provider_ports_bulk_linkage.stdout | from_json | ovsdb_rows }}"
+    openvswitch_bulk_bridge_rows: "{{ ovs_provider_bridges_bulk_linkage.stdout | from_json | ovsdb_rows }}"
+    openvswitch_bulk_port_uuid_name_map: "{{ dict(openvswitch_bulk_port_rows | map(attribute='_uuid') | zip(openvswitch_bulk_port_rows | map(attribute='name'))) }}"
+    openvswitch_bulk_bridge_port_links: >-
+      {%- set ns = namespace(links=[]) -%}
+      {%- for bridge in openvswitch_bulk_bridge_rows -%}
+      {%- set bridge_ports = bridge.ports if (bridge.ports is sequence and bridge.ports is not string) else ([bridge.ports] if (bridge.ports is defined and bridge.ports is not none and (bridge.ports | string | length > 0)) else []) -%}
+      {%- for port_uuid in bridge_ports -%}
+      {%- set _ = ns.links.append({'bridge': bridge.name, 'port_uuid': port_uuid}) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ ns.links }}
+  set_fact:
+    openvswitch_provider_port_bridge_map: >-
+      {{
+        openvswitch_provider_port_bridge_map
+        | combine(
+            {
+              (openvswitch_bulk_port_uuid_name_map[provider_bridge_port_link.port_uuid]): provider_bridge_port_link.bridge
+            },
+            recursive=True
+          )
+      }}
+  loop: "{{ openvswitch_bulk_bridge_port_links }}"
+  loop_control:
+    loop_var: provider_bridge_port_link
+  when:
+    - ovs_provider_ports_bulk_linkage is defined
+    - ovs_provider_ports_bulk_linkage.rc == 0
+    - ovs_provider_ports_bulk_linkage.stdout | default('') | length > 0
+    - ovs_provider_bridges_bulk_linkage is defined
+    - ovs_provider_bridges_bulk_linkage.rc == 0
+    - ovs_provider_bridges_bulk_linkage.stdout | default('') | length > 0
+    - provider_bridge_port_link.port_uuid in openvswitch_bulk_port_uuid_name_map
+    - openvswitch_bulk_port_uuid_name_map[provider_bridge_port_link.port_uuid] in openvswitch_provider_ports_unique | default([])
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
 - name: Ensure provider bridge interfaces are attached
   include_tasks: provider_interface.yml
   loop: "{{ openvswitch_provider_interface_attach_mappings | default([]) }}"
@@ -271,6 +353,7 @@
     provider_port: "{{ provider_mapping.port | default('') }}"
     provider_port_options: "{{ provider_mapping.options | default({}) }}"
     provider_port_state_preloaded: "{{ openvswitch_provider_port_state_map.get(provider_mapping.port | default(''), {}) if openvswitch_provider_port_state_map is mapping else {} }}"
+    provider_port_current_bridge_preloaded: "{{ openvswitch_provider_port_bridge_map.get(provider_mapping.port | default(''), '') if openvswitch_provider_port_bridge_map is mapping else '' }}"
   when:
     - (openvswitch_provider_interface_attach_mappings | default([])) | length > 0
     - inventory_hostname in groups["network"]
