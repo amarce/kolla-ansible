@@ -134,6 +134,8 @@
     openvswitch_provider_interface_mappings: []
     openvswitch_provider_interface_self_mappings: []
     openvswitch_provider_interface_attach_mappings: []
+    openvswitch_provider_interface_attach_mappings_with_options: []
+    openvswitch_provider_interface_attach_mappings_without_options: []
 
 - name: Build provider bridge interface mappings
   vars:
@@ -184,6 +186,19 @@
     loop_var: provider_mapping
   when:
     - (openvswitch_provider_interface_mappings | default([])) | length > 0
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Split attachable provider mappings by option behavior
+  set_fact:
+    openvswitch_provider_interface_attach_mappings_with_options: "{{ openvswitch_provider_interface_attach_mappings_with_options + ([provider_mapping] if (provider_mapping.options | default({}) | length > 0) else []) }}"
+    openvswitch_provider_interface_attach_mappings_without_options: "{{ openvswitch_provider_interface_attach_mappings_without_options + ([provider_mapping] if (provider_mapping.options | default({}) | length == 0) else []) }}"
+  loop: "{{ openvswitch_provider_interface_attach_mappings | default([]) }}"
+  loop_control:
+    loop_var: provider_mapping
+  when:
+    - (openvswitch_provider_interface_attach_mappings | default([])) | length > 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
@@ -341,9 +356,28 @@
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
 
-- name: Ensure provider bridge interfaces are attached
+- name: Ensure provider bridge interfaces are attached (no options)
   include_tasks: provider_interface.yml
-  loop: "{{ openvswitch_provider_interface_attach_mappings | default([]) }}"
+  loop: "{{ openvswitch_provider_interface_attach_mappings_without_options | default([]) }}"
+  loop_control:
+    loop_var: provider_mapping
+    label: >-
+      {{ provider_mapping.bridge | default('') }} <- {{ provider_mapping.port | default('') }}
+  vars:
+    provider_bridge: "{{ provider_mapping.bridge | default('') }}"
+    provider_port: "{{ provider_mapping.port | default('') }}"
+    provider_interface_reconcile_options: false
+    provider_port_state_preloaded: "{{ openvswitch_provider_port_state_map.get(provider_mapping.port | default(''), {}) if openvswitch_provider_port_state_map is mapping else {} }}"
+    provider_port_current_bridge_preloaded: "{{ openvswitch_provider_port_bridge_map.get(provider_mapping.port | default(''), '') if openvswitch_provider_port_bridge_map is mapping else '' }}"
+  when:
+    - (openvswitch_provider_interface_attach_mappings_without_options | default([])) | length > 0
+    - inventory_hostname in groups["network"]
+      or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
+    - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
+
+- name: Ensure provider bridge interfaces are attached and options reconciled
+  include_tasks: provider_interface.yml
+  loop: "{{ openvswitch_provider_interface_attach_mappings_with_options | default([]) }}"
   loop_control:
     loop_var: provider_mapping
     label: >-
@@ -352,10 +386,11 @@
     provider_bridge: "{{ provider_mapping.bridge | default('') }}"
     provider_port: "{{ provider_mapping.port | default('') }}"
     provider_port_options: "{{ provider_mapping.options | default({}) }}"
+    provider_interface_reconcile_options: true
     provider_port_state_preloaded: "{{ openvswitch_provider_port_state_map.get(provider_mapping.port | default(''), {}) if openvswitch_provider_port_state_map is mapping else {} }}"
     provider_port_current_bridge_preloaded: "{{ openvswitch_provider_port_bridge_map.get(provider_mapping.port | default(''), '') if openvswitch_provider_port_bridge_map is mapping else '' }}"
   when:
-    - (openvswitch_provider_interface_attach_mappings | default([])) | length > 0
+    - (openvswitch_provider_interface_attach_mappings_with_options | default([])) | length > 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)

@@ -1,0 +1,59 @@
+---
+- name: Initialize provider interface attachment state facts
+  set_fact:
+    provider_port_current_bridge: "{{ provider_port_current_bridge_preloaded | default('') | trim }}"
+
+- name: Get current bridge for provider interface {{ provider_port }} (compatibility fallback)
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    # Older Open vSwitch releases (e.g. Mitaka era) do not support
+    # "--if-exists" for the introspection command "port-to-br". Treat
+    # a non-zero return code as "no bridge" instead of a fatal error.
+    module_args: "ovs-vsctl --timeout=10 port-to-br {{ provider_port }}"
+  register: ovs_provider_port_bridge
+  changed_when: false
+  failed_when: false
+  when: provider_port_current_bridge | length == 0
+
+- name: Record provider interface {{ provider_port }} bridge membership from fallback command
+  set_fact:
+    provider_port_current_bridge: "{{ (ovs_provider_port_bridge.stdout | default('') | trim) if ovs_provider_port_bridge.rc == 0 else '' }}"
+  when:
+    - ovs_provider_port_bridge is defined
+    - not (ovs_provider_port_bridge.skipped | default(false))
+
+- name: Fail when provider interface {{ provider_port }} is attached to another bridge
+  fail:
+    msg: >-
+      Provider interface {{ provider_port }} is currently attached to bridge {{ provider_port_current_bridge }} and cannot be moved automatically to {{ provider_bridge }}.
+  when:
+    - provider_port_current_bridge | length > 0
+    - provider_port_current_bridge != provider_bridge
+
+- name: Attach provider interface {{ provider_port }} to bridge {{ provider_bridge }}
+  become: true
+  kolla_toolbox:
+    container_engine: "{{ kolla_container_engine }}"
+    user: root
+    module_name: command
+    module_args: "ovs-vsctl --timeout=10 --may-exist add-port {{ provider_bridge }} {{ provider_port }}"
+  register: ovs_provider_bridge_attach
+  when: provider_port_current_bridge | length == 0
+  changed_when: provider_port_current_bridge | length == 0
+
+- name: Log provider interface {{ provider_port }} attachment to bridge {{ provider_bridge }}
+  debug:
+    msg: "Attached provider interface {{ provider_port }} to {{ provider_bridge }}"
+    verbosity: 1
+  when:
+    - ovs_provider_bridge_attach is defined
+    - ovs_provider_bridge_attach is changed
+
+- name: Log provider interface {{ provider_port }} already attached to {{ provider_bridge }}
+  debug:
+    msg: "Provider interface {{ provider_port }} already attached to {{ provider_bridge }}"
+    verbosity: 1
+  when: provider_port_current_bridge == provider_bridge
