@@ -107,8 +107,8 @@
               {{
                 (
                   (
-                    (ovs_provider_port_state.stdout | default('') | trim | length > 0)
-                    | ternary((ovs_provider_port_state.stdout | trim | from_json | ovsdb_rows), [])
+                    (ovs_provider_port_state.get('stdout', '') | trim | length > 0)
+                    | ternary((ovs_provider_port_state.get('stdout', '') | trim | from_json | ovsdb_rows), [])
                   )
                   | first
                 )
@@ -116,6 +116,7 @@
               }}
           when:
             - ovs_provider_port_state is defined
+            - not (ovs_provider_port_state.skipped | default(false))
 
         - name: Define provider interface {{ provider_port }} option field descriptors
           set_fact:
