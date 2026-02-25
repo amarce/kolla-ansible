@@ -189,6 +189,18 @@
   when:
     - "'openvswitch_vswitchd' in (start_order_restart_services_requested | default([]))"
 
+- name: Log openvswitch_vswitchd runtime protection decision inputs
+  debug:
+    msg:
+      openvswitch_vswitchd_runtime_marker_file: "{{ openvswitch_vswitchd_runtime_marker_file | default('/run/kolla/openvswitch-vswitchd-started') }}"
+      start_order_openvswitch_runtime_marker_exists: "{{ start_order_openvswitch_runtime_marker_exists | default(false) | bool }}"
+      openvswitch_vswitchd_protect_runtime: "{{ openvswitch_vswitchd_protect_runtime | default(true) | bool }}"
+      openvswitch_vswitchd_break_glass: "{{ openvswitch_vswitchd_break_glass | default(false) | bool }}"
+      start_order_openvswitch_running: "{{ start_order_openvswitch_running | default(false) | bool }}"
+      start_order_openvswitch_runtime_protected: "{{ start_order_openvswitch_runtime_protected | default(false) | bool }}"
+  when:
+    - "'openvswitch_vswitchd' in (start_order_restart_services_requested | default([]))"
+
 - name: Build runtime protected service list
   set_fact:
     start_order_runtime_protected_services: >-
