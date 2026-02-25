@@ -142,26 +142,22 @@
     provider_bridges: "{{ (neutron_bridge_name | default('')).split(',') | map('trim') | reject('equalto', '') | list }}"
     provider_interfaces: "{{ (neutron_external_interface | default('')).split(',') | map('trim') | list }}"
     provider_port_options_map: "{{ openvswitch_provider_port_options | default({}) }}"
+    provider_port: "{{ provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None }}"
+    provider_mapping:
+      bridge: "{{ provider_bridges[provider_index] }}"
+      port: "{{ provider_port }}"
+      options: "{{ provider_port_options_map.get(provider_port, {}) }}"
+      self_mapping: "{{ provider_bridges[provider_index] == provider_port }}"
   set_fact:
-    openvswitch_provider_interface_mappings: >-
-      {{
-        [
-          {
-            'bridge': provider_bridges[provider_index],
-            'port': provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None,
-            'options': provider_port_options_map.get(provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None, {}),
-            'self_mapping': provider_bridges[provider_index] == (provider_interfaces[provider_index] if provider_interfaces | length > provider_index else None)
-          }
-          for provider_index in range(provider_bridges | length)
-        ]
-        | rejectattr('bridge', 'none')
-        | rejectattr('port', 'none')
-        | rejectattr('bridge', 'equalto', '')
-        | rejectattr('port', 'equalto', '')
-        | list
-      }}
+    openvswitch_provider_interface_mappings: "{{ openvswitch_provider_interface_mappings + [provider_mapping] }}"
+  loop: "{{ range(provider_bridges | length) | list }}"
+  loop_control:
+    loop_var: provider_index
   when:
     - provider_bridges | length > 0
+    - provider_interfaces | length > provider_index
+    - provider_bridges[provider_index] | length > 0
+    - provider_interfaces[provider_index] | length > 0
     - inventory_hostname in groups["network"]
       or (inventory_hostname in groups["compute"] and computes_need_external_bridge | bool )
     - not (kolla_action == 'reconfigure' and not openvswitch_manage_provider_bridges_on_reconfigure | bool)
