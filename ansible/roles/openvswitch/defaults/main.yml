@@ -117,7 +117,7 @@ openvswitch_ovs_vsctl_wrapper_enabled: false
 # OpenvSwitch
 #############
 
-ovs_provider_fail_mode: standalone
+ovs_provider_fail_mode: secure
 openvswitch_require_explicit_provider_fail_mode: false
 openvswitch_manage_provider_bridges_on_reconfigure: true
 
