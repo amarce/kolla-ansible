@@ -84,3 +84,11 @@
         - ansible_facts.distribution == 'Ubuntu'
   when:
     - nova_compute_virt_type == 'kvm'
+
+- name: Stop and disable systemd-machined
+  become: true
+  systemd:
+    name: systemd-machined.service
+    state: stopped
+    enabled: false
+  failed_when: false
