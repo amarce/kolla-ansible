@@ -33,6 +33,7 @@ ExecStart=/usr/bin/${engine} start -a ${name}
 ExecStop=/usr/bin/${engine} stop -t ${graceful_timeout} ${name}
 Restart=${restart_policy}
 RestartSec=${restart_duration}
+KillMode=${kill_mode}
 SuccessExitStatus=143
 
 [Install]
@@ -94,7 +95,8 @@ class SystemdWorker(object):
             restart_policy=restart_policy,
             restart_timeout=restart_timeout,
             restart_retries=restart_retries,
-            restart_duration=restart_duration
+            restart_duration=restart_duration,
+            kill_mode=params.get('kill_mode', 'control-group')
         )
 
         # systemd

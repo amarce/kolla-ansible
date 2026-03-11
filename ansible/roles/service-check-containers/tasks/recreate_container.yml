@@ -20,3 +20,4 @@
     labels: "{{ service.labels | default(omit) }}"
     command: "{{ service.command | default(omit) }}"
     cgroupns_mode: "{{ service.cgroupns_mode | default(omit) }}"
+    kill_mode: "{{ service.kill_mode | default(omit) }}"

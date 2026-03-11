@@ -138,18 +138,29 @@ class TestSystemd(base.BaseTestCase):
         'kolla_systemd_worker.TEMPLATE',
         """${name}, ${restart_policy},
         ${graceful_timeout}, ${restart_timeout},
-        ${restart_retries}"""
+        ${restart_retries}, ${kill_mode}"""
     )
     def test_generate_unit_file(self):
         self.sw = swm.SystemdWorker(self.params_dict)
         p = self.params_dict
         ref_string = f"""{p.get('name')}, {p.get('restart_policy')},
         {p.get('graceful_timeout')}, {p.get('client_timeout')},
-        {p.get('restart_retries')}"""
+        {p.get('restart_retries')}, control-group"""
 
         ret_string = self.sw.generate_unit_file()
 
         self.assertEqual(ref_string, ret_string)
+
+    def test_generate_unit_file_default_kill_mode(self):
+        sw = swm.SystemdWorker(self.params_dict)
+        unit = sw.generate_unit_file()
+        self.assertIn('KillMode=control-group', unit)
+
+    def test_generate_unit_file_process_kill_mode(self):
+        params = dict(self.params_dict, kill_mode='process')
+        sw = swm.SystemdWorker(params)
+        unit = sw.generate_unit_file()
+        self.assertIn('KillMode=process', unit)
 
     def test_create_unit_file(self):
         self.sw.generate_unit_file = mock.Mock(return_value='test data')

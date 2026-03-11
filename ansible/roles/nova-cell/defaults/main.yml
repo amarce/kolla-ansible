@@ -10,6 +10,7 @@ nova_cell_services:
     pid_mode: "host"
     cgroupns_mode: "host"
     privileged: True
+    kill_mode: "process"
     volumes: "{{ (nova_libvirt_default_volumes + nova_libvirt_extra_volumes + lookup('vars', 'run_default_volumes_' + kolla_container_engine)) | reject('equalto','') | list }}"
     dimensions: "{{ nova_libvirt_dimensions }}"
     healthcheck: "{{ nova_libvirt_healthcheck }}"

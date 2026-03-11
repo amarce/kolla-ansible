@@ -102,6 +102,7 @@
     volumes: "{{ service.volumes | reject('equalto', '') | list }}"
     dimensions: "{{ service.dimensions }}"
     healthcheck: "{{ service.healthcheck | default(omit) }}"
+    kill_mode: "{{ service.kill_mode | default(omit) }}"
   register: restart_nova_libvirt
   # NOTE(Jeffrey4l): retry 5 to remove nova_libvirt container because when
   # guests running, nova_libvirt will raise error even though it is removed.
