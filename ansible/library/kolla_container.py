@@ -443,6 +443,9 @@ def generate_module():
         client_timeout=dict(required=False, type='int'),
         ignore_missing=dict(required=False, type='bool', default=False),
         podman_use_systemd=dict(required=False, type='bool', default=False),
+        kill_mode=dict(required=False, type='str',
+                       choices=['control-group', 'process', 'mixed', 'none'],
+                       default='control-group'),
     )
     required_if = [
         ['action', 'pull_image', ['image']],
