@@ -51,3 +51,26 @@
     - nova_compute_virt_type == 'kvm'
     - ansible_facts.distribution == 'Ubuntu'
     - inventory_hostname in groups[nova_cell_compute_group]
+
+# Ensure systemd-machined is available so that libvirtd can register QEMU
+# processes in machine.slice (a separate cgroup from the container). This
+# prevents QEMU processes from being killed when the nova_libvirt container
+# is restarted, since conmon only cleans up the container's cgroup scope.
+- name: Ensure systemd-container is installed for QEMU cgroup isolation
+  become: true
+  package:
+    name: systemd-container
+    state: present
+  when:
+    - enable_nova_libvirt_container | bool
+    - inventory_hostname in groups[nova_cell_compute_group]
+
+- name: Ensure systemd-machined is active for QEMU cgroup isolation
+  become: true
+  systemd:
+    name: systemd-machined.service
+    state: started
+    enabled: true
+  when:
+    - enable_nova_libvirt_container | bool
+    - inventory_hostname in groups[nova_cell_compute_group]
