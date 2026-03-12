@@ -171,6 +171,9 @@ run_v1() {
             [[ -L "${ctrl_dir%/}" ]] && continue
             ctrl=$(basename "$ctrl_dir")
             [[ "$ctrl" == "systemd" || "$ctrl" == "unified" ]] && continue
+            # Skip controllers already organized by the top section (cpu/cpuacct/cpuset)
+            # — writing cgroup.procs here would undo the per-thread placement
+            [[ -n "${seen[${ctrl_dir%/}]+x}" ]] && continue
 
             target="${ctrl_dir}clouding"
             mkdir -p "$target" 2>/dev/null || true
