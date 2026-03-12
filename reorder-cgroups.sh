@@ -186,19 +186,6 @@ run_v1() {
 #                          CGROUPS V2 FUNCTIONS
 ###############################################################################
 
-# Find which cgroup the container (our process) lives in.
-# On v2 everything is under /sys/fs/cgroup/<slice>/<scope>/
-find_container_cgroup_v2() {
-    local cg
-    cg=$(cat /proc/self/cgroup 2>/dev/null) || true
-    # v2 line is "0::/<path>"
-    if [[ "$cg" =~ 0::(/.*) ]]; then
-        echo "/sys/fs/cgroup${BASH_REMATCH[1]}"
-    else
-        echo "/sys/fs/cgroup"
-    fi
-}
-
 init_root_dirs_v2() {
     local base=$1 dir
 
@@ -295,15 +282,60 @@ run_v2() {
 }
 
 ###############################################################################
+# Cleanup: remove empty leaf cgroup dirs left behind after VMs stop.
+# On v1 the release_agent handles this, but it may miss dirs (e.g. across
+# controllers without a release_agent, or on v2 where release_agent doesn't
+# exist). This runs on every invocation as a safety net.
+###############################################################################
+cleanup_empty_dirs() {
+    local base=$1
+    [[ -d "$base/clouding" ]] || return 0
+
+    # Walk depth-first: deepest dirs first so parents become empty after
+    # children are removed. Only remove dirs inside emulators/ and vcpus/,
+    # never the structural dirs (clouding, emulators, vcpus themselves).
+    local dir
+    while IFS= read -r dir; do
+        # Skip the structural dirs we always want to keep
+        case "$dir" in
+            "$base/clouding"|"$base/clouding/emulators"|"$base/clouding/vcpus") continue ;;
+        esac
+        # A cgroup dir is empty if it has no tasks/threads and no child dirs
+        local has_tasks=0
+        if [[ -f "$dir/tasks" ]]; then
+            [[ -s "$dir/tasks" ]] && has_tasks=1
+        elif [[ -f "$dir/cgroup.threads" ]]; then
+            [[ -s "$dir/cgroup.threads" ]] && has_tasks=1
+        fi
+        if (( ! has_tasks )); then
+            # Check no child cgroup dirs exist (only pseudo-files remain)
+            local has_children=0
+            for child in "$dir"/*/; do
+                [[ -d "$child" ]] && { has_children=1; break; }
+            done
+            (( has_children )) || rmdir "$dir" 2>/dev/null || true
+        fi
+    done < <(find "$base/clouding/emulators" "$base/clouding/vcpus" \
+                  -mindepth 1 -type d 2>/dev/null | sort -r)
+}
+
+###############################################################################
 #                              MAIN
 ###############################################################################
 echo "Detected cgroups: $CGROUP_VERSION"
 
 case "$CGROUP_VERSION" in
     v1|hybrid)
+        # Cleanup stale dirs in all v1 controller mounts
+        for cg_mnt in /sys/fs/cgroup/*/; do
+            [[ -d "$cg_mnt" ]] || continue
+            [[ -L "${cg_mnt%/}" ]] && continue
+            cleanup_empty_dirs "${cg_mnt%/}"
+        done
         run_v1
         ;;
     v2)
+        cleanup_empty_dirs "/sys/fs/cgroup"
         run_v2
         ;;
 esac
