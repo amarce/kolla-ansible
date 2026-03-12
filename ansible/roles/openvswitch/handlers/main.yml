@@ -47,6 +47,17 @@
   retries: 30
   delay: 2
 
+- name: Check openvswitch_vswitchd runtime marker for handler
+  become: true
+  stat:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file }}"
+  register: _handler_vswitchd_runtime_marker
+  changed_when: false
+  failed_when: false
+  listen: Restart openvswitch-vswitchd container
+  when:
+    - openvswitch_vswitchd_protect_runtime | bool
+
 - name: Queue restart context for openvswitch-vswitchd
   vars:
     service_name: "openvswitch-vswitchd"
@@ -60,6 +71,12 @@
           | selectattr('container_name', 'equalto', service_def.container_name)
           | list
           | first) | default({}) }}
+    _handler_runtime_protected: >-
+      {{
+        (openvswitch_vswitchd_protect_runtime | bool)
+        and ((_handler_vswitchd_runtime_marker | default({})).get('stat', {}).get('exists', false) | bool)
+        and not (openvswitch_vswitchd_break_glass | bool)
+      }}
     _action_update: >-
       {{ (
            _existing_action | default({})
@@ -72,7 +89,8 @@
            'container_missing': _existing_action.container_missing | default(false),
            'container_needs_recreate': (_existing_action.container_needs_recreate | default(false)) or (_needs_recreate | bool),
            'unit_enabled': _existing_action.unit_enabled | default(false),
-           'needs_start': true
+           'needs_start': true,
+           'openvswitch_vswitchd_runtime_protection_active': _handler_runtime_protected | bool
          }, recursive=True) }}
   set_fact:
     service_check_pending_actions: "{{ (
