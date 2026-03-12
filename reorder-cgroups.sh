@@ -146,45 +146,38 @@ run_v1() {
         unset emu_tids
     done
 
-    # Move ALL PIDs out of our container's cgroup scope in EVERY v1 controller.
-    # This catches QEMU processes, kvm-* kernel threads, and anything else
-    # that would prevent podman from destroying the scope on restart.
+    # Move QEMU PIDs and their KVM kernel threads out of the container's
+    # cgroup scope in EVERY v1 controller. This prevents podman from killing
+    # VMs on restart, while leaving container processes (libvirtd, etc.) in
+    # the scope so podman can still manage them.
     #
-    # We find our container scope by reading /proc/self/cgroup, then for each
-    # controller we drain all PIDs from the scope (and its subdirs) into clouding/.
-    # For the cpu/cpuacct/cpuset controllers (already organized above), remaining
-    # PIDs (like kvm kernel threads) go to the clouding/ root.
-    local cgroup_line scope_path
-    while IFS= read -r cgroup_line; do
-        # v1 lines: "N:controller:/machine.slice/libpod-XXXX.scope/container"
-        [[ "$cgroup_line" =~ :(.+):(/machine\.slice/libpod-[^/]+\.scope) ]] || continue
-        scope_path="${BASH_REMATCH[2]}"
-        break
-    done < /proc/self/cgroup
+    # Collect: QEMU PIDs + kvm-* kernel threads (e.g. kvm-nx-lpage-recovery)
+    mapfile -t qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
+    local kvm_pids=()
+    local qpid
+    for qpid in "${qemu_pids[@]}"; do
+        [[ -n "$qpid" ]] || continue
+        # kvm kernel threads are named kvm-*-<qemu_pid>
+        mapfile -t -O "${#kvm_pids[@]}" kvm_pids < <(pgrep -f "kvm-.*-${qpid}$" 2>/dev/null || true)
+    done
+    local all_vm_pids=("${qemu_pids[@]}" "${kvm_pids[@]}")
 
-    if [[ -n "${scope_path:-}" ]]; then
-        local ctrl_dir ctrl target scope_dir pid
+    if (( ${#all_vm_pids[@]} > 0 )); then
+        local ctrl_dir ctrl target pid
         for ctrl_dir in /sys/fs/cgroup/*/; do
             [[ -d "$ctrl_dir" ]] || continue
             [[ -L "${ctrl_dir%/}" ]] && continue
             ctrl=$(basename "$ctrl_dir")
             [[ "$ctrl" == "systemd" || "$ctrl" == "unified" ]] && continue
 
-            scope_dir="${ctrl_dir%/}${scope_path}"
-            [[ -d "$scope_dir" ]] || continue
-
             target="${ctrl_dir}clouding"
             mkdir -p "$target" 2>/dev/null || true
 
-            # Drain all PIDs from the scope and its subdirs (e.g. container/)
-            local procs_file
-            while IFS= read -r procs_file; do
-                while IFS= read -r pid; do
-                    [[ -n "$pid" ]] || continue
-                    echo "$pid" >"$target/cgroup.procs" 2>/dev/null \
-                        || echo "$pid" >"$target/tasks" 2>/dev/null || true
-                done < "$procs_file"
-            done < <(find "$scope_dir" -name cgroup.procs 2>/dev/null)
+            for pid in "${all_vm_pids[@]}"; do
+                [[ -n "$pid" ]] || continue
+                echo "$pid" >"$target/cgroup.procs" 2>/dev/null \
+                    || echo "$pid" >"$target/tasks" 2>/dev/null || true
+            done
         done
     fi
 }
