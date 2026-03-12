@@ -1,5 +1,5 @@
 {
-    "command": "bash -c 'rm -f /run/libvirtd.pid && exec /usr/sbin/libvirtd --listen'",
+    "command": "/usr/sbin/libvirtd --listen",
     "config_files": [
         {
             "source": "{{ container_config_directory }}/libvirtd.conf",
