@@ -108,7 +108,7 @@ for qemu_pid in "${all_qemu_pids[@]}"; do
     for tid_dir in /proc/"$qemu_pid"/task/*/; do
         [[ -d "$tid_dir" ]] || continue
         tid=$(basename "$tid_dir")
-        comm=$(<"$tid_dir/comm" 2>/dev/null) || continue
+        comm=$(cat "$tid_dir/comm" 2>/dev/null) || continue
         if [[ "$comm" == *"/KVM" ]]; then
             # vCPU thread: "CPU 0/KVM", "CPU 1/KVM", etc.
             vcpu_num=${comm#CPU }
