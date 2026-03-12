@@ -66,7 +66,7 @@ move_pids() {
     echo 1 >"$dst/notify_on_release" 2>/dev/null || true
     local pid
     for pid in "$@"; do
-        echo "$pid" >"$dst/cgroup.procs" 2>/dev/null || true
+        echo "$pid" >"$dst/tasks" 2>/dev/null || true
     done
 }
 ###############################################################################
