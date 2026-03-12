@@ -146,6 +146,7 @@ mapfile -t qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
 if (( ${#qemu_pids[@]} > 0 )); then
     for ctrl_dir in /sys/fs/cgroup/*/; do
         [[ -d "$ctrl_dir" ]] || continue
+        [[ -L "${ctrl_dir%/}" ]] && continue  # skip symlinks (e.g. cpu → cpu,cpuacct)
         ctrl=$(basename "$ctrl_dir")
         # Skip systemd/unified (handled by systemd-machined) and already-handled mounts
         [[ "$ctrl" == "systemd" || "$ctrl" == "unified" ]] && continue
