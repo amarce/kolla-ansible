@@ -26,8 +26,6 @@
 set -euo pipefail
 shopt -s nullglob
 
-RELEASE_AGENT=/clouding/reorder-cgroups/release-agent.sh
-
 # v1 defaults
 DEFAULT_SHARES=1024      # "normal" weight for cpu.shares
 DEFAULT_QUOTA=-1         # no CFS hard cap
@@ -75,28 +73,18 @@ find_cg_mount() {
 
 init_root_dirs_v1() {
     local mnt=$1 dir
-    [[ -w $mnt/release_agent ]] && printf '%s\n' "$RELEASE_AGENT" >"$mnt/release_agent"
     for dir in "$mnt"/clouding{,/emulators,/vcpus}; do
         mkdir -p "$dir"
         [[ -w $dir/cpu.shares       ]] && echo "$DEFAULT_SHARES" >"$dir/cpu.shares"
         [[ -w $dir/cpu.cfs_quota_us ]] && echo "$DEFAULT_QUOTA"  >"$dir/cpu.cfs_quota_us"
         echo 1 >"$dir/cgroup.clone_children" 2>/dev/null || true
-        echo 1 >"$dir/notify_on_release"     2>/dev/null || true
     done
-}
-
-ensure_notify_recursive_v1() {
-    local mnt=$1 f
-    while IFS= read -r -d '' f; do
-        [[ $(<"$f") == 1 ]] || echo 1 >"$f"
-    done < <(find "$mnt/clouding" -type f -name notify_on_release -print0 2>/dev/null || true)
 }
 
 move_tids_v1() {
     local dst=$1; shift
     (( $# == 0 )) && return
     mkdir -p "$dst"
-    echo 1 >"$dst/notify_on_release" 2>/dev/null || true
     local tid
     for tid in "$@"; do
         echo "$tid" >"$dst/tasks" 2>/dev/null || true
@@ -116,8 +104,7 @@ run_v1() {
     [[ ${#seen[@]} -eq 0 ]] && { echo "no legacy controllers – nothing to do"; return; }
 
     for mnt in "${!seen[@]}"; do
-        init_root_dirs_v1          "$mnt"
-        ensure_notify_recursive_v1 "$mnt"
+        init_root_dirs_v1 "$mnt"
     done
     local all_mnts=("${!seen[@]}")
 
@@ -172,11 +159,11 @@ run_v1() {
 
             target="${ctrl_dir}clouding"
             mkdir -p "$target" 2>/dev/null || true
-            echo 1 >"$target/notify_on_release" 2>/dev/null || true
 
             for pid in "${qemu_pids[@]}"; do
                 [[ -n "$pid" ]] || continue
-                echo "$pid" >"$target/cgroup.procs" 2>/dev/null || true
+                echo "$pid" >"$target/cgroup.procs" 2>/dev/null \
+                    || echo "$pid" >"$target/tasks" 2>/dev/null || true
             done
         done
     fi
@@ -283,9 +270,8 @@ run_v2() {
 
 ###############################################################################
 # Cleanup: remove empty leaf cgroup dirs left behind after VMs stop.
-# On v1 the release_agent handles this, but it may miss dirs (e.g. across
-# controllers without a release_agent, or on v2 where release_agent doesn't
-# exist). This runs on every invocation as a safety net.
+# Runs on every invocation — walks depth-first so parent dirs become
+# removable after their children are cleaned.
 ###############################################################################
 cleanup_empty_dirs() {
     local base=$1
