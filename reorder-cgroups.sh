@@ -66,7 +66,7 @@ move_pids() {
     echo 1 >"$dst/notify_on_release" 2>/dev/null || true
     local pid
     for pid in "$@"; do
-        echo "$pid" >"$dst/tasks" 2>/dev/null || true
+        echo "$pid" >"$dst/cgroup.procs" 2>/dev/null || true
     done
 }
 ###############################################################################
@@ -88,16 +88,16 @@ all_mnts=("${!seen[@]}")
 
 declare -a epids vpids
 
-for vm_dir in "${all_mnts[0]}"/machine*/{qemu-*libvirt-qemu,machine-qemu*scope}; do
+for vm_dir in "${all_mnts[0]}"/machine.slice/machine-qemu*scope; do
     [[ -d $vm_dir ]] || continue
     vm_name=$(basename "$vm_dir")
 
-    mapfile -t epids < <(cat "$vm_dir"/emulator/{tasks,cgroup.procs} 2>/dev/null || true)
+    mapfile -t epids < <(cat "$vm_dir"/{,libvirt/}emulator/{tasks,cgroup.procs} 2>/dev/null || true)
     for mnt in "${all_mnts[@]}"; do
         move_pids "$mnt/clouding/emulators/$vm_name" "${epids[@]:-}"
     done
 
-    for vdir in "$vm_dir"/vcpu*; do
+    for vdir in "$vm_dir"/vcpu* "$vm_dir"/libvirt/vcpu*; do
         [[ -d $vdir ]] || continue
         vname=$(basename "$vdir")
         mapfile -t vpids < <(cat "$vdir"/{tasks,cgroup.procs} 2>/dev/null || true)
