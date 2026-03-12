@@ -127,7 +127,7 @@ if (( ${#qemu_pids[@]} > 0 )); then
         ctrl=$(basename "$ctrl_dir")
         # Skip systemd/unified (handled by systemd-machined) and already-handled mounts
         [[ "$ctrl" == "systemd" || "$ctrl" == "unified" ]] && continue
-        [[ -n "${seen[$ctrl_dir]+x}" ]] && continue
+        [[ -n "${seen[${ctrl_dir%/}]+x}" ]] && continue
 
         target="${ctrl_dir}clouding"
         mkdir -p "$target" 2>/dev/null || true
