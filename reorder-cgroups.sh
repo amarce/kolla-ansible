@@ -153,14 +153,16 @@ run_v1() {
     #
     # Collect: QEMU PIDs + kvm-* kernel threads (e.g. kvm-nx-lpage-recovery)
     mapfile -t qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
-    local kvm_pids=()
-    local qpid
+    local all_vm_pids=()
+    local qpid kvm_tid
     for qpid in "${qemu_pids[@]}"; do
         [[ -n "$qpid" ]] || continue
+        all_vm_pids+=("$qpid")
         # kvm kernel threads are named kvm-*-<qemu_pid>
-        mapfile -t -O "${#kvm_pids[@]}" kvm_pids < <(pgrep -f "kvm-.*-${qpid}$" 2>/dev/null || true)
+        while IFS= read -r kvm_tid; do
+            [[ -n "$kvm_tid" ]] && all_vm_pids+=("$kvm_tid")
+        done < <(pgrep -f "kvm-.*-${qpid}$" 2>/dev/null || true)
     done
-    local all_vm_pids=("${qemu_pids[@]}" "${kvm_pids[@]}")
 
     if (( ${#all_vm_pids[@]} > 0 )); then
         local ctrl_dir ctrl target pid
