@@ -86,25 +86,47 @@ for mnt in "${!seen[@]}"; do
 done
 all_mnts=("${!seen[@]}")
 
-declare -a epids vpids
+###############################################################################
+# Organize QEMU threads into emulators/<vm> and vcpus/<vm>-vcpuN.
+# Uses /proc to discover threads and classify by comm name, so it works
+# regardless of where threads currently sit in the cgroup hierarchy.
+###############################################################################
+mapfile -t all_qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
+for qemu_pid in "${all_qemu_pids[@]}"; do
+    [[ -n "$qemu_pid" && -d "/proc/$qemu_pid" ]] || continue
 
-for vm_dir in "${all_mnts[0]}"/machine.slice/machine-qemu*scope; do
-    [[ -d $vm_dir ]] || continue
-    vm_name=$(basename "$vm_dir")
+    # Extract VM instance name from QEMU command line: -name guest=instance-XXXXX,...
+    cmdline=$(< "/proc/$qemu_pid/cmdline" tr '\0' ' ' 2>/dev/null) || continue
+    if [[ "$cmdline" =~ -name\ guest=([^, ]+) ]]; then
+        vm_name="${BASH_REMATCH[1]}"
+    else
+        continue
+    fi
 
-    mapfile -t epids < <(cat "$vm_dir"/{,libvirt/}emulator/{tasks,cgroup.procs} 2>/dev/null || true)
+    # Classify threads by /proc/<pid>/task/<tid>/comm
+    declare -a emu_tids=()
+    for tid_dir in /proc/"$qemu_pid"/task/*/; do
+        [[ -d "$tid_dir" ]] || continue
+        tid=$(basename "$tid_dir")
+        comm=$(<"$tid_dir/comm" 2>/dev/null) || continue
+        if [[ "$comm" == *"/KVM" ]]; then
+            # vCPU thread: "CPU 0/KVM", "CPU 1/KVM", etc.
+            vcpu_num=${comm#CPU }
+            vcpu_num=${vcpu_num%/KVM}
+            vcpu_num=${vcpu_num// /}  # trim spaces
+            for mnt in "${all_mnts[@]}"; do
+                move_pids "$mnt/clouding/vcpus/${vm_name}-vcpu${vcpu_num}" "$tid"
+            done
+        else
+            emu_tids+=("$tid")
+        fi
+    done
+
+    # Move all non-vCPU threads (emulator, IO, workers) together
     for mnt in "${all_mnts[@]}"; do
-        move_pids "$mnt/clouding/emulators/$vm_name" "${epids[@]:-}"
+        move_pids "$mnt/clouding/emulators/$vm_name" "${emu_tids[@]:-}"
     done
-
-    for vdir in "$vm_dir"/vcpu* "$vm_dir"/libvirt/vcpu*; do
-        [[ -d $vdir ]] || continue
-        vname=$(basename "$vdir")
-        mapfile -t vpids < <(cat "$vdir"/{tasks,cgroup.procs} 2>/dev/null || true)
-        for mnt in "${all_mnts[@]}"; do
-            move_pids "$mnt/clouding/vcpus/${vm_name}-${vname}" "${vpids[@]:-}"
-        done
-    done
+    unset emu_tids
 done
 
 ###############################################################################
