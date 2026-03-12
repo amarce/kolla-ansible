@@ -135,7 +135,7 @@ if (( ${#qemu_pids[@]} > 0 )); then
 
         for pid in "${qemu_pids[@]}"; do
             [[ -n "$pid" ]] || continue
-            echo "$pid" >"$target/tasks" 2>/dev/null || true
+            echo "$pid" >"$target/cgroup.procs" 2>/dev/null || true
         done
     done
 fi
