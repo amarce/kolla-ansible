@@ -87,14 +87,12 @@ done
 all_mnts=("${!seen[@]}")
 
 declare -a epids vpids
-declare -a all_qemu_pids            # NEW: collect all QEMU PIDs for isolation
 
 for vm_dir in "${all_mnts[0]}"/machine*/{qemu-*libvirt-qemu,machine-qemu*scope}; do
     [[ -d $vm_dir ]] || continue
     vm_name=$(basename "$vm_dir")
 
     mapfile -t epids < <(cat "$vm_dir"/emulator/{tasks,cgroup.procs} 2>/dev/null || true)
-    all_qemu_pids+=("${epids[@]:-}")  # NEW
     for mnt in "${all_mnts[@]}"; do
         move_pids "$mnt/clouding/emulators/$vm_name" "${epids[@]:-}"
     done
@@ -103,7 +101,6 @@ for vm_dir in "${all_mnts[0]}"/machine*/{qemu-*libvirt-qemu,machine-qemu*scope};
         [[ -d $vdir ]] || continue
         vname=$(basename "$vdir")
         mapfile -t vpids < <(cat "$vdir"/{tasks,cgroup.procs} 2>/dev/null || true)
-        all_qemu_pids+=("${vpids[@]:-}")  # NEW
         for mnt in "${all_mnts[@]}"; do
             move_pids "$mnt/clouding/vcpus/${vm_name}-${vname}" "${vpids[@]:-}"
         done
@@ -119,8 +116,12 @@ done
 # above. But podman uses other controllers (typically pids or freezer) to
 # track container processes. By moving QEMU PIDs to clouding/ in those
 # controllers too, podman stop/restart will no longer kill running VMs.
+#
+# We use pgrep to find QEMU PIDs directly rather than relying on the
+# cgroup directory structure (which varies across libvirt versions).
 ###############################################################################
-if (( ${#all_qemu_pids[@]} > 0 )); then
+mapfile -t qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
+if (( ${#qemu_pids[@]} > 0 )); then
     for ctrl_dir in /sys/fs/cgroup/*/; do
         [[ -d "$ctrl_dir" ]] || continue
         ctrl=$(basename "$ctrl_dir")
@@ -132,7 +133,7 @@ if (( ${#all_qemu_pids[@]} > 0 )); then
         mkdir -p "$target" 2>/dev/null || true
         echo 1 >"$target/notify_on_release" 2>/dev/null || true
 
-        for pid in "${all_qemu_pids[@]}"; do
+        for pid in "${qemu_pids[@]}"; do
             [[ -n "$pid" ]] || continue
             echo "$pid" >"$target/tasks" 2>/dev/null || true
         done
