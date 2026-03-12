@@ -194,12 +194,7 @@ run_v1() {
 init_root_dirs_v2() {
     local base=$1 dir
 
-    # Enable controllers in the parent so children can use them
-    # We need cpu and cpuset at minimum
-    local available
-    available=$(cat "$base/cgroup.subtree_control" 2>/dev/null) || true
-
-    # Enable all available controllers for the subtree
+    # Enable threaded controllers (cpu, cpuset) in the parent
     local controllers
     controllers=$(cat "$base/cgroup.controllers" 2>/dev/null) || true
     for ctl in $controllers; do
@@ -208,19 +203,24 @@ init_root_dirs_v2() {
 
     mkdir -p "$base/clouding"
 
-    # Enable controllers in clouding/ subtree
-    controllers=$(cat "$base/clouding/cgroup.controllers" 2>/dev/null) || true
-    for ctl in $controllers; do
+    # Enable cpu in clouding/'s subtree BEFORE creating children
+    for ctl in cpu cpuset; do
         echo "+$ctl" >"$base/clouding/cgroup.subtree_control" 2>/dev/null || true
     done
 
-    # Make clouding/ a threaded subtree — this allows per-thread placement
-    # and avoids the "no internal processes" rule
-    echo "threaded" >"$base/clouding/cgroup.type" 2>/dev/null || true
+    # Create first child and set it to "threaded" — this makes clouding/
+    # become "domain threaded" (the threaded subtree root). All subsequent
+    # children will automatically inherit "threaded" type.
+    mkdir -p "$base/clouding/emulators"
+    echo "threaded" >"$base/clouding/emulators/cgroup.type" 2>/dev/null || true
+    # Now clouding/ should be "domain threaded"
+
+    mkdir -p "$base/clouding/vcpus"
+    # vcpus/ auto-inherits "threaded" since parent is now "domain threaded"
+    # but set explicitly in case it was created before the parent became threaded
+    echo "threaded" >"$base/clouding/vcpus/cgroup.type" 2>/dev/null || true
 
     for dir in "$base"/clouding/{emulators,vcpus}; do
-        mkdir -p "$dir"
-        echo "threaded" >"$dir/cgroup.type" 2>/dev/null || true
         [[ -w $dir/cpu.weight ]] && echo "$DEFAULT_WEIGHT" >"$dir/cpu.weight"
     done
 }
@@ -240,11 +240,8 @@ move_tids_v2() {
 run_v2() {
     local base="/sys/fs/cgroup"
 
-    # On pure v2, we create our tree directly under /sys/fs/cgroup
-    # The container cgroup is somewhere deeper; we move QEMU threads up and out
     init_root_dirs_v2 "$base"
 
-    # Organize QEMU threads into emulators/<vm> and vcpus/<vm>-vcpuN
     mapfile -t all_qemu_pids < <(pgrep -f 'qemu-system' 2>/dev/null || true)
     (( ${#all_qemu_pids[@]} == 0 )) && { echo "no QEMU processes found"; return; }
 
@@ -260,6 +257,12 @@ run_v2() {
             continue
         fi
 
+        # Step 1: Move the whole process into clouding/ (the threaded domain
+        # root) via cgroup.procs. This associates all threads with the
+        # threaded subtree so we can distribute them individually.
+        echo "$qemu_pid" >"$base/clouding/cgroup.procs" 2>/dev/null || true
+
+        # Step 2: Distribute threads into emulators/<vm> and vcpus/<vm>-vcpuN
         declare -a emu_tids=()
         local tid_dir
         for tid_dir in /proc/"$qemu_pid"/task/*/; do
@@ -280,9 +283,15 @@ run_v2() {
         unset emu_tids
     done
 
-    # On v2, moving threads to clouding/ subtree already takes them out of
-    # the container's cgroup (single hierarchy). No extra per-controller
-    # loop needed — that's the beauty of unified v2.
+    # Also move kvm-* kernel threads to clouding/
+    for qemu_pid in "${all_qemu_pids[@]}"; do
+        [[ -n "$qemu_pid" ]] || continue
+        local kvm_tid
+        while IFS= read -r kvm_tid; do
+            [[ -n "$kvm_tid" ]] && echo "$kvm_tid" >"$base/clouding/cgroup.procs" 2>/dev/null || true
+        done < <(pgrep -f "kvm-.*-${qemu_pid}$" 2>/dev/null || true)
+    done
+
     echo "v2: QEMU threads organized under $base/clouding/"
 }
 
