@@ -13,7 +13,7 @@ plugin = SourceFileLoader('kolla_container_action', plugin_file).load_module()
 @mock.patch('ansible.plugins.action.ActionBase.run', return_value={})
 def test_changed_container_is_queued(mock_run):
     action = plugin.ActionModule.__new__(plugin.ActionModule)
-    action._task = mock.Mock(args={'name': 'nova-api'})
+    action._task = mock.Mock(args={'name': 'nova-api', 'action': 'start_container'})
     action._execute_module = mock.Mock(return_value={'changed': True})
 
     result = action.run(task_vars={'kolla_changed_containers': []})
@@ -25,8 +25,20 @@ def test_changed_container_is_queued(mock_run):
 @mock.patch('ansible.plugins.action.ActionBase.run', return_value={})
 def test_unchanged_container_is_not_queued(mock_run):
     action = plugin.ActionModule.__new__(plugin.ActionModule)
-    action._task = mock.Mock(args={'name': 'nova-api'})
+    action._task = mock.Mock(args={'name': 'nova-api', 'action': 'start_container'})
     action._execute_module = mock.Mock(return_value={'changed': False})
+
+    result = action.run(task_vars={'kolla_changed_containers': []})
+
+    assert 'ansible_facts' not in result
+    assert 'ansible_facts_cacheable' not in result
+
+
+@mock.patch('ansible.plugins.action.ActionBase.run', return_value={})
+def test_compare_container_does_not_queue(mock_run):
+    action = plugin.ActionModule.__new__(plugin.ActionModule)
+    action._task = mock.Mock(args={'name': 'nova-api', 'action': 'compare_container'})
+    action._execute_module = mock.Mock(return_value={'changed': True})
 
     result = action.run(task_vars={'kolla_changed_containers': []})
 
