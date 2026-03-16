@@ -899,6 +899,13 @@ class ContainerWorker(ABC):
         # container recreation during deploys and reconfigures.
         if new_state == "exited" and current_state in ("configured", "created"):
             return False
+        # When start is False, the caller only wants the container to exist
+        # (not necessarily running).  Accept any non-removed state as
+        # matching so we don't needlessly recreate containers like
+        # neutron-ovs-cleanup that are created with start=false.
+        if not self.params.get("start", True):
+            if current_state in ("configured", "created", "exited", "stopped"):
+                return False
         if new_state != current_state:
             return True
 
