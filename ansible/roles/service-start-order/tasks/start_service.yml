@@ -11,6 +11,14 @@
     path: "/etc/systemd/system/{{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
   register: service_unit
 
+- name: Check if {{ item }} systemd unit is active
+  become: true
+  command: "systemctl is-active --quiet {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
+  register: svc_unit_active
+  changed_when: false
+  failed_when: false
+  when: service_unit.stat.exists
+
 - name: Gather {{ item }} container facts
   become: true
   kolla_container_facts:
@@ -21,8 +29,15 @@
 
 - name: Evaluate {{ item }} container state
   set_fact:
-    svc_running: "{{ (item in svc_facts.containers and svc_facts.containers[item]['State']['Status'] == 'running') | bool }}"
-    svc_healthy: "{{ (item in svc_facts.containers and (svc_facts.containers[item]['State']['Health']['Status'] | default('healthy')) == 'healthy') | bool }}"
+    svc_running: >-
+      {{ (
+        (svc_unit_active.rc | default(3) == 0)
+        or (svc_facts.containers.get(item, {}).get('State', {}).get('Status') == 'running')
+      ) | bool }}
+    svc_healthy: >-
+      {{ (
+        (svc_facts.containers.get(item, {}).get('State', {}).get('Health', {}).get('Status', 'healthy')) == 'healthy'
+      ) | bool }}
 
 - name: Stop Podman-started {{ item }} container
   become: true
@@ -33,7 +48,7 @@
   when:
     - kolla_container_engine == 'podman'
     - service_unit.stat.exists
-    - not (svc_running and svc_healthy)
+    - not (svc_running | bool and svc_healthy | bool)
     - item not in kolla_service_one_shot or not one_shot_marker.stat.exists | default(false)
 
 - name: Start {{ item }} service
@@ -48,7 +63,7 @@
       when:
         - item not in kolla_service_one_shot or not one_shot_marker.stat.exists | default(false)
         - service_unit.stat.exists
-        - not (svc_running and svc_healthy)
+        - not (svc_running | bool and svc_healthy | bool)
   rescue:
     - name: Show {{ item }} service status
       command: "systemctl status {{ kolla_service_unit_prefix }}{{ item }}{{ kolla_service_unit_suffix }}.service"
@@ -81,7 +96,7 @@
     - (svc_health.containers.get(item, {}).get('State', {}).get('Health', {}).get('Status', 'healthy')) == 'healthy'
   when:
     - service_unit.stat.exists
-    - not (svc_running and svc_healthy)
+    - not (svc_running | bool and svc_healthy | bool)
     - item not in kolla_service_one_shot
 
 - name: Wait for {{ item }} to finish
@@ -98,7 +113,7 @@
     - item in kolla_service_one_shot
     - service_unit.stat.exists
     - not one_shot_marker.stat.exists | default(false)
-    - not (svc_running and svc_healthy)
+    - not (svc_running | bool and svc_healthy | bool)
 
 
 - name: Ensure openvswitch runtime marker directory exists
