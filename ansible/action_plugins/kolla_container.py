@@ -25,7 +25,13 @@ class ActionModule(ActionBase):
         )
         result.update(action_result)
 
-        if action_result.get('changed') and name:
+        action = module_args.get('action', '')
+        # Only track containers that were actually modified, not read-only
+        # comparisons. compare_container reports changed=True when drift is
+        # detected but does not modify the container itself.
+        read_only_actions = ('compare_container', 'compare_image')
+        if (action_result.get('changed') and name
+                and action not in read_only_actions):
             svc = name.replace('-', '_')
             current = task_vars.get('kolla_changed_containers', []) or []
             if svc not in current:
