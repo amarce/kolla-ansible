@@ -1,4 +1,23 @@
 ---
+- name: Check openvswitch_vswitchd runtime marker for ensure-containers
+  become: true
+  stat:
+    path: "{{ openvswitch_vswitchd_runtime_marker_file }}"
+  register: ensure_vswitchd_runtime_marker
+  changed_when: false
+  failed_when: false
+  when:
+    - openvswitch_vswitchd_protect_runtime | bool
+
+- name: Set openvswitch_vswitchd runtime protection fact for ensure-containers
+  set_fact:
+    ensure_vswitchd_runtime_protected: >-
+      {{
+        (openvswitch_vswitchd_protect_runtime | bool)
+        and (ensure_vswitchd_runtime_marker.stat.exists | default(false) | bool)
+        and not (openvswitch_vswitchd_break_glass | bool)
+      }}
+
 - name: Ensure Open vSwitch containers exist before systemd and post-config
   include_tasks: roles/common/tasks/_ensure_service_container.yml
   vars:
@@ -7,7 +26,11 @@
     ensure_container_action: >-
       {{ 'recreate_container'
          if item.key == 'openvswitch-db-server' and openvswitch_force_create_db_container | bool
-         else 'recreate_or_restart_container' }}
+         else (
+           'start_container'
+           if item.key == 'openvswitch-vswitchd' and ensure_vswitchd_runtime_protected | bool
+           else 'recreate_or_restart_container'
+         ) }}
   loop: "{{ openvswitch_services | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
